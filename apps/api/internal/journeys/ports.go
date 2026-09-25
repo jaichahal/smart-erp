@@ -59,6 +59,11 @@ type Providers struct {
 
 type providerKey struct{}
 
+func providersPresent(ctx context.Context) bool {
+	_, ok := ctx.Value(providerKey{}).(Providers)
+	return ok
+}
+
 // WithProviders attaches neighbouring-module ports to the request context.
 func WithProviders(ctx context.Context, p Providers) context.Context {
 	return context.WithValue(ctx, providerKey{}, p)

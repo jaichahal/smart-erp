@@ -22,6 +22,14 @@ import (
 func Mount(r chi.Router, deps httpx.Deps) {
 	h := &handler{deps: deps}
 	r.Route("/journeys", func(r chi.Router) {
+		r.Use(func(next http.Handler) http.Handler {
+			return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+				if !providersPresent(req.Context()) {
+					req = req.WithContext(WithProviders(req.Context(), PostgresProviders(deps.Pool)))
+				}
+				next.ServeHTTP(w, req)
+			})
+		})
 		r.Get("/", h.list)
 		r.Get("/instances/{id}", h.get)
 		r.With(idempotency.Middleware(deps.Pool)).Post("/instances/{id}/step", h.step)

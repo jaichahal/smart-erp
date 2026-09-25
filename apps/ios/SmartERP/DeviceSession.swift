@@ -6,6 +6,24 @@ enum DeviceSession {
         try await open(loginName: loginName, password: password).name
     }
 
+    static func verifyPhoneCode(phone: String, code: String) async -> String {
+        let base = HealthClient.baseURL().absoluteString.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+        do {
+            let session = try await post("\(base)/api/v1/auth/session", ["login_name": phone])
+            guard let id = session["session_id"] as? String, !id.isEmpty else {
+                return "HTTP session id missing"
+            }
+            let checked = try await post("\(base)/api/v1/auth/session/\(id)/check", ["totp": code])
+            if (checked["verified"] as? Bool) == true {
+                return "verified"
+            }
+            return "HTTP session was not verified"
+        } catch {
+            let text = String(describing: error)
+            return text.contains("HTTP") ? text : "HTTP \(text)"
+        }
+    }
+
     static func open(loginName: String, password: String) async throws -> APISession {
         let base = HealthClient.baseURL().absoluteString.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
         let key = P256.Signing.PrivateKey()

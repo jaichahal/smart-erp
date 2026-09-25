@@ -21,6 +21,10 @@ enum HealthClient {
            let url = URL(string: args[index + 1]) {
             return url
         }
+        let saved = UserDefaults.standard.string(forKey: "smarterp-server") ?? ""
+        if !saved.isEmpty, let url = URL(string: saved) {
+            return url
+        }
         return URL(string: "http://127.0.0.1:8080")!
     }
 

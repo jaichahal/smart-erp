@@ -56,10 +56,13 @@ final class JourneyUITests: XCTestCase {
     }
 
     private func signIn(_ app: XCUIApplication) {
-        let login = app.textFields["login-name"]
+        let login = app.buttons["use-work-email"]
         XCTAssertTrue(login.waitForExistence(timeout: 10))
         login.tap()
-        login.typeText("admin@dev.localhost")
+        let email = app.textFields["login-name"]
+        XCTAssertTrue(email.waitForExistence(timeout: 10))
+        email.tap()
+        email.typeText("admin@dev.localhost")
         let password = app.secureTextFields["password"]
         XCTAssertTrue(password.waitForExistence(timeout: 5))
         password.tap()

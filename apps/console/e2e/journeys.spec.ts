@@ -29,6 +29,7 @@ ON CONFLICT (login_name) DO UPDATE SET display_name = EXCLUDED.display_name, rol
 async function signIn(page: Page): Promise<void> {
   seedDirectoryUser();
   await page.goto("/");
+  await page.getByRole("button", { name: "Use work email" }).click();
   await page.getByLabel("Login name").fill("admin@dev.localhost");
   await page.getByLabel("Password").fill(devPassword());
   await page.getByRole("button", { name: "Sign in" }).click();

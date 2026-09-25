@@ -55,6 +55,28 @@ button { cursor: pointer; }
 
 .row { display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; }
 
+.skeleton { min-height: 44px; background: var(--line); border-radius: 8px; }
+
+:root[data-theme="light"] {
+  --ink: #0f172a;
+  --surface: #ffffff;
+  --canvas: #f5f5f7;
+  --line: #e5e5ea;
+  --positive: #047857;
+  --alert: #b91c1c;
+  --muted: #334155;
+}
+
+:root[data-theme="dark"] {
+  --ink: #ffffff;
+  --surface: #000000;
+  --canvas: #000000;
+  --line: #334155;
+  --positive: #6ee7b7;
+  --alert: #fca5a5;
+  --muted: #f8fafc;
+}
+
 .shell { display: flex; background: var(--canvas); }
 
 .rail {

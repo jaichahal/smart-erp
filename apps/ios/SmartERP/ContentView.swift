@@ -8,16 +8,23 @@ struct ContentView: View {
     @State private var showPassword = false
     @State private var session: APISession?
     @State private var errorLine = ""
+    @State private var mode = "phone"
+    @AppStorage("smarterp-theme") private var theme = "system"
+    @AppStorage("smarterp-direction") private var direction = "ltr"
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Smart ERP")
                 .font(.largeTitle)
                 .accessibilityIdentifier("app-title")
+            Text(theme == "dark" ? "dark" : theme == "light" ? "light" : "system")
+                .accessibilityIdentifier("theme-applied")
             Text(statusLine)
                 .accessibilityIdentifier("api-status")
             if let session {
                 SignedInHome(session: session)
+            } else if mode == "phone" {
+                PhoneOnboarding { mode = "email" }
             } else {
                 TextField("Login name", text: $loginName)
                     .textInputAutocapitalization(.never)
@@ -60,6 +67,9 @@ struct ContentView: View {
         }
         .padding()
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .background(theme == "dark" ? Color.black : Color.white)
+        .preferredColorScheme(theme == "dark" ? .dark : theme == "light" ? .light : nil)
+        .environment(\.layoutDirection, direction == "rtl" ? .rightToLeft : .leftToRight)
         .task {
             await loadHealth()
         }

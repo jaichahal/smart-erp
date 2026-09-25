@@ -1,6 +1,6 @@
 import { FormEvent, PointerEvent, useEffect, useRef, useState } from "react";
 import { DragSheet, homeKind, HomeKind, sheetForDrag } from "./home";
-import { ApiError, apiSend, Profile, signIn } from "./session";
+import { ApiError, apiSend, Profile, signIn, verifyPhoneCode } from "./session";
 
 type Money = { amount?: string; currency?: string };
 type Actor = { id?: string; name?: string };
@@ -22,7 +22,7 @@ type ApprovalDetail = ApprovalCard & {
 };
 type Sheet = { kind: DragSheet; card: ApprovalCard };
 
-const nav = ["Work", "Documents", "Money", "Stock", "Reports", "Admin"];
+const nav = ["Work", "Documents", "Money", "Stock", "Reports", "Admin", "Settings"];
 
 export function App() {
   const [loginName, setLoginName] = useState("");
@@ -30,6 +30,19 @@ export function App() {
   const [showPassword, setShowPassword] = useState(false);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [error, setError] = useState("");
+  const [mode, setMode] = useState<"phone" | "email">("phone");
+  const [step, setStep] = useState<"phone" | "code">("phone");
+  const [country, setCountry] = useState("+971");
+  const [phone, setPhone] = useState("");
+  const [otp, setOtp] = useState("");
+  const [otpError, setOtpError] = useState("");
+  const [theme, setTheme] = useState(() => localStorage.getItem("smarterp-theme") || "system");
+
+  useEffect(() => {
+    localStorage.setItem("smarterp-theme", theme);
+    if (theme === "system") delete document.documentElement.dataset.theme;
+    else document.documentElement.dataset.theme = theme;
+  }, [theme]);
 
   async function onSubmit(event: FormEvent) {
     event.preventDefault();
@@ -46,7 +59,50 @@ export function App() {
     <main>
       <h1>Smart ERP</h1>
       {profile ? (
-        <Shell profile={profile} />
+        <Shell profile={profile} theme={theme} setTheme={setTheme} />
+      ) : mode === "phone" ? (
+        <section className="sign-in" data-testid="phone-onboarding">
+          {step === "phone" ? (
+            <>
+              <p data-testid="onboarding-progress">1 of 3</p>
+              <h2>What is your mobile number?</h2>
+              <div className="row">
+                {["+971", "+91", "+44", "+1"].map((item) => (
+                  <button key={item} type="button" aria-pressed={country === item} data-testid={country === item ? "country-code" : undefined} onClick={() => setCountry(item)}>
+                    {item}
+                  </button>
+                ))}
+              </div>
+              <label>
+                Phone number
+                <input value={phone} inputMode="tel" autoComplete="tel" onChange={(event) => setPhone(event.target.value.replace(/\D/g, ""))} />
+              </label>
+              <button type="button" disabled={phone.length < 7} onClick={() => setStep("code")}>Continue</button>
+              <button type="button" onClick={() => setMode("email")}>Use work email</button>
+            </>
+          ) : (
+            <>
+              <p data-testid="onboarding-progress">2 of 3</p>
+              <h2>Enter the code sent to {country} {phone}</h2>
+              <label>
+                Code
+                <input value={otp} inputMode="numeric" autoComplete="one-time-code" onChange={(event) => setOtp(event.target.value.replace(/\D/g, "").slice(0, 6))} />
+              </label>
+              <button
+                type="button"
+                disabled={otp.length < 4}
+                onClick={() => {
+                  void verifyPhoneCode(`${country}${phone}`, otp).then((result) => {
+                    if (result !== "verified") setOtpError(result);
+                  });
+                }}
+              >
+                Verify code
+              </button>
+              {otpError ? <p role="alert" data-testid="otp-error">{otpError}</p> : null}
+            </>
+          )}
+        </section>
       ) : (
         <form className="sign-in" onSubmit={onSubmit}>
           <label>
@@ -73,7 +129,7 @@ export function App() {
   );
 }
 
-function Shell({ profile }: { profile: Profile }) {
+function Shell({ profile, theme, setTheme }: { profile: Profile; theme: string; setTheme: (value: string) => void }) {
   const [section, setSection] = useState("Work");
   const kind = homeKind(profile.roles, profile.personas);
   return (
@@ -88,7 +144,7 @@ function Shell({ profile }: { profile: Profile }) {
       <section className="work">
         <p data-testid="signed-in-name">{profile.name}</p>
         <p className="crumbs">Home / {section === "Work" ? "Approval inbox" : section}</p>
-        {section === "Work" ? <Work profile={profile} kind={kind} /> : <EmptyModule title={section} sentence="This module is not in this slice." />}
+        {section === "Work" ? <Work profile={profile} kind={kind} /> : section === "Settings" ? <DeskSettings token={profile.accessToken} theme={theme} setTheme={setTheme} /> : <EmptyModule title={section} sentence="This module is not in this slice." />}
       </section>
     </div>
   );
@@ -168,6 +224,7 @@ function ApprovalInbox({ token }: { token: string }) {
   const [offline, setOffline] = useState(!navigator.onLine);
   const [sheet, setSheet] = useState<Sheet | null>(null);
   const [flags, setFlags] = useState<Record<string, boolean>>({});
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
     const on = () => setOffline(false);
@@ -215,15 +272,21 @@ function ApprovalInbox({ token }: { token: string }) {
     return () => {
       cancelled = true;
     };
-  }, [token]);
+  }, [token, reloadKey]);
 
   return (
     <article className="module">
       <h2>Approval inbox</h2>
       {offline ? <p className="banner alert" role="status">Offline since the browser lost its connection.</p> : null}
-      {cards === null ? <p>Loading the approval inbox</p> : null}
+      {cards === null ? <div className="skeleton" data-testid="skeleton" /> : null}
       {error ? <p role="alert">{error}</p> : null}
-      {cards && cards.length === 0 && !error ? <p>Nothing is waiting on you.</p> : null}
+      {cards && cards.length === 0 && !error ? (
+        <div data-testid="empty-inbox">
+          <p>Nothing needs you yet.</p>
+          <p>New requests land in this inbox when someone submits one.</p>
+          <button type="button" onClick={() => setReloadKey((value) => value + 1)}>Check again</button>
+        </div>
+      ) : null}
       {cards?.map((card) => (
         <ApprovalCardView
           key={card.request_id}
@@ -298,6 +361,7 @@ function DecisionSheet({ token, sheet, onClose, onFlagged }: { token: string; sh
   }, [token, sheet.card.request_id]);
 
   async function approve() {
+    navigator.vibrate?.(12);
     setBusy(true);
     setMessage("");
     try {
@@ -339,6 +403,7 @@ function DecisionSheet({ token, sheet, onClose, onFlagged }: { token: string; sh
   }
 
   async function reject() {
+    navigator.vibrate?.(12);
     setBusy(true);
     setMessage("");
     try {
@@ -390,5 +455,71 @@ function DecisionSheet({ token, sheet, onClose, onFlagged }: { token: string; sh
         </div>
       </section>
     </div>
+  );
+}
+
+function DeskSettings({ token, theme, setTheme }: { token: string; theme: string; setTheme: (value: string) => void }) {
+  const [biometric, setBiometric] = useState(localStorage.getItem("smarterp-biometric") === "1");
+  const [approvals, setApprovals] = useState(localStorage.getItem("smarterp-notify-approvals") !== "0");
+  const [payments, setPayments] = useState(localStorage.getItem("smarterp-notify-payments") !== "0");
+  const [direction, setDirection] = useState(localStorage.getItem("smarterp-direction") || "ltr");
+  const [server, setServer] = useState(localStorage.getItem("smarterp-server") || "");
+  const [detail, setDetail] = useState("");
+
+  useEffect(() => {
+    document.documentElement.dir = direction;
+    localStorage.setItem("smarterp-direction", direction);
+  }, [direction]);
+
+  return (
+    <article className="module" data-testid="settings-screen">
+      <h2>Settings</h2>
+      <div className="row">
+        <button type="button" onClick={() => setTheme("system")}>System</button>
+        <button type="button" onClick={() => setTheme("light")}>Light</button>
+        <button type="button" onClick={() => setTheme("dark")}>Black</button>
+      </div>
+      <p data-testid="theme-value">{theme}</p>
+      <label>
+        Biometric lock
+        <input
+          type="checkbox"
+          checked={biometric}
+          onChange={(event) => {
+            const on = event.target.checked;
+            setBiometric(on);
+            localStorage.setItem("smarterp-biometric", on ? "1" : "0");
+            if (!on) {
+              setDetail("");
+              return;
+            }
+            void apiSend(token, "POST", "/api/v1/auth/step-up", { method: "biometric", code: "" }).then((result) => {
+              const data = result.data as { step_up_token?: string } | undefined;
+              setDetail(result.status >= 200 && result.status < 300 && data?.step_up_token ? "Step-up accepted" : result.error?.message || `HTTP ${result.status}`);
+            });
+          }}
+        />
+      </label>
+      {biometric ? <p data-testid="biometric-prompt">Confirm with biometrics</p> : null}
+      {detail ? <p data-testid="biometric-error">{detail}</p> : null}
+      <label>
+        Approval notifications
+        <input type="checkbox" checked={approvals} onChange={(event) => { setApprovals(event.target.checked); localStorage.setItem("smarterp-notify-approvals", event.target.checked ? "1" : "0"); }} />
+      </label>
+      <label>
+        Payment notifications
+        <input type="checkbox" checked={payments} onChange={(event) => { setPayments(event.target.checked); localStorage.setItem("smarterp-notify-payments", event.target.checked ? "1" : "0"); }} />
+      </label>
+      <p data-testid="direction-preview">{direction === "rtl" ? "الاتجاه من اليمين" : "Left to right"}</p>
+      <button type="button" onClick={() => setDirection("rtl")}>Right to left</button>
+      <p data-testid="direction-value">{direction}</p>
+      <label>
+        Server URL
+        <input value={server} onChange={(event) => setServer(event.target.value)} />
+      </label>
+      <button type="button" onClick={() => localStorage.setItem("smarterp-server", server.trim())}>Save server</button>
+      <p data-testid="sync-status">This desk has no offline copy. Screens read the live API.</p>
+      <p data-testid="app-version">0.1.0</p>
+    </article>
   );
 }

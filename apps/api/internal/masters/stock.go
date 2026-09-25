@@ -109,8 +109,10 @@ func (s *Service) Reserve(ctx context.Context, p rls.Principal, in stockIn) (row
 		if add(reserved, q).Cmp(onHand) > 0 {
 			return apierr.New(apierr.NegativeStock, "reservation exceeds on-hand stock")
 		}
-		_, err = tx.Exec(ctx, `INSERT INTO erp.stock_reservations (id, company_id, sku_id, warehouse_id, qty)
-			VALUES ($1,$2,$3,$4,$5::numeric)`, id, p.CompanyID, in.SKUID, in.WarehouseID, qty)
+		_, err = tx.Exec(ctx, `INSERT INTO erp.stock_reservations
+			(id, company_id, order_line_id, sku_id, warehouse_id, qty, status)
+			VALUES ($1,$2,$3,$4,$5,$6::numeric,'active')`,
+			id, p.CompanyID, id.String(), in.SKUID, in.WarehouseID, qty)
 		return err
 	})
 	if err != nil {

@@ -111,6 +111,8 @@ Format: ID, title, track, depends on, requirements, acceptance.
 - P6.3 Payment run with batch approval and release; supplier scorecard; inbound mailbox to draft supplier invoice. D, E. R8.8 to R8.10. Accept: tests P21 to P26.
 - P6.4 Console purchase forms, bulk actions, inbound queue. G. Accept: tests G21 to G23.
 
+Vendor SKU approval, blacklist, payment hold, and the vendor dashboard extend this phase. Spec: `17-vendor-control.md`. Tasks P6.5 to P6.9. P6.5 was free.
+
 ### Phase 7 Production, stock, assets
 
 - P7.1 Production entry with BOM proposal, wastage allowance, variance approval, draft-age clock, yield reporting. D. R9.4. Accept: tests H7 to H12.
@@ -135,7 +137,7 @@ Format: ID, title, track, depends on, requirements, acceptance.
 
 ### Phase 10 CRM
 
-Leads and pipeline. Converts into the existing customer master. Spec: `14-crm.md`. Starts after Phase 3.
+Leads and pipeline. Converts into the existing customer master. Spec: `14-crm.md`. Starts after Phase 3. Vendor control is purchase to pay, not CRM.
 
 ### Phase 11 HR
 

@@ -26,6 +26,7 @@ import (
 	"github.com/jaichahal/smart-erp/apps/api/internal/kit/httpx"
 	"github.com/jaichahal/smart-erp/apps/api/internal/ledger"
 	periods "github.com/jaichahal/smart-erp/apps/api/internal/ledger/periods"
+	"github.com/jaichahal/smart-erp/apps/api/internal/masters"
 	"github.com/jaichahal/smart-erp/apps/api/internal/notifications"
 	"github.com/jaichahal/smart-erp/apps/api/internal/stock"
 	"github.com/jaichahal/smart-erp/apps/api/internal/purchase"
@@ -91,6 +92,7 @@ func Handler(deps httpx.Deps, opts ...Option) (http.Handler, error) {
 			sales.Mount(authed, deps)
 			receivables.Mount(authed, deps)
 			bank.Mount(authed, deps)
+			masters.Mount(authed, deps)
 		})
 		if mountErr != nil {
 			return

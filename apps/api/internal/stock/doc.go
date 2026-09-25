@@ -5,7 +5,7 @@
 // unit cost and the average is value divided by quantity. An issue takes the
 // current average and does not recompute it. Receipt layers are not stored.
 //
-// Masters (P2.2) are not on this branch. RegisterItem and RegisterWarehouse
-// write the snapshot tables the default Catalog reads. When masters merge,
-// pass that reader to New instead of SnapshotCatalog.
+// Masters P2.2 owns erp.skus and erp.warehouses. New reads those tables.
+// RegisterItem and RegisterWarehouse also mirror into the snapshot tables
+// the ledger balance foreign keys still use.
 package stock

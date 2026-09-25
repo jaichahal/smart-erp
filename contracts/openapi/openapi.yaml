@@ -1,12 +1,15 @@
 openapi: 3.1.0
 info:
   title: Smart ERP API
-  version: 1.0.0
+  version: 1.1.0
   summary: Machine form of docs/spec/04-api-contracts.md
   description: |
-    Seeded from `docs/spec/04-api-contracts.md` version 1.0.0. That file is the human form and
+    Seeded from `docs/spec/04-api-contracts.md` version 1.1.0. That file is the human form and
     wins on conflict until this document is regenerated. Additive changes bump the minor version;
     breaking changes bump the major version and carry a migration note.
+
+    1.1.0 (additive): `GET /me/sessions` and `DELETE /me/sessions/{id}` plus schema `UserSession`
+    (R1.15, A9). No breaking change from 1.0.0.
 
     Transport rules that apply to every operation:
 
@@ -506,6 +509,83 @@ paths:
         "503":
           $ref: "#/components/responses/Unavailable"
 
+  /me/sessions:
+    get:
+      operationId: listMySessions
+      tags: [identity]
+      summary: List the current user's sessions
+      description: |
+        Sessions are capped per user and listable (R1.15, A22). Ending one from another device
+        stops that device's next request (A9).
+      parameters:
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/AcceptLanguage"
+      responses:
+        "200":
+          description: Sessions
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, meta]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/UserSession"
+                  meta:
+                    $ref: "#/components/schemas/PageMeta"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+        "500":
+          $ref: "#/components/responses/InternalError"
+        "503":
+          $ref: "#/components/responses/Unavailable"
+
+  /me/sessions/{id}:
+    delete:
+      operationId: endMySession
+      tags: [identity]
+      summary: End a session
+      description: |
+        The session owner or a System Manager ends the session (R1.15). Revocation takes effect
+        on the next request from that device (A9, R1.5).
+      parameters:
+        - $ref: "#/components/parameters/UserSessionId"
+        - $ref: "#/components/parameters/IdempotencyKey"
+        - $ref: "#/components/parameters/IfMatch"
+        - $ref: "#/components/parameters/AcceptLanguage"
+      responses:
+        "200":
+          description: Session ended
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, meta]
+                properties:
+                  data:
+                    $ref: "#/components/schemas/Empty"
+                  meta:
+                    $ref: "#/components/schemas/Meta"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+        "500":
+          $ref: "#/components/responses/InternalError"
+        "503":
+          $ref: "#/components/responses/Unavailable"
+
   /approvals/inbox:
     get:
       operationId: listApprovalInbox
@@ -940,6 +1020,13 @@ components:
       description: Login session id returned by POST /auth/session
       schema:
         type: string
+    UserSessionId:
+      name: id
+      in: path
+      required: true
+      description: Authenticated session id returned by GET /me/sessions
+      schema:
+        type: string
     ApprovalId:
       name: id
       in: path
@@ -1235,6 +1322,31 @@ components:
             type: string
         company_id:
           type: string
+
+    UserSession:
+      type: object
+      description: A listable authenticated session bound to one enrolled device (R1.15).
+      required: [id, device_id, created_at, state_version]
+      properties:
+        id:
+          type: string
+        device_id:
+          type: string
+        device_name:
+          type: string
+        platform:
+          $ref: "#/components/schemas/Platform"
+        created_at:
+          type: string
+          format: date-time
+        last_seen_at:
+          type: string
+          format: date-time
+        current:
+          type: boolean
+          description: True when this session issued the access token of the caller
+        state_version:
+          $ref: "#/components/schemas/StateVersion"
 
     Actor:
       type: object

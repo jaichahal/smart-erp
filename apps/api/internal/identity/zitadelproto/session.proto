@@ -1,0 +1,150 @@
+// Copyright 2022 ZITADEL
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Field numbers and the service name match the Apache-2.0 Session API v2
+// shipped in Zitadel v3.4.15 (proto/zitadel/session/v2). Validation, HTTP
+// annotations, and unused checks are omitted; they do not affect the wire
+// format. The Zitadel server itself is AGPL-3.0 and is not linked (ADR-15).
+
+syntax = "proto3";
+
+package zitadel.session.v2;
+
+option go_package = "github.com/jaichahal/smart-erp/apps/api/internal/identity/zitadelproto";
+
+import "google/protobuf/duration.proto";
+import "google/protobuf/struct.proto";
+import "google/protobuf/timestamp.proto";
+
+service SessionService {
+  rpc CreateSession (CreateSessionRequest) returns (CreateSessionResponse);
+  rpc SetSession (SetSessionRequest) returns (SetSessionResponse);
+  rpc GetSession (GetSessionRequest) returns (GetSessionResponse);
+  rpc DeleteSession (DeleteSessionRequest) returns (DeleteSessionResponse);
+}
+
+message Details {
+  uint64 sequence = 1;
+  google.protobuf.Timestamp change_date = 2;
+  string resource_owner = 3;
+  google.protobuf.Timestamp creation_date = 4;
+}
+
+message CreateSessionRequest {
+  Checks checks = 1;
+  map<string, bytes> metadata = 2;
+  UserAgent user_agent = 4;
+  optional google.protobuf.Duration lifetime = 5;
+}
+
+message CreateSessionResponse {
+  Details details = 1;
+  string session_id = 2;
+  string session_token = 3;
+}
+
+message SetSessionRequest {
+  string session_id = 1;
+  string session_token = 2;
+  Checks checks = 3;
+  map<string, bytes> metadata = 4;
+  optional google.protobuf.Duration lifetime = 6;
+}
+
+message SetSessionResponse {
+  Details details = 1;
+  string session_token = 2;
+}
+
+message GetSessionRequest {
+  string session_id = 1;
+  optional string session_token = 2;
+}
+
+message GetSessionResponse {
+  Session session = 1;
+}
+
+message DeleteSessionRequest {
+  string session_id = 1;
+  optional string session_token = 2;
+}
+
+message DeleteSessionResponse {
+  Details details = 1;
+}
+
+message Checks {
+  CheckUser user = 1;
+  CheckPassword password = 2;
+  CheckWebAuthN web_auth_n = 3;
+  CheckTOTP totp = 5;
+}
+
+message CheckUser {
+  oneof search {
+    string user_id = 1;
+    string login_name = 2;
+  }
+}
+
+message CheckPassword {
+  string password = 1;
+}
+
+message CheckWebAuthN {
+  google.protobuf.Struct credential_assertion_data = 1;
+}
+
+message CheckTOTP {
+  string code = 1;
+}
+
+message UserAgent {
+  optional string fingerprint_id = 1;
+  optional string ip = 2;
+  optional string description = 3;
+}
+
+message Session {
+  string id = 1;
+  google.protobuf.Timestamp creation_date = 2;
+  google.protobuf.Timestamp change_date = 3;
+  uint64 sequence = 4;
+  Factors factors = 5;
+  map<string, bytes> metadata = 6;
+  optional google.protobuf.Timestamp expiration_date = 8;
+}
+
+message Factors {
+  UserFactor user = 1;
+  PasswordFactor password = 2;
+  WebAuthNFactor web_auth_n = 3;
+  TOTPFactor totp = 5;
+}
+
+message UserFactor {
+  google.protobuf.Timestamp verified_at = 1;
+  string id = 2;
+  string login_name = 3;
+  string display_name = 4;
+  string organization_id = 6;
+}
+
+message PasswordFactor {
+  google.protobuf.Timestamp verified_at = 1;
+}
+
+message WebAuthNFactor {
+  google.protobuf.Timestamp verified_at = 1;
+  bool user_verified = 2;
+}
+
+message TOTPFactor {
+  google.protobuf.Timestamp verified_at = 1;
+}

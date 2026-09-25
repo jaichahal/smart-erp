@@ -1,0 +1,35 @@
+# smart-erp external backup drive allow-list.
+# Install as /etc/smart-erp/backup-drives.yaml (root:root 0600).
+# Unknown drives, even ones labelled ERPBAK-*, are ignored by erpbak@.service.
+#
+# Per drive (spec 10, "NUC drive setup"):
+#   cryptsetup luksFormat --type luks2 --label ERPBAK-A /dev/sdX1 /etc/smart-erp/keys/ERPBAK-A.key
+#   cryptsetup luksAddKey /dev/sdX1 --key-file /etc/smart-erp/keys/ERPBAK-A.key   # management passphrase, sealed envelope
+#   cryptsetup open --key-file /etc/smart-erp/keys/ERPBAK-A.key /dev/sdX1 erpbak-a
+#   mkfs.ext4 -L ERPBAK-A /dev/mapper/erpbak-a
+#   cryptsetup luksUUID /dev/sdX1       -> luks_uuid below
+#
+# Keep this file flat and simple: deploy/scripts/lib.sh reads it with awk, not
+# a YAML parser. One `- label:` block per drive, keys exactly as shown.
+
+drives:
+  - label: ERPBAK-A
+    luks_uuid: 00000000-0000-0000-0000-00000000000a
+    key_file: /etc/smart-erp/keys/ERPBAK-A.key
+    custodian: "Name of the person who carries it off-site"
+    # Retention on the drive itself; the off-site bucket keeps the long tail.
+    keep_daily: 14
+    keep_weekly: 8
+    keep_monthly: 12
+
+  - label: ERPBAK-B
+    luks_uuid: 00000000-0000-0000-0000-00000000000b
+    key_file: /etc/smart-erp/keys/ERPBAK-B.key
+    custodian: "Name of the person who carries it off-site"
+    keep_daily: 14
+    keep_weekly: 8
+    keep_monthly: 12
+
+# Rotation: one drive connected to the NUC, the other off-site. Every hand-over
+# is entered in the console (Admin > Operations > Drive hand-over) and becomes
+# an audit event. `just drive-check` shows which one is present.

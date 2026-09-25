@@ -1,0 +1,71 @@
+# OpenTelemetry Collector, production configuration (mounted by compose.prod.yml).
+# Buffers locally and exports OTLP/gRPC to the off-prem observability sink.
+#   ERP_OTLP_UPSTREAM              host:port of the sink (e.g. otlp.example.io:4317)
+#   ERP_OTLP_HEADER_AUTHORIZATION  value of the Authorization header (token/API key)
+# Telemetry never leaves the NUC unencrypted: TLS is on for the upstream.
+
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+      http:
+        endpoint: 0.0.0.0:4318
+
+processors:
+  memory_limiter:
+    check_interval: 1s
+    limit_mib: 768
+    spike_limit_mib: 192
+  batch:
+    timeout: 5s
+    send_batch_size: 1024
+  resource:
+    attributes:
+      - key: deployment.environment
+        value: prod
+        action: upsert
+      - key: host.name
+        value: smart-erp-nuc
+        action: upsert
+
+exporters:
+  otlp/upstream:
+    endpoint: ${env:ERP_OTLP_UPSTREAM}
+    tls:
+      insecure: false
+    headers:
+      authorization: ${env:ERP_OTLP_HEADER_AUTHORIZATION}
+    compression: gzip
+    sending_queue:
+      enabled: true
+      num_consumers: 4
+      queue_size: 5000
+    retry_on_failure:
+      enabled: true
+      initial_interval: 5s
+      max_interval: 60s
+      max_elapsed_time: 900s
+
+extensions:
+  health_check:
+    endpoint: 0.0.0.0:13133
+
+service:
+  extensions: [health_check]
+  telemetry:
+    logs:
+      level: warn
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [memory_limiter, resource, batch]
+      exporters: [otlp/upstream]
+    metrics:
+      receivers: [otlp]
+      processors: [memory_limiter, resource, batch]
+      exporters: [otlp/upstream]
+    logs:
+      receivers: [otlp]
+      processors: [memory_limiter, resource, batch]
+      exporters: [otlp/upstream]

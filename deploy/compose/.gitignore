@@ -1,0 +1,6 @@
+# Real env files carry secrets in prod; only the *.example templates are tracked.
+.env
+.env.*
+!.env.dev.example
+!.env.dev.host.example
+!.env.prod.example

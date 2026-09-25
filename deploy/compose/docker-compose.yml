@@ -1,0 +1,444 @@
+# smart-erp local and production stack.
+#
+# One file drives both targets (spec 10, "The two concrete targets"; ADR-16):
+#   dev  = Apple Silicon Mac, linux/arm64, `docker compose --profile dev`
+#   prod = x86_64 Linux NUC,  linux/amd64, `docker compose --profile prod` under systemd
+#
+# Differences between the two live ONLY in compose.dev.yml / compose.prod.yml
+# (resource limits, host port bindings, hostnames, off-site endpoints) and in
+# the env file (secrets). Same services, same versions, same file otherwise.
+#
+# Every third-party image is a multi-arch tag (amd64 + arm64 confirmed with
+# `docker buildx imagetools inspect <image>` on 2026-09-25). Production pins by
+# digest: append `@sha256:<digest>` to each `image:` below when cutting a
+# release, e.g. `postgres:16-alpine@sha256:...`. Rollback is re-pinning the
+# previous digest (spec 02, Infrastructure > Delivery).
+#
+# Select the file set and profile through the env file:
+#   COMPOSE_FILE=docker-compose.yml:compose.dev.yml   COMPOSE_PROFILES=dev
+#   COMPOSE_FILE=docker-compose.yml:compose.prod.yml  COMPOSE_PROFILES=prod
+
+name: smart-erp
+
+# ---------------------------------------------------------------------------
+# Shared fragments
+# ---------------------------------------------------------------------------
+x-both: &both
+  profiles: ["dev", "prod"]
+
+x-dev-only: &dev-only
+  profiles: ["dev"]
+
+x-restart: &restart
+  restart: unless-stopped
+
+x-logging: &logging
+  logging:
+    driver: json-file
+    options:
+      max-size: "20m"
+      max-file: "5"
+
+# Build definition shared by every Go service. CMD selects cmd/<CMD>.
+x-erp-build: &erp-build
+  context: ../../apps/api
+  dockerfile: Dockerfile
+  # platforms: [linux/amd64, linux/arm64]   # CI (buildx) builds both; local builds the host arch
+
+# Every Go binary reads its configuration from the environment; the env file is
+# the single source (see .env.dev.example). COMPOSE_* keys in the same file are
+# harmless to the binaries.
+x-erp-env: &erp-env
+  env_file:
+    - .env
+
+# api / worker / scheduler all wait for the same set of dependencies.
+x-erp-depends: &erp-depends
+  depends_on:
+    postgres:
+      condition: service_healthy
+    valkey:
+      condition: service_healthy
+    minio-init:
+      condition: service_completed_successfully
+    zitadel:
+      condition: service_healthy
+    migrate:
+      condition: service_completed_successfully
+
+services:
+  # -------------------------------------------------------------------------
+  # One-shot: fix ownership of named volumes that non-root services write to.
+  # Docker creates fresh named volumes as root:root 0755, which neither
+  # zitadel (uid 65532, see below) nor otel-collector (uid 10001) can write.
+  # -------------------------------------------------------------------------
+  volume-init:
+    <<: [*both, *logging]
+    image: busybox:1.37
+    command:
+      - sh
+      - -ec
+      - |
+        chown 65532:65532 /zitadel-pat && chmod 0750 /zitadel-pat
+        chown 10001:10001 /var/log/otel && chmod 0750 /var/log/otel
+        echo "volume-init: ok"
+    volumes:
+      - zitadel-pat:/zitadel-pat
+      - otel-logs:/var/log/otel
+    restart: "no"
+
+  # -------------------------------------------------------------------------
+  # PostgreSQL: erp, zitadel, and per-agent erp_test_<n> databases
+  # -------------------------------------------------------------------------
+  postgres:
+    <<: [*both, *restart, *logging]
+    image: postgres:16-alpine
+    # pgaudit is not in the stock image; DDL statement logging plus connection
+    # logging is the phase-1 substitute (spec 05 references pgaudit; revisit
+    # with a custom image when the audit track needs it).
+    command:
+      - postgres
+      - -c
+      - log_statement=ddl
+      - -c
+      - log_connections=on
+      - -c
+      - log_disconnections=on
+      - -c
+      - wal_level=replica
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: postgres
+      POSTGRES_INITDB_ARGS: "--data-checksums"
+      # Consumed by postgres-init/*.sql through psql \getenv.
+      ERP_MIGRATOR_PASSWORD: ${ERP_MIGRATOR_PASSWORD:-erp_migrator}
+      ERP_APP_PASSWORD: ${ERP_APP_PASSWORD:-erp_app}
+      ZITADEL_DB_PASSWORD: ${ZITADEL_DB_PASSWORD:-zitadel}
+    ports:
+      - "${ERP_BIND_ADDR:-0.0.0.0}:5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./postgres-init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      # TCP on purpose: the init-phase temporary server listens on the unix
+      # socket only, so a socket check would report healthy before init SQL ran.
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U postgres -d postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+    shm_size: 256mb
+    stop_grace_period: 60s
+
+  # -------------------------------------------------------------------------
+  # Valkey: pub/sub, JTI replay cache, rate limits
+  # -------------------------------------------------------------------------
+  valkey:
+    <<: [*both, *restart, *logging]
+    image: valkey/valkey:8-alpine
+    command: ["valkey-server", "--save", "60", "1000", "--appendonly", "yes", "--maxmemory-policy", "noeviction"]
+    ports:
+      - "${ERP_BIND_ADDR:-0.0.0.0}:6379:6379"
+    volumes:
+      - valkey-data:/data
+    healthcheck:
+      test: ["CMD", "valkey-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # -------------------------------------------------------------------------
+  # MinIO: attachments, PDFs, snapshots, backup staging, anchors
+  #
+  # NOTE (2026-09-25): the upstream `minio/minio` and `minio/mc` images are no
+  # longer published (Docker Hub namespace returns 404, quay.io is auth-only).
+  # Chainguard publishes the unmodified upstream MinIO server and mc as
+  # multi-arch images, rebuilt daily; that is what is pinned here. The server
+  # image bundles `mc` and bash, which the healthcheck uses.
+  # -------------------------------------------------------------------------
+  minio:
+    <<: [*both, *restart, *logging]
+    image: cgr.dev/chainguard/minio:latest
+    command: ["server", "/data", "--address", ":9000", "--console-address", ":9001"]
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
+      MINIO_BROWSER_REDIRECT_URL: http://localhost:9001
+    ports:
+      - "${ERP_BIND_ADDR:-0.0.0.0}:9000:9000"
+      - "${ERP_BIND_ADDR:-0.0.0.0}:9001:9001"
+    volumes:
+      - minio-data:/data
+    healthcheck:
+      # No curl/wget/grep in the image; pure-bash /dev/tcp probe of the
+      # liveness endpoint.
+      test:
+        - CMD
+        - bash
+        - -c
+        - 'exec 3<>/dev/tcp/127.0.0.1/9000 && printf "GET /minio/health/live HTTP/1.0\r\nHost: localhost\r\n\r\n" >&3 && read -r l <&3 && [[ "$$l" == *" 200 "* ]]'
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+
+  # One-shot bucket bootstrap. Idempotent: `mc mb --ignore-existing`.
+  # All buckets are created WITH object lock (it can only be enabled at
+  # creation). erp-anchors (and offsite-sim in dev) get a default COMPLIANCE
+  # retention. Dev uses ERP_ANCHOR_RETENTION=1d so developers are not locked
+  # out for years; compose.prod.yml sets it to 7y.
+  minio-init:
+    <<: [*both, *logging]
+    image: cgr.dev/chainguard/minio-client:latest-dev
+    entrypoint: ["/bin/sh", "-ec"]
+    command:
+      - |
+        mc alias set erp http://minio:9000 "$$MINIO_ROOT_USER" "$$MINIO_ROOT_PASSWORD"
+        for b in erp-files erp-backups erp-anchors $$EXTRA_BUCKETS; do
+          mc mb --with-lock --ignore-existing "erp/$$b"
+        done
+        mc retention set --default compliance "$$ERP_ANCHOR_RETENTION" erp/erp-anchors
+        for b in $$EXTRA_BUCKETS; do
+          mc retention set --default compliance "$$ERP_ANCHOR_RETENTION" "erp/$$b"
+        done
+        echo "minio-init: buckets ready"
+        mc ls erp
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
+      ERP_ANCHOR_RETENTION: ${ERP_ANCHOR_RETENTION:-1d}
+      # dev: "offsite-sim" (set in compose.dev.yml); prod: empty, the real
+      # off-site bucket is provisioned out of band (spec 10, machine preparation).
+      EXTRA_BUCKETS: ${ERP_EXTRA_BUCKETS:-}
+    depends_on:
+      minio:
+        condition: service_healthy
+    restart: "no"
+
+  # -------------------------------------------------------------------------
+  # Zitadel: identity, run unmodified and headless (ADR-15)
+  # -------------------------------------------------------------------------
+  zitadel:
+    <<: [*both, *restart, *logging]
+    # Latest v3.x confirmed on ghcr on 2026-09-25 (v3.4.4 does not exist).
+    image: ghcr.io/zitadel/zitadel:v3.4.15
+    command: ["start-from-init", "--masterkeyFromEnv", "--tlsMode", "disabled"]
+    # Run as the same uid as the distroless `nonroot` user of the Go images so
+    # the PAT file zitadel writes (mode 0600) is readable by api/worker.
+    user: "65532:65532"
+    environment:
+      ZITADEL_MASTERKEY: ${ZITADEL_MASTERKEY:-MasterkeyNeedsToHave32Characters}
+      ZITADEL_EXTERNALDOMAIN: ${ZITADEL_EXTERNALDOMAIN:-localhost}
+      ZITADEL_EXTERNALPORT: ${ZITADEL_EXTERNALPORT:-8081}
+      ZITADEL_EXTERNALSECURE: ${ZITADEL_EXTERNALSECURE:-false}
+      ZITADEL_TLS_ENABLED: "false"
+      ZITADEL_PORT: "8080"
+      ZITADEL_DATABASE_POSTGRES_HOST: postgres
+      ZITADEL_DATABASE_POSTGRES_PORT: "5432"
+      ZITADEL_DATABASE_POSTGRES_DATABASE: zitadel
+      ZITADEL_DATABASE_POSTGRES_USER_USERNAME: zitadel
+      ZITADEL_DATABASE_POSTGRES_USER_PASSWORD: ${ZITADEL_DB_PASSWORD:-zitadel}
+      ZITADEL_DATABASE_POSTGRES_USER_SSL_MODE: disable
+      # The zitadel role owns its database (postgres-init), so init runs as it
+      # too; no superuser credentials are handed to zitadel.
+      ZITADEL_DATABASE_POSTGRES_ADMIN_USERNAME: zitadel
+      ZITADEL_DATABASE_POSTGRES_ADMIN_PASSWORD: ${ZITADEL_DB_PASSWORD:-zitadel}
+      ZITADEL_DATABASE_POSTGRES_ADMIN_SSL_MODE: disable
+      # First instance: human admin plus the erp-api machine user whose PAT the
+      # API reads from the shared zitadel-pat volume.
+      ZITADEL_FIRSTINSTANCE_INSTANCENAME: smart-erp
+      ZITADEL_FIRSTINSTANCE_ORG_NAME: ${ZITADEL_ORG_NAME:-dev}
+      ZITADEL_FIRSTINSTANCE_ORG_HUMAN_USERNAME: admin
+      ZITADEL_FIRSTINSTANCE_ORG_HUMAN_PASSWORD: ${ZITADEL_ADMIN_PASSWORD:-Admin1234!}
+      ZITADEL_FIRSTINSTANCE_ORG_HUMAN_PASSWORDCHANGEREQUIRED: "false"
+      ZITADEL_FIRSTINSTANCE_ORG_MACHINE_MACHINE_USERNAME: erp-api
+      ZITADEL_FIRSTINSTANCE_ORG_MACHINE_MACHINE_NAME: erp-api
+      ZITADEL_FIRSTINSTANCE_ORG_MACHINE_PAT_EXPIRATIONDATE: "2030-01-01T00:00:00Z"
+      ZITADEL_FIRSTINSTANCE_PATPATH: /zitadel-pat/api.pat
+      ZITADEL_LOG_LEVEL: ${ZITADEL_LOG_LEVEL:-info}
+    ports:
+      - "${ERP_BIND_ADDR:-0.0.0.0}:8081:8080"
+    volumes:
+      - zitadel-pat:/zitadel-pat
+    depends_on:
+      postgres:
+        condition: service_healthy
+      volume-init:
+        condition: service_completed_successfully
+    healthcheck:
+      # The image is scratch-based (no shell/curl). `zitadel ready` probes the
+      # server's own /debug/ready; /debug/healthz is verified from the host
+      # (curl http://localhost:8081/debug/healthz) in the README.
+      test: ["CMD", "/app/zitadel", "ready"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 90s
+
+  # -------------------------------------------------------------------------
+  # Caddy: TLS termination and reverse proxy
+  # -------------------------------------------------------------------------
+  caddy:
+    <<: [*both, *restart, *logging]
+    image: caddy:2-alpine
+    environment:
+      ERP_PUBLIC_HOSTNAME: ${ERP_PUBLIC_HOSTNAME:-localhost}
+      ERP_ACME_EMAIL: ${ERP_ACME_EMAIL:-}
+    ports:
+      # Dev binds 8443/8880 (api owns 8080); compose.prod.yml overrides to 443/80.
+      - "8443:443"
+      - "8880:80"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    healthcheck:
+      # Admin API listens on localhost:2019 inside the container.
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:2019/config/"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 10s
+
+  # -------------------------------------------------------------------------
+  # headless-shell: PDF rendering over CDP, internal only
+  # -------------------------------------------------------------------------
+  headless-shell:
+    <<: [*both, *restart, *logging]
+    image: chromedp/headless-shell:latest
+    expose:
+      - "9222"
+    healthcheck:
+      # No curl/wget; pure-bash /dev/tcp probe of the DevTools version endpoint
+      # through the socat forwarder on 9222. DevTools only answers HTTP/1.1
+      # with an IP Host header.
+      test:
+        - CMD
+        - bash
+        - -c
+        - 'exec 3<>/dev/tcp/127.0.0.1/9222 && printf "GET /json/version HTTP/1.1\r\nHost: 127.0.0.1\r\nConnection: close\r\n\r\n" >&3 && while read -r l; do [[ "$$l" == *Browser* ]] && exit 0; done <&3; exit 1'
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 15s
+    init: true
+    shm_size: 512mb
+
+  # -------------------------------------------------------------------------
+  # Mailpit: dev-only outbound mail catcher (SMTP 1025, UI 8025)
+  # -------------------------------------------------------------------------
+  mailpit:
+    <<: [*dev-only, *restart, *logging]
+    image: axllent/mailpit:latest
+    environment:
+      MP_SMTP_AUTH_ACCEPT_ANY: "1"
+      MP_SMTP_AUTH_ALLOW_INSECURE: "1"
+      MP_MAX_MESSAGES: "5000"
+    ports:
+      - "8025:8025"
+      - "1025:1025"
+    healthcheck:
+      test: ["CMD", "/mailpit", "readyz"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+
+  # -------------------------------------------------------------------------
+  # OpenTelemetry Collector: OTLP gRPC 4317 / HTTP 4318
+  # dev  -> debug exporter + file exporter (/var/log/otel/traces.json)
+  # prod -> OTLP to ERP_OTLP_UPSTREAM (compose.prod.yml swaps the config)
+  # -------------------------------------------------------------------------
+  otel-collector:
+    <<: [*both, *restart, *logging]
+    image: otel/opentelemetry-collector-contrib:latest
+    command: ["--config", "/etc/otelcol-contrib/config.yaml"]
+    environment:
+      ERP_OTLP_UPSTREAM: ${ERP_OTLP_UPSTREAM:-}
+      ERP_OTLP_HEADER_AUTHORIZATION: ${ERP_OTLP_HEADER_AUTHORIZATION:-}
+    ports:
+      - "${ERP_BIND_ADDR:-0.0.0.0}:4317:4317"
+      - "${ERP_BIND_ADDR:-0.0.0.0}:4318:4318"
+    volumes:
+      - ./otel-collector.yaml:/etc/otelcol-contrib/config.yaml:ro
+      - otel-logs:/var/log/otel
+    depends_on:
+      volume-init:
+        condition: service_completed_successfully
+    # No docker-level healthcheck: the image is a bare binary with no shell or
+    # curl to run a probe. The health_check extension is exposed on :13133
+    # inside the network for external probing.
+
+  # -------------------------------------------------------------------------
+  # Go services built from apps/api. Image names are what CI pushes.
+  # -------------------------------------------------------------------------
+  migrate:
+    <<: [*both, *erp-env, *logging]
+    image: ghcr.io/jaichahal/smart-erp/migrate:${ERP_IMAGE_TAG:-dev}
+    build:
+      <<: *erp-build
+      args:
+        CMD: migrate
+    restart: "no"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  api:
+    <<: [*both, *erp-env, *erp-depends, *restart, *logging]
+    image: ghcr.io/jaichahal/smart-erp/api:${ERP_IMAGE_TAG:-dev}
+    build:
+      <<: *erp-build
+      args:
+        CMD: api
+    ports:
+      - "${ERP_BIND_ADDR:-0.0.0.0}:8080:8080"
+    volumes:
+      - zitadel-pat:/zitadel-pat:ro
+    develop:
+      watch:
+        - action: rebuild
+          path: ../../apps/api
+          ignore:
+            - "**/*_test.go"
+            - "**/testdata/**"
+
+  worker:
+    <<: [*both, *erp-env, *erp-depends, *restart, *logging]
+    image: ghcr.io/jaichahal/smart-erp/worker:${ERP_IMAGE_TAG:-dev}
+    build:
+      <<: *erp-build
+      args:
+        CMD: worker
+    volumes:
+      - zitadel-pat:/zitadel-pat:ro
+
+  scheduler:
+    <<: [*both, *erp-env, *erp-depends, *restart, *logging]
+    image: ghcr.io/jaichahal/smart-erp/scheduler:${ERP_IMAGE_TAG:-dev}
+    build:
+      <<: *erp-build
+      args:
+        CMD: scheduler
+    volumes:
+      - zitadel-pat:/zitadel-pat:ro
+
+  # Dev-only push sink: logs FCM v1 / APNs payloads instead of sending.
+  pushsink:
+    <<: [*dev-only, *erp-env, *restart, *logging]
+    image: ghcr.io/jaichahal/smart-erp/pushsink:${ERP_IMAGE_TAG:-dev}
+    build:
+      <<: *erp-build
+      args:
+        CMD: pushsink
+    ports:
+      - "8090:8090"
+
+volumes:
+  postgres-data:
+  valkey-data:
+  minio-data:
+  caddy-data:
+  caddy-config:
+  zitadel-pat:
+  otel-logs:

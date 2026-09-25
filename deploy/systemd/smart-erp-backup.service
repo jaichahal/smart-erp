@@ -1,0 +1,29 @@
+# Nightly backup: database + object archives to local staging, manifest,
+# off-site upload + verify, write to the external drive if present + re-read
+# verify, prune, sync, unmount, safe-to-remove. Triggered by smart-erp-backup.timer.
+# Runs as the backup user; the drive mount (/mnt/erpbak/*) is 0700 erpbackup,
+# invisible to api/worker containers.
+
+[Unit]
+Description=smart-erp nightly backup (off-site bucket + external drive)
+Documentation=file:///opt/smart-erp/deploy/nuc/restore-runbook.md
+Requires=smart-erp.service
+After=smart-erp.service
+
+[Service]
+Type=oneshot
+User=erpbackup
+Group=erpbackup
+SupplementaryGroups=docker
+WorkingDirectory=/opt/smart-erp/deploy/compose
+EnvironmentFile=-/etc/smart-erp/backup.env
+ExecStart=/opt/smart-erp/deploy/scripts/backup.sh --target all
+TimeoutStartSec=4h
+Nice=10
+IOSchedulingClass=best-effort
+IOSchedulingPriority=7
+# Never let a backup run be swept up by the 02:30 update reboot.
+ExecStartPre=/usr/bin/touch /run/smart-erp/backup.running
+ExecStopPost=/bin/rm -f /run/smart-erp/backup.running
+RuntimeDirectory=smart-erp
+RuntimeDirectoryPreserve=yes

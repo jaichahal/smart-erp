@@ -1,0 +1,152 @@
+# Production overrides (x86_64 Linux NUC, 64 GB preferred / 32 GB minimum).
+# Applied through COMPOSE_FILE=docker-compose.yml:compose.prod.yml in .env,
+# started by deploy/systemd/smart-erp.service from /opt/smart-erp/deploy/compose.
+#
+# Allowed differences from dev (spec 10): secrets, hostnames, resource limits,
+# off-site endpoints. Nothing else. `${VAR:?}` makes compose refuse to start
+# when a required secret is missing from the env file.
+
+services:
+  postgres:
+    restart: always
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      ERP_MIGRATOR_PASSWORD: ${ERP_MIGRATOR_PASSWORD:?set ERP_MIGRATOR_PASSWORD in .env}
+      ERP_APP_PASSWORD: ${ERP_APP_PASSWORD:?set ERP_APP_PASSWORD in .env}
+      ZITADEL_DB_PASSWORD: ${ZITADEL_DB_PASSWORD:?set ZITADEL_DB_PASSWORD in .env}
+    # Operators reach PostgreSQL over Tailscale + the loopback binding only.
+    ports: !override
+      - "${ERP_BIND_ADDR:-127.0.0.1}:5432:5432"
+    deploy:
+      resources:
+        limits:
+          memory: 16G
+          cpus: "4"
+
+  valkey:
+    restart: always
+    ports: !override
+      - "${ERP_BIND_ADDR:-127.0.0.1}:6379:6379"
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+
+  minio:
+    restart: always
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:?set MINIO_ROOT_USER in .env}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?set MINIO_ROOT_PASSWORD in .env}
+      MINIO_BROWSER_REDIRECT_URL: http://${ERP_BIND_ADDR:-127.0.0.1}:9001
+    ports: !override
+      - "${ERP_BIND_ADDR:-127.0.0.1}:9000:9000"
+      - "${ERP_BIND_ADDR:-127.0.0.1}:9001:9001"
+    deploy:
+      resources:
+        limits:
+          memory: 4G
+          cpus: "2"
+
+  minio-init:
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:?}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?}
+      # Anchors are retained in COMPLIANCE mode for 7 years in production
+      # (dev uses 1d so developers are not locked out). Compliance mode cannot
+      # be shortened or removed, not even by the root user.
+      ERP_ANCHOR_RETENTION: 7y
+      # No offsite-sim in prod; the real off-site bucket is cloud-hosted.
+      EXTRA_BUCKETS: ""
+
+  zitadel:
+    restart: always
+    environment:
+      ZITADEL_MASTERKEY: ${ZITADEL_MASTERKEY:?set ZITADEL_MASTERKEY (exactly 32 chars) in .env}
+      ZITADEL_DATABASE_POSTGRES_USER_PASSWORD: ${ZITADEL_DB_PASSWORD:?}
+      ZITADEL_DATABASE_POSTGRES_ADMIN_PASSWORD: ${ZITADEL_DB_PASSWORD:?}
+      ZITADEL_FIRSTINSTANCE_ORG_HUMAN_PASSWORD: ${ZITADEL_ADMIN_PASSWORD:?set ZITADEL_ADMIN_PASSWORD in .env}
+      ZITADEL_FIRSTINSTANCE_ORG_NAME: ${ZITADEL_ORG_NAME:?set ZITADEL_ORG_NAME in .env}
+      # Served by Caddy as https://auth.<ERP_PUBLIC_HOSTNAME>
+      ZITADEL_EXTERNALDOMAIN: auth.${ERP_PUBLIC_HOSTNAME:?set ERP_PUBLIC_HOSTNAME in .env}
+      ZITADEL_EXTERNALPORT: "443"
+      ZITADEL_EXTERNALSECURE: "true"
+    ports: !override
+      - "${ERP_BIND_ADDR:-127.0.0.1}:8081:8080"
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+          cpus: "2"
+
+  caddy:
+    restart: always
+    environment:
+      ERP_PUBLIC_HOSTNAME: ${ERP_PUBLIC_HOSTNAME:?}
+      ERP_ACME_EMAIL: ${ERP_ACME_EMAIL:?set ERP_ACME_EMAIL in .env}
+    ports: !override
+      - "443:443"
+      - "443:443/udp"
+      - "80:80"
+    volumes:
+      # Same container path as the dev mount, so this replaces it.
+      - ./Caddyfile.prod:/etc/caddy/Caddyfile:ro
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+
+  headless-shell:
+    restart: always
+    deploy:
+      resources:
+        limits:
+          memory: 3G
+          cpus: "3"
+
+  otel-collector:
+    restart: always
+    environment:
+      ERP_OTLP_UPSTREAM: ${ERP_OTLP_UPSTREAM:?set ERP_OTLP_UPSTREAM in .env}
+      ERP_OTLP_HEADER_AUTHORIZATION: ${ERP_OTLP_HEADER_AUTHORIZATION:?set ERP_OTLP_HEADER_AUTHORIZATION in .env}
+    ports: !override
+      - "127.0.0.1:4317:4317"
+      - "127.0.0.1:4318:4318"
+    volumes:
+      - ./otel-collector.prod.yaml:/etc/otelcol-contrib/config.yaml:ro
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+
+  migrate:
+    pull_policy: missing
+
+  api:
+    restart: always
+    pull_policy: missing
+    # Only Caddy is public; api is reachable on loopback for operators.
+    ports: !override
+      - "${ERP_BIND_ADDR:-127.0.0.1}:8080:8080"
+    deploy:
+      resources:
+        limits:
+          memory: 4G
+          cpus: "4"
+
+  worker:
+    restart: always
+    pull_policy: missing
+    deploy:
+      resources:
+        limits:
+          memory: 4G
+          cpus: "4"
+
+  scheduler:
+    restart: always
+    pull_policy: missing
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: "1"

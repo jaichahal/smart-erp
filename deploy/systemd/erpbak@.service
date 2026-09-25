@@ -1,0 +1,26 @@
+# External backup drive unlock + mount. Instance = LUKS2 label, e.g.
+#   systemctl start erpbak@ERPBAK-A.service
+# Started automatically by 99-erpbak.rules when a drive with ID_FS_LABEL
+# ERPBAK-* appears. The helper resolves the label to its LUKS UUID through
+# the allow-list /etc/smart-erp/backup-drives.yaml (unknown drives are
+# ignored), opens it with the key file from the secrets store, and mounts it
+# at /mnt/erpbak/<label>, mode 0700, owner erpbackup. Never rely on desktop
+# auto-mount.
+
+[Unit]
+Description=smart-erp backup drive %i (LUKS unlock + mount)
+Documentation=file:///opt/smart-erp/deploy/nuc/restore-runbook.md
+DefaultDependencies=no
+After=local-fs.target systemd-udev-settle.service
+ConditionPathExists=/etc/smart-erp/backup-drives.yaml
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/opt/smart-erp/deploy/scripts/erpbak-mount.sh mount %i
+ExecStop=/opt/smart-erp/deploy/scripts/erpbak-mount.sh umount %i
+TimeoutStartSec=120
+TimeoutStopSec=120
+
+[Install]
+WantedBy=multi-user.target

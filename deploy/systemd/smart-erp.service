@@ -1,0 +1,39 @@
+# smart-erp production stack: docker compose, prod profile, on the NUC.
+# Installed by deploy/nuc/bootstrap.sh to /etc/systemd/system/.
+#
+# The containers carry `restart: always` (compose.prod.yml), so Docker brings
+# them back after a daemon restart or reboot on its own; this unit's job is
+# to run the ordered start (pull by digest, migrate, wait for health) and to
+# give operators one `systemctl` handle. Type=oneshot + RemainAfterExit is
+# the documented pattern for compose stacks; systemd rejects Restart=always
+# for oneshot units, so on-failure is the strongest allowed value here.
+
+[Unit]
+Description=smart-erp stack (docker compose --profile prod)
+Documentation=file:///opt/smart-erp/deploy/compose/README.md
+Requires=docker.service
+After=docker.service network-online.target time-sync.target
+Wants=network-online.target
+StartLimitIntervalSec=600
+StartLimitBurst=5
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+WorkingDirectory=/opt/smart-erp/deploy/compose
+Environment=COMPOSE_PROFILES=prod
+# Secrets: if an age-encrypted env exists, unlock it with the operator key
+# into the compose directory (mode 0600). Plaintext .env is never in the repo.
+ExecStartPre=-/bin/sh -c 'if [ -f /etc/smart-erp/env.age ]; then umask 077; age -d -i /etc/smart-erp/operator.key -o .env /etc/smart-erp/env.age; fi'
+ExecStartPre=/usr/bin/docker compose --profile prod config -q
+ExecStartPre=-/usr/bin/docker compose --profile prod pull --quiet --ignore-buildable
+ExecStart=/usr/bin/docker compose --profile prod up -d --remove-orphans --wait --wait-timeout 600
+ExecReload=/usr/bin/docker compose --profile prod up -d --remove-orphans --wait --wait-timeout 600
+ExecStop=/usr/bin/docker compose --profile prod stop --timeout 90
+TimeoutStartSec=900
+TimeoutStopSec=180
+Restart=on-failure
+RestartSec=30s
+
+[Install]
+WantedBy=multi-user.target

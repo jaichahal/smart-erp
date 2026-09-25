@@ -1,0 +1,17 @@
+# Hourly chain anchor: signs the current audit chain head with the off-prem
+# KMS key and writes it to the compliance-mode off-site bucket (ADR-06).
+# Triggered by smart-erp-anchor.timer.
+
+[Unit]
+Description=smart-erp hourly audit-chain anchor
+Documentation=file:///opt/smart-erp/deploy/nuc/anchor-failure.md
+Requires=smart-erp.service
+After=smart-erp.service
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/smart-erp/deploy/compose
+ExecStart=/opt/smart-erp/deploy/scripts/anchor.sh --target offsite
+TimeoutStartSec=15min
+# Anchoring is small but must not be starved.
+Nice=0

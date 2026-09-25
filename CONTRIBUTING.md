@@ -49,7 +49,9 @@ Never push to `main`. Never force-push a shared branch.
 If your task needs a shape another team owns, a new endpoint, a new field, or a new event type:
 
 1. Open a PR that changes **only** `contracts/` (and `docs/spec/04-api-contracts.md` with a
-   version bump: minor for additive, major for breaking, with a migration note).
+   version bump: minor for additive, major for breaking, with a migration note). The same PR
+   must also commit the regenerated `apps/api/internal/kit/oapi/gen.go` from `just gen`, and
+   no other file under `apps/`.
 2. Wait for it to merge. Every contract PR is human-reviewed.
 3. Then open your code PR against the merged contract.
 
@@ -60,7 +62,7 @@ If your task needs a shape another team owns, a new endpoint, a new field, or a 
 | `openapi-lint` | `contracts/openapi/openapi.yaml` does not pass `redocly lint` |
 | `event-schema` | an example in `contracts/events/examples/` does not validate against `event.schema.json` |
 | `openapi-drift` | `go generate ./...` in `apps/api` produces a different `internal/kit/oapi/gen.go` than the one committed. Run `just gen` and commit; never hand-edit generated files |
-| `contract-first` | the PR changes files under `contracts/` **and** files under `apps/`. Message: *contract changes must land in their own PR* |
+| `contract-first` | the PR changes files under `contracts/` **and** files under `apps/` other than `apps/api/internal/kit/oapi/gen.go`. The regenerated file from `just gen` travels with the contract. Any other `apps/` file still fails. Message: *contract changes must land in their own PR* |
 | `immutable-change` | see section 4 |
 | `spec-traceability` | the PR body does not name at least one requirement ID (`R<n>.<n>`) and one acceptance test ID (`A1`, `D7`, `I16`, ...) |
 

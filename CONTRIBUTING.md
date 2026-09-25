@@ -126,6 +126,8 @@ For every behavior change:
 
 The card is not complete until the commit message or the PR body names the test, the command, and that it failed before the implementation. The surfaces, the request-id proof, and the runners are the same rule in `docs/spec/10-execution-playbook.md` under "Test-driven development".
 
+Agents load `.cursor/rules/tdd-mac-docker.mdc` on every turn (`alwaysApply`). If this file and that rule disagree, follow the rule.
+
 ## 7. Working baseline
 
 A wave reaches this baseline before the next wave starts. Wave 2 does not start until it is green on `integration/e2e`. The latest verified snapshot is commit `8d797bd` (75 filtered end-to-end cases passed, 0 failed). It is a snapshot, not a release tag. File paths and the full wording are `docs/spec/10-execution-playbook.md` under "Working baseline". The obligations are:

@@ -1,60 +1,58 @@
-Team Lead Status - 2026-09-25 19:55 UTC+4 sweep
+Team Lead Status - 2026-09-25 20:15 UTC+4 sweep
 
-Integration (integration/e2e worktree): HEAD 977b045. New commits this round:
-- 249e0e5 "Client UI work in progress: persona home and journey screens."
-  (17 files: Android Home/Shell + journey test, iOS SignedInHome + UI updates,
-  console home/shell modules + journeys spec, router approvals-inside-auth,
-  rls spaces-in-roles). Verified before commit: go vet clean on changed Go
-  pkgs, e2e test binary compiles. login.spec not run (needs Playwright stack).
-  Migration 10042 left untracked as instructed.
-- 977b045 "Merge task/build-stock into integration/e2e." Router conflict
-  resolved keeping both: approvals.Mount(authed) + stock.Mount(authed).
-  Resolution builds clean.
+Integration (integration/e2e worktree): HEAD13066fc. New commits this round:
+- 59f436e "Merge task/build-ledger into integration/e2e." Ledger 5faa71d
+  verified green first (go test ./internal/ledger/... ok, incl. periods).
+  Router auto-merged correctly: ledger.Mount outside auth, approvals + stock +
+  notifications inside auth. Builds clean.
+- 13066fc status file (this file).
 
-E2E-WAVE1 RESULT: FAIL. 14 subtests fail, all P1.7 D1-D14:
-POST /api/v1/approvals/actors as initiator -> 401 AUTH_REQUIRED.
-Everything else in the wave-1 filter passes.
-Root cause: the approvals mount now sits behind id.Authenticate, which rejects
-requests without a bearer token. The P1.7 harness (e2e/b1_world.go) authenticates
-via X-User/X-Company/X-Roles headers through approvals.RequestPrincipal and sends
-no bearer token, so every D-case 401s.
-Causality proof: P1.7 subset passes on pristine c9b2a46 (temp worktree, since
-removed) and fails on 977b045. Stock merge is not the cause (it only adds a mount).
-Jai confirmed the auth move is intentional, so the lead did NOT revert it.
-Fix owner: approvals track (task/P1.7-approval-engine) or notifications track to
-reconcile RequestPrincipal header auth with bearer Authenticate on approvals
-routes (options: dual principal resolution inside approvals handlers, or bearer
-tokens in the P1.7 harness). Needs Jai decision; auth semantics reserved for Jai.
+No new uncommitted client work on integration/e2e this sweep (only untracked
+10042, left alone). Nothing to commit as WIP. Standing redirect: client agent
+2e4bf2a2 should work on task/build-clients, not integration/e2e. Parent relays.
+
+E2E-WAVE1 RESULT: same known red only. P1.7 D1-D14 fail 401 (HOLD per Jai, auth
+semantics untouched). No new reds after the ledger merge. Ledger merge did not
+regress the wave-1 filter.
+
+QA reviews read: qa-reviews/backend.md and clients.md do not exist yet (no QA
+defect backlog). qa-reviews/client-api-needs.md lists 4 missing API routes that
+keep client UI tests red (404 route not found, verified vs Docker API):
+- purchase track: GET /api/v1/vendors/dashboard?sku=, GET /api/v1/lpos
+- sales track: POST /api/v1/sales-orders
+- receivables track: POST /api/v1/receipts
+All wait on masters/ledger seams (SKUs, vendors, posting). Routed here as next
+steps; Clients QA re-runs after routes exist. Also noted: one Playwright
+"Too many requests" flake on role-gating spec, passed solo; rate-limit look if
+it recurs.
+
+QA SCALE TRIGGER: NOT fired. Only 1 track newly green this sweep (ledger), and
+no QA defect report with 3+ open defects exists (backend.md/clients.md absent;
+client-api-needs.md is a 4-item build dependency list with clear owners, not a
+QA defect backlog). No split recommended yet.
 
 Tracks (branch tip / worktree / tests / blocked-on):
-- ledger (task/build-ledger): tip c9b2a46, uncommitted ledger pkg + migrations
-  30100-30130, and NOW also a modified router.go (watch for conflicts with
-  integration router). Still compile-RED c11 (TDD). Active. Blocked-on: nothing.
-- masters (task/build-masters): tip c9b2a46, uncommitted masters pkg + NEW
-  migration 31100_masters.sql (progress). Stub RED phase. Blocked-on: nothing
-  (it blocks stock placeholder removal + purchase/sales seams).
-- stock (task/build-stock): tip 7ab160a, MERGED into integration/e2e as 977b045.
-  Placeholder SnapshotCatalog stays until masters P2.2 lands via UseCatalog
-  (Jai confirmed). Done from lead view.
-- sales (task/build-sales): tip c9b2a46, uncommitted sales pkg + 33100. Active.
-  Blocked-on: masters seams (unconfirmed).
-- receivables (task/build-receivables): tip c9b2a46, NEW internal/bank/ dir +
-  migration now 34100_receivables_and_bank.sql (progress). Active.
-- purchase (task/build-purchase): tip c9b2a46, uncommitted purchase pkg +
-  35100, and NOW also a modified router.go (watch for conflicts). Active.
-- clients (task/build-clients): NEW commit f55adfd "Add vendor, order, receipt,
-  and purchase screens on the console and both phones." Worktree clean. Active.
-  Note: agent 2e4bf2a2 still also works directly on integration/e2e; remind it to
-  use its branch going forward.
+- ledger: 5faa71d MERGED as 59f436e. Worktree clean. Done from lead view.
+- masters: tip c9b2a46, uncommitted pkg + 31100_masters.sql. Stub RED. Next:
+  implement to green, then merge. Blocks stock placeholder + purchase/sales.
+- stock: 7ab160a merged earlier. Clean. Waiting on masters UseCatalog.
+- sales: tip c9b2a46, uncommitted pkg + 33100. Next: POST /api/v1/sales-orders
+  (client-api-needs). Blocked-on: masters seams.
+- receivables: tip c9b2a46, uncommitted bank/ + receivables/ + 34100. Next:
+  POST /api/v1/receipts (client-api-needs).
+- purchase: tip c9b2a46, uncommitted pkg + 35100 + modified router.go (conflict
+  watch at merge). Next: vendor dashboard + LPO list (client-api-needs).
+  Blocked-on: masters vendor/SKU approval seam.
+- clients: tip f55adfd, worktree clean. UI waits on the 4 API routes above.
 
 Plan source (task/plan-index): tip ce8cb65, unchanged.
 
-Merges done: task/build-stock 7ab160a -> integration/e2e 977b045.
+Merges done: task/build-ledger 5faa71d -> integration/e2e 59f436e.
 Unblocks made: none (no track stuck).
-E2E: e2e-wave1 FAIL (P1.7 D1-D14 401s, see above).
+E2E: e2e-wave1 FAIL known-only (P1.7 D1-D14 on HOLD).
 
-Needs Jai:
-1. P1.7 401s: keep approvals-behind-auth (breaks P1.7 harness) or restore
-   header-auth compatibility? Owner: approvals track once decided.
-2. Remind client agent to work on task/build-clients, not integration/e2e.
-3. Masters P2.2 seam confirmed already; no action.
+Needs Jai (standing):
+1. P1.7 401s HOLD: bearer-only approvals vs header-auth compat.
+2. Relay to client agent: use task/build-clients.
+3. Relay client-api-needs owners: purchase (dashboard, LPOs), sales (orders),
+   receivables (receipts) after masters/ledger seams.

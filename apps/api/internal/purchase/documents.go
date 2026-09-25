@@ -241,6 +241,38 @@ func (s *Service) GetDocument(ctx context.Context, p rls.Principal, id uuid.UUID
 	return doc, err
 }
 
+// ListLPOs returns the company's local purchase orders.
+func (s *Service) ListLPOs(ctx context.Context, p rls.Principal) ([]Document, error) {
+	var ids []uuid.UUID
+	err := rls.Tx(ctx, s.Pool, p, func(tx pgx.Tx) error {
+		rows, err := tx.Query(ctx, `SELECT id FROM erp.purchase_docs WHERE company_id=$1 AND doc_type='lpo' ORDER BY created_at, number`, p.CompanyID)
+		if err != nil {
+			return err
+		}
+		defer rows.Close()
+		for rows.Next() {
+			var id uuid.UUID
+			if err := rows.Scan(&id); err != nil {
+				return err
+			}
+			ids = append(ids, id)
+		}
+		return rows.Err()
+	})
+	if err != nil {
+		return nil, err
+	}
+	out := make([]Document, 0, len(ids))
+	for _, id := range ids {
+		doc, err := s.GetDocument(ctx, p, id)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, doc)
+	}
+	return out, nil
+}
+
 // ListPayables lists supplier invoices and whether each one is flagged.
 func (s *Service) ListPayables(ctx context.Context, p rls.Principal) ([]Document, error) {
 	var ids []uuid.UUID

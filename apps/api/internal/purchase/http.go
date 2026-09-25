@@ -29,15 +29,22 @@ func Mount(r chi.Router, deps httpx.Deps) {
 	Handler{Svc: New(deps.Pool, appr), Log: log}.Routes(r)
 }
 
-// Routes registers the purchase API.
+// Routes registers the purchase API. Clients call GET /lpos and
+// GET /vendors/dashboard?sku=. The dashboard route is the same query as
+// GET /purchase/dashboard. A static /vendors/dashboard path must be registered
+// so chi does not treat "dashboard" as /vendors/{id}.
 func (h Handler) Routes(r chi.Router) {
-	r.Route("/purchase", func(pr chi.Router) {
+	r.Group(func(pr chi.Router) {
 		pr.Use(h.logRequest)
-		pr.Post("/vendors", h.refuseVendor)
-		pr.Get("/dashboard", h.dashboard)
-		pr.Get("/payables", h.payables)
-		pr.Get("/requests/{id}", h.review)
-		pr.Get("/documents/{id}", h.document)
+		pr.Get("/lpos", h.listLPOs)
+		pr.Get("/vendors/dashboard", h.dashboard)
+		pr.Route("/purchase", func(pr chi.Router) {
+			pr.Post("/vendors", h.refuseVendor)
+			pr.Get("/dashboard", h.dashboard)
+			pr.Get("/payables", h.payables)
+			pr.Get("/requests/{id}", h.review)
+			pr.Get("/documents/{id}", h.document)
+		})
 	})
 }
 
@@ -103,6 +110,20 @@ func (h Handler) review(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	out, err := h.Svc.Review(r.Context(), p, id)
+	if err != nil {
+		apierr.Write(w, r, err)
+		return
+	}
+	httpx.JSON(w, r, http.StatusOK, out)
+}
+
+func (h Handler) listLPOs(w http.ResponseWriter, r *http.Request) {
+	p, err := principal(r)
+	if err != nil {
+		apierr.Write(w, r, err)
+		return
+	}
+	out, err := h.Svc.ListLPOs(r.Context(), p)
 	if err != nil {
 		apierr.Write(w, r, err)
 		return

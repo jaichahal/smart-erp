@@ -21,18 +21,33 @@ type handler struct {
 	svc *Service
 }
 
-// Mount registers /sod-matrix and /approval-matrix on the API router.
+// Mount registers authorisation routes: matrices, customers, experience, users,
+// document redaction, and the access-review job.
 func Mount(r chi.Router, deps httpx.Deps) {
 	h := handler{svc: New(deps)}
 	r.Route("/sod-matrix", func(r chi.Router) {
-		r.Use(language)
+		r.Use(language, h.authenticate)
 		r.Get("/", h.listSod)
 		r.With(idempotency.Middleware(deps.Pool)).Post("/", h.createSod)
 	})
 	r.Route("/approval-matrix", func(r chi.Router) {
-		r.Use(language)
+		r.Use(language, h.authenticate)
 		r.Get("/", h.listMatrix)
 		r.With(idempotency.Middleware(deps.Pool)).Post("/", h.createMatrix)
+	})
+	r.Group(func(r chi.Router) {
+		r.Use(language, h.authenticate)
+		r.Get("/customers", h.listCustomers)
+		r.Get("/experience", h.experience)
+		r.Get("/users/{id}", h.getUser)
+		r.Get("/exceptions", h.listExceptions)
+		write := r.With(idempotency.Middleware(deps.Pool))
+		write.Post("/documents/preview", h.previewDocument)
+		write.Post("/users", h.createUser)
+		write.Post("/users/{id}/roles", h.assignRoles)
+		write.Post("/users/{id}/disable", h.disableUser)
+		write.Post("/access-reviews", h.runAccessReview)
+		write.Post("/access-reviews/{id}/confirm", h.confirmAccessReview)
 	})
 }
 

@@ -12,8 +12,8 @@ import (
 
 // Customer is one row of the territory-scoped customer list.
 type Customer struct {
-	ID   string
-	Name string
+	ID   string `json:"id"`
+	Name string `json:"name"`
 }
 
 // CustomerPage is one page of customers plus the total over the same filter.

@@ -18,8 +18,8 @@ type LoginGate interface {
 }
 
 // OverrideApprover is the approvals module (P1.7). Granted reports whether an
-// approval allows one user to hold the proposed roles. The default denies
-// every override until that module is wired in.
+// approval allows one user to hold the proposed roles. The default looks up a
+// sod.override.<approval_id> grant and otherwise denies the override.
 type OverrideApprover interface {
 	Granted(ctx context.Context, approvalID, userID string, roles []string) (bool, error)
 }
@@ -28,13 +28,6 @@ type OverrideApprover interface {
 // master mutation needs a decision. The matrix row stays pending either way.
 type MatrixApprover interface {
 	Submit(ctx context.Context, companyID uuid.UUID, kind string, payload []byte) (requestID string, err error)
-}
-
-type closedOverride struct{}
-
-// Granted denies every override until the approvals module is wired in.
-func (closedOverride) Granted(context.Context, string, string, []string) (bool, error) {
-	return false, nil
 }
 
 type pendingMatrix struct{}

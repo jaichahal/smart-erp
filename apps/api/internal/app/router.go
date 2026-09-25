@@ -66,9 +66,12 @@ func Handler(deps httpx.Deps, opts ...Option) (http.Handler, error) {
 		v1.Get("/status", audit.StatusHandler(deps))
 		v1.Get("/design/tokens", designTokens(deps.Pool))
 		id := identity.Mount(v1, deps, w.identity...)
-		authz.Mount(v1, deps)
 		clocks.Mount(v1, deps)
 		periods.Mount(v1, deps, approvalGate{pool: deps.Pool})
+		// Periods and authz both register GET /exceptions. Chi keeps the later
+		// route. Access-review exceptions must stay reachable with the bearer
+		// token authz verifies; period exceptions stay on the periods server.
+		authz.Mount(v1, deps)
 		audit.Mount(v1, deps)
 		approvals.Mount(v1, deps)
 		v1.Group(func(authed chi.Router) {

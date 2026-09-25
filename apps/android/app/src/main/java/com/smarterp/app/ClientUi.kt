@@ -26,8 +26,8 @@ import org.json.JSONArray
 import org.json.JSONObject
 
 
-internal fun DeviceSession.Session.api(method: String, path: String, body: JSONObject? = null): JSONObject {
-    val (code, json) = exchange(method, path, body)
+internal fun DeviceSession.Session.api(method: String, path: String, body: JSONObject? = null, match: String? = null): JSONObject {
+    val (code, json) = exchange(method, path, body, match)
     if (code !in 200..299) {
         val message = json.optJSONObject("error")?.optString("message").orEmpty()
         throw IllegalStateException(if (message.isBlank()) "HTTP $code" else "HTTP $code $message")
@@ -72,6 +72,14 @@ fun PhoneHome(profile: DeviceSession.Session, settings: AppSettings, onSettings:
     var screen by remember { mutableStateOf("home") }
     Column {
         Text(title, modifier = Modifier.testTag("persona-home"))
+        when (screen) {
+            "vendor" -> VendorDashboard(profile)
+            "sales" -> SalesOrder(profile)
+            "collection" -> CollectionReceipt(profile)
+            "purchases" -> PurchaseList(profile)
+            "settings" -> SettingsScreen(profile, settings, onSettings)
+            else -> Text("$title home")
+        }
         (personaTabs(title) + listOf("Vendor dashboard", "Sales order", "Collection receipt", "Purchase list", "Settings")).forEach { label ->
             Button(
                 onClick = {
@@ -88,14 +96,6 @@ fun PhoneHome(profile: DeviceSession.Session, settings: AppSettings, onSettings:
             ) {
                 Text(label)
             }
-        }
-        when (screen) {
-            "vendor" -> VendorDashboard(profile)
-            "sales" -> SalesOrder(profile)
-            "collection" -> CollectionReceipt(profile)
-            "purchases" -> PurchaseList(profile)
-            "settings" -> SettingsScreen(profile, settings, onSettings)
-            else -> Text("$title home")
         }
     }
 }
@@ -133,7 +133,7 @@ fun VendorDashboard(profile: DeviceSession.Session) {
     val gate = canGateVendor(profile)
     Column {
         Text("Vendor dashboard")
-        TextField(value = sku, onValueChange = { sku = it }, label = { Text("Raw-material SKU") }, modifier = Modifier.testTag("sku-filter").tapTarget())
+        TextField(value = sku, onValueChange = { sku = it }, label = { Text("SKU id") }, modifier = Modifier.testTag("sku-filter").tapTarget())
         Button(
             onClick = {
                 scope.launch {
@@ -266,7 +266,7 @@ private fun ReviewSheet(
 fun SalesOrder(profile: DeviceSession.Session) {
     var customer by remember { mutableStateOf("") }
     var sku by remember { mutableStateOf("") }
-    var quantity by remember { mutableStateOf("1") }
+    var quantity by remember { mutableStateOf("") }
     var price by remember { mutableStateOf("") }
     var error by remember { mutableStateOf("") }
     var number by remember { mutableStateOf("") }
@@ -286,12 +286,12 @@ fun SalesOrder(profile: DeviceSession.Session) {
                     val body = JSONObject()
                         .put("customer_id", customer)
                         .put("lines", JSONArray().put(JSONObject()
-                            .put("sku", sku)
-                            .put("quantity", quantity)
-                            .put("uom", "ea")
-                            .put("unit_price", JSONObject().put("amount", price).put("currency", "AED"))))
+                            .put("sku_id", sku)
+                            .put("qty", quantity)
+                            .put("uom", "EA")
+                            .put("unit_price", price)))
                     try {
-                        val json = withContext(Dispatchers.IO) { profile.api("POST", path, body) }
+                        val json = withContext(Dispatchers.IO) { profile.api("POST", path, body, "0") }
                         val found = documentNumber(json)
                         if (found.isBlank()) error = "POST $path failed unexpected sales order payload" else number = found
                     } catch (failure: Exception) {
@@ -308,6 +308,8 @@ fun SalesOrder(profile: DeviceSession.Session) {
 
 @Composable
 fun CollectionReceipt(profile: DeviceSession.Session) {
+    var customer by remember { mutableStateOf("") }
+    var cashAccount by remember { mutableStateOf("") }
     var amount by remember { mutableStateOf("") }
     var error by remember { mutableStateOf("") }
     var number by remember { mutableStateOf("") }
@@ -315,6 +317,8 @@ fun CollectionReceipt(profile: DeviceSession.Session) {
     val haptic = LocalHapticFeedback.current
     Column {
         Text("Collection receipt")
+        TextField(value = customer, onValueChange = { customer = it }, label = { Text("Customer") }, modifier = Modifier.testTag("receipt-customer").tapTarget())
+        TextField(value = cashAccount, onValueChange = { cashAccount = it }, label = { Text("Cash account") }, modifier = Modifier.testTag("cash-account").tapTarget())
         TextField(value = amount, onValueChange = { amount = it }, label = { Text("Amount") }, modifier = Modifier.testTag("amount").tapTarget())
         Button(
             onClick = {
@@ -323,12 +327,14 @@ fun CollectionReceipt(profile: DeviceSession.Session) {
                     error = ""
                     number = ""
                     val path = "/api/v1/receipts"
-                    val money = JSONObject().put("amount", amount).put("currency", "AED")
                     val body = JSONObject()
+                        .put("customer_id", customer)
                         .put("method", "cash")
-                        .put("amount", money)
+                        .put("amount", JSONObject().put("amount", amount).put("currency", "AED"))
+                        .put("collector_id", profile.userId)
+                        .put("posted_on", java.time.LocalDate.now().toString())
+                        .put("cash_account_id", cashAccount)
                         .put("allocations", JSONArray())
-                        .put("on_account", money)
                     try {
                         val json = withContext(Dispatchers.IO) { profile.api("POST", path, body) }
                         val found = documentNumber(json)
@@ -395,21 +401,21 @@ private fun parseDashboard(json: JSONObject): Triple<List<VendorRow>, BestPrice?
             "${sku.optString("sku")} active ${sku.optInt("active_invoice_count")} past ${sku.optInt("past_invoice_count")}"
         }
         VendorRow(
-            id = row.optString("id"),
+            id = row.optString("vendor_id").ifBlank { row.optString("id") },
             name = row.optString("name"),
-            status = row.optString("status"),
-            active = row.optInt("active_invoice_count"),
-            past = row.optInt("past_invoice_count"),
+            status = if (row.optBoolean("blacklisted")) "blacklisted" else row.optString("status"),
+            active = if (row.has("active_invoices")) row.optInt("active_invoices") else row.optInt("active_invoice_count"),
+            past = if (row.has("past_invoices")) row.optInt("past_invoices") else row.optInt("past_invoice_count"),
             skus = lines,
             approvalId = row.optString("approval_id"),
         )
     }
-    val best = data.optJSONObject("best_price")?.optJSONObject("source")?.let { source ->
+    val best = data.optJSONObject("best")?.let { source ->
         val price = source.optJSONObject("unit_price")
         BestPrice(
-            id = source.optString("id"),
+            id = source.optString("document_id").ifBlank { source.optString("id") },
             number = source.optString("number"),
-            amount = price?.optString("amount") ?: "",
+            amount = price?.optString("amount") ?: source.optString("unit_price"),
             currency = price?.optString("currency") ?: source.optString("currency"),
             window = source.optString("effective_from") + " to " + source.optString("effective_to"),
         )
@@ -417,7 +423,7 @@ private fun parseDashboard(json: JSONObject): Triple<List<VendorRow>, BestPrice?
     val blockedArray = data.optJSONArray("blocked")
     val blocked = if (blockedArray == null) "" else List(blockedArray.length()) { index ->
         val row = blockedArray.getJSONObject(index)
-        row.optString("name") + ": " + row.optString("reason")
+        row.optString("vendor_id").ifBlank { row.optString("name") } + ": " + row.optString("reason")
     }.joinToString("\n")
     return Triple(vendors, best, blocked)
 }

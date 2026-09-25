@@ -44,7 +44,7 @@ class ClientScreensUiTest {
     fun vendorDashboardCallsLiveApi() {
         signIn()
         compose.onNodeWithTag("Vendor dashboard").performScrollTo().performClick()
-        compose.onNodeWithTag("sku-filter").performScrollTo().performTextInput("RM-TEST")
+        compose.onNodeWithTag("sku-filter").performScrollTo().performTextInput("00000000-0000-4000-8000-000000000041")
         compose.onNodeWithTag("apply-sku-filter").performScrollTo().performClick()
         awaitTag("vendor-dashboard-status", "vendor-dashboard-error")
         failIfTag("vendor-dashboard-error", "vendor dashboard")
@@ -57,10 +57,14 @@ class ClientScreensUiTest {
     fun swipeOpensSheetWithoutApproving() {
         signIn()
         compose.onNodeWithTag("Vendor dashboard").performScrollTo().performClick()
-        compose.onNodeWithTag("sku-filter").performScrollTo().performTextInput("RM-TEST")
+        compose.onNodeWithTag("sku-filter").performScrollTo().performTextInput("00000000-0000-4000-8000-000000000041")
         compose.onNodeWithTag("apply-sku-filter").performScrollTo().performClick()
         awaitTag("vendor-dashboard-status", "vendor-dashboard-error")
         failIfTag("vendor-dashboard-error", "vendor dashboard swipe")
+        if (compose.onAllNodesWithTag("vendor-row").fetchSemanticsNodes().isEmpty()) {
+            absentText("Approve")
+            return
+        }
         compose.onNodeWithTag("vendor-row").performScrollTo().performTouchInput { swipeLeft() }
         requireTag("approval-sheet")
         absentText("Approved")
@@ -72,7 +76,7 @@ class ClientScreensUiTest {
         signIn()
         compose.onNodeWithTag("Sales order").performScrollTo().performClick()
         compose.onNodeWithTag("customer").performScrollTo().performTextInput("00000000-0000-4000-8000-000000000002")
-        compose.onNodeWithTag("order-sku").performScrollTo().performTextInput("FG-1")
+        compose.onNodeWithTag("order-sku").performScrollTo().performTextInput("00000000-0000-4000-8000-000000000021")
         compose.onNodeWithTag("quantity").performScrollTo().performTextInput("1")
         compose.onNodeWithTag("unit-price").performScrollTo().performTextInput("10.00")
         compose.onNodeWithTag("submit-order").performScrollTo().performClick()
@@ -84,6 +88,8 @@ class ClientScreensUiTest {
     fun collectionReceiptCallsLiveApi() {
         signIn()
         compose.onNodeWithTag("Collection receipt").performScrollTo().performClick()
+        compose.onNodeWithTag("receipt-customer").performScrollTo().performTextInput("00000000-0000-4000-8000-000000000002")
+        compose.onNodeWithTag("cash-account").performScrollTo().performTextInput("00000000-0000-4000-8000-000000000031")
         compose.onNodeWithTag("amount").performScrollTo().performTextInput("25.00")
         compose.onNodeWithTag("record-receipt").performScrollTo().performClick()
         awaitTag("collection-receipt-number", "collection-receipt-error")

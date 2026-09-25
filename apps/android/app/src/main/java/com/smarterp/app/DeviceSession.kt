@@ -29,10 +29,10 @@ object DeviceSession {
         fun get(path: String): JSONObject = authed("GET", path, null)
         fun post(path: String, body: JSONObject): JSONObject = authed("POST", path, body)
 
-        fun exchange(method: String, path: String, body: JSONObject?): Pair<Int, JSONObject> {
+        fun exchange(method: String, path: String, body: JSONObject?, match: String? = null): Pair<Int, JSONObject> {
             val url = base + path
             val proof = dpop(privateKey, jwk, method, url.substringBefore('?'), access)
-            return callResult(url, method, body?.toString(), access, proof)
+            return callResult(url, method, body?.toString(), access, proof, match)
         }
 
         private fun authed(method: String, path: String, body: JSONObject?): JSONObject {
@@ -186,7 +186,7 @@ object DeviceSession {
         return json
     }
 
-    private fun callResult(url: String, method: String, body: String?, access: String?, dpop: String?): Pair<Int, JSONObject> {
+    private fun callResult(url: String, method: String, body: String?, access: String?, dpop: String?, match: String? = null): Pair<Int, JSONObject> {
         val conn = (URL(url).openConnection() as HttpURLConnection).apply {
             requestMethod = method
             connectTimeout = 8_000
@@ -196,6 +196,9 @@ object DeviceSession {
                 doOutput = true
                 setRequestProperty("Content-Type", "application/json")
                 setRequestProperty("Idempotency-Key", UUID.randomUUID().toString())
+            }
+            if (match != null) {
+                setRequestProperty("If-Match", match)
             }
             if (access != null) {
                 setRequestProperty("Authorization", "Bearer $access")

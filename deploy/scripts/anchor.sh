@@ -23,16 +23,17 @@ while [[ $# -gt 0 ]]; do
 done
 
 case "${TARGET}" in offsite|local|all) ;; *) die "--target must be offsite, local, or all" ;; esac
-require_cmd docker
+require_cmd go
 
 ANCHOR_ID="$(timestamp_id)"
 log "anchor ${ANCHOR_ID}: target=${TARGET} dry-run=${DRY_RUN}"
 
-# The Go worker owns: read chain head under a snapshot, canonicalise, sign with
-# KMS, PUT with object lock, record the anchor row, email the daily digest.
-todo "erp_run anchor write --id ${ANCHOR_ID} --target ${TARGET}"
-# [[ "${DRY_RUN}" -eq 1 ]] || erp_run anchor write --id "${ANCHOR_ID}" --target "${TARGET}"
-
-todo "erp_run anchor verify --id ${ANCHOR_ID}   (re-read the object, check signature, compare head)"
-todo "on failure: erp_run status set anchor=failed and alert; see deploy/nuc/anchor-failure.md"
-log "anchor ${ANCHOR_ID} finished (skeleton)"
+# offsite and all both write the on-prem copy and the off-site compliance copy.
+# local writes on-prem only and is not an anchor (05 "External anchoring").
+if [[ "${DRY_RUN}" -eq 1 ]]; then
+  log "dry-run: auditctl anchor write --target ${TARGET}"
+else
+  auditctl anchor write --target "${TARGET}"
+  auditctl chain verify --against "${TARGET}"
+fi
+log "anchor ${ANCHOR_ID} finished"

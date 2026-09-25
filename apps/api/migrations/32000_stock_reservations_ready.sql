@@ -18,6 +18,23 @@ CREATE TABLE IF NOT EXISTS erp.stock_reservations_masters_hold (
 -- +goose StatementBegin
 DO $$
 BEGIN
+    IF to_regclass('erp.stock_reservations_keep') IS NOT NULL THEN
+        IF to_regclass('erp.stock_reservations') IS NOT NULL AND NOT EXISTS (
+            SELECT 1 FROM information_schema.columns
+            WHERE table_schema = 'erp'
+              AND table_name = 'stock_reservations'
+              AND column_name = 'order_line_id'
+        ) THEN
+            INSERT INTO erp.stock_reservations_masters_hold (
+                id, company_id, sku_id, warehouse_id, qty, status, created_at)
+            SELECT id, company_id, sku_id, warehouse_id, qty, COALESCE(status, 'active'), created_at
+            FROM erp.stock_reservations
+            ON CONFLICT (id) DO NOTHING;
+            DROP TABLE erp.stock_reservations;
+        END IF;
+        ALTER TABLE erp.stock_reservations_keep RENAME TO stock_reservations;
+        RETURN;
+    END IF;
     IF to_regclass('erp.stock_reservations') IS NULL THEN
         RETURN;
     END IF;

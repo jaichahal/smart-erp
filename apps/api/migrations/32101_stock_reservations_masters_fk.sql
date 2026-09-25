@@ -32,22 +32,45 @@ BEGIN
        OR to_regclass('erp.stock_reservations') IS NULL THEN
         RETURN;
     END IF;
+    IF EXISTS (
+        SELECT 1 FROM erp.stock_reservations r
+        WHERE NOT EXISTS (SELECT 1 FROM erp.skus s WHERE s.id = r.sku_id)
+           OR NOT EXISTS (SELECT 1 FROM erp.warehouses w WHERE w.id = r.warehouse_id)
+           OR NOT EXISTS (SELECT 1 FROM erp.companies c WHERE c.id = r.company_id)
+    ) THEN
+        RETURN;
+    END IF;
 
     ALTER TABLE erp.stock_reservations DROP CONSTRAINT IF EXISTS stock_reservations_company_id_sku_id_fkey;
     ALTER TABLE erp.stock_reservations DROP CONSTRAINT IF EXISTS stock_reservations_company_id_warehouse_id_fkey;
-    ALTER TABLE erp.stock_reservations DROP CONSTRAINT IF EXISTS stock_reservations_sku_id_fkey;
-    ALTER TABLE erp.stock_reservations DROP CONSTRAINT IF EXISTS stock_reservations_warehouse_id_fkey;
-    ALTER TABLE erp.stock_reservations DROP CONSTRAINT IF EXISTS stock_reservations_company_id_fkey;
 
-    ALTER TABLE erp.stock_reservations
-        ADD CONSTRAINT stock_reservations_company_id_fkey
-        FOREIGN KEY (company_id) REFERENCES erp.companies (id);
-    ALTER TABLE erp.stock_reservations
-        ADD CONSTRAINT stock_reservations_sku_id_fkey
-        FOREIGN KEY (sku_id) REFERENCES erp.skus (id);
-    ALTER TABLE erp.stock_reservations
-        ADD CONSTRAINT stock_reservations_warehouse_id_fkey
-        FOREIGN KEY (warehouse_id) REFERENCES erp.warehouses (id);
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint
+        WHERE conrelid = 'erp.stock_reservations'::regclass
+          AND conname = 'stock_reservations_company_id_fkey'
+    ) THEN
+        ALTER TABLE erp.stock_reservations
+            ADD CONSTRAINT stock_reservations_company_id_fkey
+            FOREIGN KEY (company_id) REFERENCES erp.companies (id);
+    END IF;
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint
+        WHERE conrelid = 'erp.stock_reservations'::regclass
+          AND conname = 'stock_reservations_sku_id_fkey'
+    ) THEN
+        ALTER TABLE erp.stock_reservations
+            ADD CONSTRAINT stock_reservations_sku_id_fkey
+            FOREIGN KEY (sku_id) REFERENCES erp.skus (id);
+    END IF;
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint
+        WHERE conrelid = 'erp.stock_reservations'::regclass
+          AND conname = 'stock_reservations_warehouse_id_fkey'
+    ) THEN
+        ALTER TABLE erp.stock_reservations
+            ADD CONSTRAINT stock_reservations_warehouse_id_fkey
+            FOREIGN KEY (warehouse_id) REFERENCES erp.warehouses (id);
+    END IF;
 END $$;
 -- +goose StatementEnd
 

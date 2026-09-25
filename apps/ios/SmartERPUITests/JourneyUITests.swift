@@ -31,11 +31,15 @@ final class JourneyUITests: XCTestCase {
             app.swipeUp(velocity: .slow)
             swipes += 1
         }
-        let start = app.coordinate(withNormalizedOffset: CGVector(
-            dx: (card.frame.minX + 16) / max(app.frame.width, 1),
-            dy: card.frame.midY / max(app.frame.height, 1)))
-        let end = start.withOffset(CGVector(dx: 180, dy: 0))
-        start.press(forDuration: 0.2, thenDragTo: end)
+        if card.isHittable {
+            card.swipeRight()
+        } else {
+            let start = app.coordinate(withNormalizedOffset: CGVector(
+                dx: (card.frame.minX + 24) / max(app.frame.width, 1),
+                dy: card.frame.midY / max(app.frame.height, 1)))
+            let end = start.withOffset(CGVector(dx: 160, dy: 0))
+            start.press(forDuration: 0.2, thenDragTo: end)
+        }
         XCTAssertTrue(app.staticTexts["Approve request"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.staticTexts["Live state pending"].waitForExistence(timeout: 8))
     }

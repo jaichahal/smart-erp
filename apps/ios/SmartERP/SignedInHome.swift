@@ -11,36 +11,31 @@ struct SignedInHome: View {
     private var kind: String { homeKind(roles: session.roles, personas: session.personas) }
 
     var body: some View {
-        ScrollViewReader { proxy in
-        ScrollView {
-            VStack(alignment: .leading, spacing: 12) {
-                Text(session.name).accessibilityIdentifier("signed-in-name")
-                Text("Home / Approval inbox").foregroundStyle(.secondary)
-                Text(session.roles.joined(separator: ", ")).accessibilityIdentifier("profile-roles")
-                Text(kind).accessibilityIdentifier("home-kind")
-                PersonaHome(kind: kind)
-                Text("Approval inbox").font(.title2)
-                if !loaded { Text("Loading the approval inbox") }
-                if !errorLine.isEmpty { Text(errorLine).foregroundStyle(.red).accessibilityIdentifier("inbox-error") }
-                if loaded && cards.isEmpty && errorLine.isEmpty { Text("Nothing is waiting on you.") }
-                ForEach(cards) { card in
-                    ApprovalCardView(card: card, flagged: flags.contains(card.id)) { opened in
-                        sheet = SheetRequest(kind: opened, card: card)
-                    }
-                    .id(card.id)
+        VStack(alignment: .leading, spacing: 12) {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 12) {
+                    Text(session.name).accessibilityIdentifier("signed-in-name")
+                    Text("Home / Approval inbox").foregroundStyle(.secondary)
+                    Text(session.roles.joined(separator: ", ")).accessibilityIdentifier("profile-roles")
+                    Text(kind).accessibilityIdentifier("home-kind")
+                    PersonaHome(kind: kind)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .frame(maxHeight: 300)
+            Text("Approval inbox").font(.title2)
+            if !loaded { Text("Loading the approval inbox") }
+            if !errorLine.isEmpty { Text(errorLine).foregroundStyle(.red).accessibilityIdentifier("inbox-error") }
+            if loaded && cards.isEmpty && errorLine.isEmpty { Text("Nothing is waiting on you.") }
+            ForEach(cards) { card in
+                ApprovalCardView(card: card, flagged: flags.contains(card.id)) { opened in
+                    sheet = SheetRequest(kind: opened, card: card)
                 }
             }
-            .padding()
-            .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .onChange(of: cards.first?.id) { _, id in
-            guard let pinned = UserDefaults.standard.string(forKey: "approvalDoc"),
-                  cards.first?.docNumber == pinned,
-                  let id else { return }
-            proxy.scrollTo(id, anchor: .center)
-        }
+        .padding()
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .task { await load() }
-        }
         .sheet(item: $sheet) { request in
             DecisionSheet(session: session, request: request) {
                 flags.insert(request.card.id)
@@ -169,21 +164,23 @@ private struct ApprovalCardView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text(card.docNumber).font(.headline).accessibilityHidden(true)
+            Text(card.docNumber).font(.headline)
             Text("\(card.docType) \(card.amount)")
             Text("Requester \(card.requester)")
             if flagged { Text("Flagged for review").foregroundStyle(.red) }
         }
-        .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+        .frame(maxWidth: .infinity, minHeight: 72, alignment: .leading)
         .padding(8)
         .contentShape(Rectangle())
-        .background(Color.white.opacity(0.001))
-        .allowsHitTesting(false)
-        .overlay(CardPan(label: card.docNumber) { translation in
-            if let kind = sheetForDrag(dx: translation.width, dy: translation.height) {
-                onOpen(kind)
-            }
-        })
+        .gesture(
+            DragGesture(minimumDistance: 20)
+                .onEnded { value in
+                    if let kind = sheetForDrag(dx: value.translation.width, dy: value.translation.height) {
+                        onOpen(kind)
+                    }
+                }
+        )
+        .accessibilityIdentifier("approval-card")
     }
 }
 
@@ -314,79 +311,3 @@ private struct DecisionSheet: View {
     }
 }
 
-private struct CardPan: UIViewRepresentable {
-    var label: String
-    var onEnd: (CGSize) -> Void
-
-    func makeUIView(context: Context) -> PanHost {
-        let view = PanHost()
-        view.isAccessibilityElement = true
-        view.accessibilityTraits = .staticText
-        view.accessibilityLabel = label
-        view.accessibilityIdentifier = "approval-card"
-        view.onEnd = onEnd
-        return view
-    }
-
-    func updateUIView(_ uiView: PanHost, context: Context) {
-        uiView.accessibilityLabel = label
-        uiView.onEnd = onEnd
-        uiView.bindScrollIfNeeded()
-    }
-
-    func sizeThatFits(_ proposal: ProposedViewSize, uiView: PanHost, context: Context) -> CGSize? {
-        CGSize(width: proposal.width ?? 320, height: proposal.height ?? 88)
-    }
-}
-
-final class PanHost: UIView, UIGestureRecognizerDelegate {
-    var onEnd: ((CGSize) -> Void)?
-    private var start = CGPoint.zero
-    private var boundScroll = false
-    private let pan = UIPanGestureRecognizer()
-
-    override init(frame: CGRect) {
-        super.init(frame: frame)
-        backgroundColor = .clear
-        isUserInteractionEnabled = true
-        pan.addTarget(self, action: #selector(panned(_:)))
-        pan.delegate = self
-        addGestureRecognizer(pan)
-    }
-
-    required init?(coder: NSCoder) { nil }
-
-    override func layoutSubviews() {
-        super.layoutSubviews()
-        bindScrollIfNeeded()
-    }
-
-    override func didMoveToWindow() {
-        super.didMoveToWindow()
-        bindScrollIfNeeded()
-    }
-
-    func bindScrollIfNeeded() {
-        guard !boundScroll else { return }
-        var view: UIView? = superview
-        while let current = view {
-            if let scroll = current as? UIScrollView {
-                scroll.panGestureRecognizer.require(toFail: pan)
-                boundScroll = true
-                return
-            }
-            view = current.superview
-        }
-    }
-
-    @objc private func panned(_ pan: UIPanGestureRecognizer) {
-        let location = pan.location(in: self)
-        if pan.state == .began { start = location }
-        guard pan.state == .ended || pan.state == .cancelled else { return }
-        onEnd?(CGSize(width: location.x - start.x, height: location.y - start.y))
-    }
-
-    func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldBeRequiredToFailBy otherGestureRecognizer: UIGestureRecognizer) -> Bool {
-        true
-    }
-}

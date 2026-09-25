@@ -1,0 +1,108 @@
+# --- Go -------------------------------------------------------------------
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+*.prof
+go.work
+go.work.sum
+/apps/api/bin/
+/apps/api/vendor/
+
+# --- Coverage and test output ----------------------------------------------
+coverage/
+coverage.*
+*.cover
+*.coverprofile
+/apps/api/testdata/tmp/
+
+# --- Build output -----------------------------------------------------------
+dist/
+build/
+/apps/api/dist/
+/apps/console/dist/
+/apps/console/build/
+sbom*.spdx.json
+third-party-licences.csv
+
+# --- Secrets: never commit ------------------------------------------------
+.env
+.env.*
+!.env.example
+!.env.template
+deploy/compose/.env
+deploy/compose/.env.*
+!deploy/compose/.env.example
+*.pat
+*.key
+*.pem
+*.p8
+*.p12
+*.jks
+*.keystore
+*.age
+!deploy/**/*.example.age
+# test fixtures may carry throwaway keys
+!**/testdata/**/*.pem
+!**/testdata/**/*.key
+secrets/
+service-account*.json
+
+# --- Local data -------------------------------------------------------------
+/deploy/compose/data/
+/deploy/compose/volumes/
+*.img
+*.sqlite
+*.db
+
+# --- Node (console, contract tooling) ---------------------------------------
+node_modules/
+npm-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.pnpm-store/
+
+# --- Android ----------------------------------------------------------------
+/apps/android/.gradle/
+/apps/android/**/build/
+/apps/android/local.properties
+/apps/android/captures/
+/apps/android/.cxx/
+*.apk
+*.aab
+
+# --- iOS / Xcode ------------------------------------------------------------
+/apps/ios/**/xcuserdata/
+/apps/ios/**/*.xcworkspace/xcshareddata/swiftpm/
+/apps/ios/**/DerivedData/
+/apps/ios/Pods/
+*.ipa
+*.dSYM.zip
+*.hmap
+
+# --- macOS ------------------------------------------------------------------
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+.Spotlight-V100
+.Trashes
+
+# --- IDEs and editors -------------------------------------------------------
+.idea/
+*.iml
+.vscode/
+!.vscode/extensions.json
+.cursor/
+*.swp
+*.swo
+*~
+.fleet/
+
+# --- Tool caches ------------------------------------------------------------
+.golangci-cache/
+.cache/
+*.log

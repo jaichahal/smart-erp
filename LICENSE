@@ -1,0 +1,24 @@
+Smart ERP
+Copyright (c) 2026 Smart ERP Owner. All rights reserved.
+
+This software and its accompanying documentation, specifications, contracts, schemas, fixtures,
+build scripts and deployment configuration (together, the "Software") are the confidential and
+proprietary property of Smart ERP Owner (the "Company").
+
+No licence is granted. You may not use, copy, modify, merge, publish, distribute, sublicense,
+disclose, reverse engineer or create derivative works of the Software, in whole or in part, except
+as expressly authorised in writing by the Company. Access to this repository does not constitute a
+licence.
+
+Contributors, including automated agents, assign to the Company all rights in contributions
+submitted to this repository.
+
+Third-party components are used under their own licences and are listed in
+THIRD_PARTY_NOTICES.md. Nothing in this notice restricts rights granted by those licences to the
+third-party components themselves.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED. IN NO EVENT
+SHALL THE COMPANY BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY ARISING FROM OR IN CONNECTION
+WITH THE SOFTWARE.
+
+SPDX-License-Identifier: LicenseRef-Proprietary

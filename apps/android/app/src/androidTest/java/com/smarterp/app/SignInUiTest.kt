@@ -31,6 +31,7 @@ class SignInUiTest {
         if (health.code != 200 || !health.body.contains("\"ready\"")) {
             fail("baseline API is not reachable at $base/health: HTTP ${health.code} ${health.body}")
         }
+        compose.onNodeWithTag("use-work-email").performClick()
         compose.onNodeWithTag("login-name").performTextInput("admin@dev.localhost")
         compose.onNodeWithTag("password").performTextInput("Admin1234!")
         compose.onNodeWithTag("sign-in").performClick()

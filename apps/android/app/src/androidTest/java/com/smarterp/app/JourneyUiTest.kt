@@ -102,6 +102,7 @@ class JourneyUiTest {
     }
 
     private fun signIn() {
+        compose.onNodeWithTag("use-work-email").performClick()
         compose.onNodeWithTag("login-name").performTextInput("admin@dev.localhost")
         compose.onNodeWithTag("password").performTextInput("Admin1234!")
         compose.onNodeWithTag("sign-in").performClick()

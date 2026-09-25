@@ -15,6 +15,8 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.Dispatchers
@@ -65,12 +67,12 @@ fun canGateVendor(profile: DeviceSession.Session): Boolean =
 private fun Modifier.tapTarget(): Modifier = defaultMinSize(minWidth = 44.dp, minHeight = 44.dp)
 
 @Composable
-fun PhoneHome(profile: DeviceSession.Session) {
+fun PhoneHome(profile: DeviceSession.Session, settings: AppSettings, onSettings: (AppSettings) -> Unit) {
     val title = personaTitle(profile)
     var screen by remember { mutableStateOf("home") }
     Column {
         Text(title, modifier = Modifier.testTag("persona-home"))
-        (personaTabs(title) + listOf("Vendor dashboard", "Sales order", "Collection receipt", "Purchase list")).forEach { label ->
+        (personaTabs(title) + listOf("Vendor dashboard", "Sales order", "Collection receipt", "Purchase list", "Settings")).forEach { label ->
             Button(
                 onClick = {
                     screen = when (label) {
@@ -78,6 +80,7 @@ fun PhoneHome(profile: DeviceSession.Session) {
                         "Sales order" -> "sales"
                         "Collection receipt" -> "collection"
                         "Purchase list" -> "purchases"
+                        "Settings" -> "settings"
                         else -> "home"
                     }
                 },
@@ -91,6 +94,7 @@ fun PhoneHome(profile: DeviceSession.Session) {
             "sales" -> SalesOrder(profile)
             "collection" -> CollectionReceipt(profile)
             "purchases" -> PurchaseList(profile)
+            "settings" -> SettingsScreen(profile, settings, onSettings)
             else -> Text("$title home")
         }
     }
@@ -308,11 +312,13 @@ fun CollectionReceipt(profile: DeviceSession.Session) {
     var error by remember { mutableStateOf("") }
     var number by remember { mutableStateOf("") }
     val scope = rememberCoroutineScope()
+    val haptic = LocalHapticFeedback.current
     Column {
         Text("Collection receipt")
         TextField(value = amount, onValueChange = { amount = it }, label = { Text("Amount") }, modifier = Modifier.testTag("amount").tapTarget())
         Button(
             onClick = {
+                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                 scope.launch {
                     error = ""
                     number = ""

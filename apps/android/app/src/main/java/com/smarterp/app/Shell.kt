@@ -1,8 +1,8 @@
 package com.smarterp.app
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.awaitFirstDown
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -23,6 +23,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.testTag
@@ -32,6 +33,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
+import kotlin.math.hypot
 
 private val Alert = Color(0xFFB91C1C)
 
@@ -82,6 +84,7 @@ private data class Card(
     val amount: String,
     val version: Int,
     val requester: String,
+    val vendorId: String? = null,
 )
 
 @Composable
@@ -145,20 +148,21 @@ private fun ApprovalCard(card: Card, flagged: Boolean, onOpen: (String) -> Unit)
     Column(
         Modifier
             .fillMaxWidth()
+            .heightIn(min = 44.dp)
             .testTag("approval-card")
             .padding(vertical = 8.dp)
+            .clickable { onOpen("review") }
             .pointerInput(card.id) {
                 awaitPointerEventScope {
                     while (true) {
                         val down = awaitFirstDown(requireUnconsumed = false)
-                        var total = androidx.compose.ui.geometry.Offset.Zero
-                        down.consume()
+                        var total = Offset.Zero
                         while (true) {
                             val event = awaitPointerEvent()
                             val change = event.changes.firstOrNull { it.id == down.id } ?: break
                             if (!change.pressed) break
                             total += change.position - change.previousPosition
-                            change.consume()
+                            if (hypot(total.x.toDouble(), total.y.toDouble()) > 12.0) change.consume()
                         }
                         val kind = sheetForDrag(total.x, total.y)
                         if (kind != null) onOpen(kind)
@@ -187,10 +191,15 @@ private fun DecisionSheet(
     var reason by remember { mutableStateOf("") }
     var stepCode by remember { mutableStateOf("") }
     var needStepUp by remember { mutableStateOf(false) }
+    var actions by remember { mutableStateOf(emptySet<String>()) }
     LaunchedEffect(card.id) {
-        val (code, json) = withContext(Dispatchers.IO) {
+        val detail = withContext(Dispatchers.IO) {
             session.exchange("GET", "/api/v1/approvals/${card.id}", null)
         }
+        val dashboard = withContext(Dispatchers.IO) {
+            session.exchange("GET", "/api/v1/purchase/dashboard", null)
+        }
+        val (code, json) = detail
         if (code in 200..299) {
             val data = json.optJSONObject("data")
             state = data?.optString("state").orEmpty().ifBlank { "pending" }
@@ -198,11 +207,15 @@ private fun DecisionSheet(
         } else {
             message = json.optJSONObject("error")?.optString("message") ?: "The live approval was not returned"
         }
+        if (dashboard.first in 200..299) {
+            actions = readActions(dashboard.second)
+        }
     }
     Column(Modifier.fillMaxWidth().background(Color.White).padding(16.dp).testTag("approval-sheet")) {
         val title = when (kind) {
             "approve" -> "Approve request"
             "reject" -> "Reject request"
+            "review" -> "Review request"
             else -> "Flag for review"
         }
         Text(title)
@@ -225,7 +238,7 @@ private fun DecisionSheet(
             )
         }
         if (message.isNotBlank()) Text(message, color = Alert)
-        CommitButtons(session, kind, card, version, reason, stepCode, needStepUp, onFlag) { next, stepped ->
+        CommitButtons(session, kind, card, version, reason, stepCode, needStepUp, actions, onFlag) { next, stepped ->
             message = next
             if (stepped) needStepUp = true
         }
@@ -242,12 +255,13 @@ private fun CommitButtons(
     reason: String,
     stepCode: String,
     needStepUp: Boolean,
+    actions: Set<String>,
     onFlag: () -> Unit,
     report: (String, Boolean) -> Unit,
 ) {
     val scope = rememberCoroutineScope()
     Row {
-        if (kind == "approve") {
+        if (kind == "approve" && actions.contains("approve")) {
             Button(
                 onClick = {
                     scope.launch {
@@ -277,6 +291,17 @@ private fun CommitButtons(
                 modifier = Modifier.heightIn(min = 44.dp).testTag("reject-submit"),
             ) { Text("Reject") }
         }
+        if (actions.contains("blacklist")) {
+            Button(
+                onClick = {
+                    scope.launch {
+                        val result = withContext(Dispatchers.IO) { submitBlacklist(session, card) }
+                        report(result, false)
+                    }
+                },
+                modifier = Modifier.heightIn(min = 44.dp).testTag("blacklist-submit"),
+            ) { Text("Blacklist") }
+        }
         if (kind == "flag") {
             Button(onClick = {
                 onFlag()
@@ -284,6 +309,29 @@ private fun CommitButtons(
             }, modifier = Modifier.heightIn(min = 44.dp)) { Text("Flag for review") }
         }
     }
+}
+
+private fun readActions(json: JSONObject): Set<String> {
+    val data = json.optJSONObject("data") ?: return emptySet()
+    val actions = data.optJSONArray("actions") ?: return emptySet()
+    return buildSet {
+        for (index in 0 until actions.length()) {
+            val name = actions.optString(index)
+            if (name.isNotBlank()) add(name)
+        }
+    }
+}
+
+private fun submitBlacklist(session: DeviceSession.Session, card: Card): String {
+    val vendor = card.vendorId
+    if (vendor.isNullOrBlank()) return "This request has no vendor to blacklist."
+    val (code, json) = session.exchange(
+        "POST",
+        "/api/v1/vendors/$vendor/blacklist",
+        JSONObject().put("change_reason", "fraud"),
+    )
+    if (code in 200..299) return "Recorded blacklist"
+    return json.optJSONObject("error")?.optString("message") ?: "Blacklist was refused"
 }
 
 private data class SubmitResult(val message: String, val needStepUp: Boolean)

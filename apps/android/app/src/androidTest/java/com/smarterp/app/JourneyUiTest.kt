@@ -38,8 +38,21 @@ class JourneyUiTest {
     @Test fun purchaseLpoThroughPayment() = expect("LPO payment released")
     @Test fun stockCount() = expect("Stock count posted")
     @Test fun approvalInbox() {
+        val api = DeviceSession.open(BuildConfig.API_BASE_URL, "admin@dev.localhost", "Admin1234!")
+        val doc = "UI-AND-INBOX-${System.currentTimeMillis()}"
+        val id = seedWaiting(api, doc)
+        val before = approvalState(api, id)
         signIn()
         compose.onNodeWithText("Approval inbox").assertExists()
+        compose.onNode(hasTestTag("home-kind") and hasText(expectedHome(api.roles, api.personas), substring = false)).assertExists()
+        compose.waitUntil(timeoutMillis = 20_000) {
+            compose.onAllNodes(hasText(doc)).fetchSemanticsNodes().isNotEmpty()
+        }
+        card(doc).performScrollTo().performClick()
+        compose.onNodeWithText("Review request").assertExists()
+        compose.onNodeWithText("Approve", substring = false).assertDoesNotExist()
+        compose.onNodeWithText("Blacklist", substring = false).assertDoesNotExist()
+        assertEquals(before, approvalState(api, id))
     }
     @Test fun notifications() = expect("Notifications")
 
@@ -65,7 +78,10 @@ class JourneyUiTest {
         assertEquals(before, approvalState(api, id))
     }
 
-    private fun card(doc: String) = compose.onNode(hasTestTag("approval-card") and hasAnyDescendant(hasText(doc)))
+    private fun card(doc: String) = compose.onNode(
+        hasTestTag("approval-card") and hasAnyDescendant(hasText(doc)),
+        useUnmergedTree = true,
+    )
 
     private fun swipe(doc: String, delta: Offset) {
         val node = card(doc)
@@ -96,6 +112,18 @@ class JourneyUiTest {
 
     private fun expect(heading: String) {
         compose.onNodeWithText(heading).assertExists()
+    }
+}
+
+private fun expectedHome(roles: List<String>, personas: List<String>): String {
+    val labels = (roles + personas).map { it.trim().lowercase() }.filter { it.isNotEmpty() }
+    fun has(needle: String) = labels.any { it.contains(needle) }
+    return when {
+        has("cfo") || has("partner") -> "cfo"
+        has("finance manager") || has("finance_manager") -> "finance-manager"
+        has("accountant") -> "accountant"
+        has("sales") || has("collection") -> "sales"
+        else -> "default"
     }
 }
 

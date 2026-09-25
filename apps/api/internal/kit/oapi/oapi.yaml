@@ -1,0 +1,8 @@
+# oapi-codegen configuration: wire types generated from contracts/openapi/openapi.yaml.
+# Regenerate with `just gen` (go generate ./...). CI fails on drift (contracts.yml).
+package: oapi
+output: gen.go
+generate:
+  models: true
+output-options:
+  skip-prune: true

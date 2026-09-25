@@ -1,0 +1,364 @@
+# golangci-lint v2 configuration for apps/api.
+# Run from apps/api: `golangci-lint run` (or `just lint` from the repo root).
+# Verify this file: `golangci-lint config verify`.
+#
+# Two jobs: the usual correctness linters, and the module boundary lint from P1.1
+# (docs/spec/07-tracks-and-tasks.md): a package under internal/<module> may import internal/kit/**,
+# the standard library and third-party modules, but never another internal/<module>. cmd/** may
+# import anything under internal/. Enforced by depguard below.
+
+version: "2"
+
+run:
+  timeout: 10m
+  tests: true
+  modules-download-mode: readonly
+
+output:
+  sort-order:
+    - file
+    - linter
+  show-stats: true
+
+formatters:
+  enable:
+    - gofmt
+    - goimports
+  settings:
+    goimports:
+      local-prefixes:
+        - github.com/jaichahal/smart-erp
+  exclusions:
+    generated: lax
+    paths:
+      - internal/kit/httpx/gen.go
+
+linters:
+  default: none
+  enable:
+    - govet
+    - staticcheck
+    - errcheck
+    - ineffassign
+    - unused
+    - gocritic
+    - revive
+    - depguard
+
+  settings:
+    govet:
+      enable-all: true
+      disable:
+        - fieldalignment # noise; struct layout is not a correctness concern here
+        - shadow # revive covers the useful cases
+
+    staticcheck:
+      checks: ["all", "-ST1000", "-ST1003", "-ST1016", "-ST1020", "-ST1021", "-ST1022"]
+
+    errcheck:
+      check-type-assertions: true
+      check-blank: false  # explicit `_ = tx.Rollback(ctx)` is the idiom for best-effort cleanup
+      exclude-functions:
+        - (*database/sql.Rows).Close
+        - (io.Closer).Close
+        - (*os.File).Close
+        - (net/http.ResponseWriter).Write
+        - fmt.Fprintf
+        - fmt.Fprintln
+        - fmt.Fprint
+
+    gocritic:
+      enabled-tags:
+        - diagnostic
+        - performance
+        - style
+      disabled-checks:
+        - hugeParam # pgx and generated types are passed by value on purpose
+        - unnamedResult
+        - whyNoLint
+        - commentedOutCode
+        - importShadow
+        - paramTypeCombine
+      settings:
+        rangeValCopy:
+          sizeThreshold: 512
+
+    revive:
+      severity: warning
+      confidence: 0.8
+      rules:
+        - name: blank-imports
+        - name: context-as-argument
+        - name: context-keys-type
+        - name: dot-imports
+        - name: error-return
+        - name: error-strings
+        - name: error-naming
+        - name: exported
+          arguments: ["checkPrivateReceivers", "disableStutteringCheck"]
+        - name: if-return
+        - name: increment-decrement
+        - name: var-naming
+        - name: var-declaration
+        - name: package-comments
+        - name: range
+        - name: receiver-naming
+        - name: time-naming
+        - name: unexported-return
+        - name: indent-error-flow
+        - name: errorf
+        - name: empty-block
+        - name: superfluous-else
+        - name: unused-parameter
+        - name: unreachable-code
+        - name: redefines-builtin-id
+        - name: defer
+        - name: unconditional-recursion
+        - name: waitgroup-by-value
+        - name: atomic
+        - name: early-return
+        - name: identical-branches
+        - name: modifies-value-receiver
+        - name: range-val-address
+        - name: string-of-int
+        - name: struct-tag
+        - name: unhandled-error
+          arguments:
+            - "fmt.Print.*"
+            - "fmt.Fprint.*"
+            - "strings.Builder.Write.*"
+            - "bytes.Buffer.Write.*"
+
+    # ---------------------------------------------------------------------------------------
+    # Module boundary lint (P1.1). One rule per module: the module's own files may not import any
+    # of the other seven module roots, nor cmd. internal/kit and everything outside internal are
+    # unrestricted, so the kit, stdlib and third-party imports pass. list-mode lax means "allow
+    # unless denied", so nothing else is affected.
+    #
+    # The eight Wave 1 module roots:
+    #   internal/identity  internal/authz  internal/approvals  internal/audit
+    #   internal/ledger    internal/clocks internal/notifications internal/journeys
+    # (ledger/periods is the Wave 1 slice of internal/ledger; the whole ledger tree is one module.)
+    # Adding a module: add its root to every existing rule's deny list and add a rule for it.
+    # ---------------------------------------------------------------------------------------
+    depguard:
+      rules:
+        # Nobody under internal/ may import cmd.
+        internal-never-imports-cmd:
+          list-mode: lax
+          files:
+            - "**/internal/**"
+          deny:
+            - pkg: github.com/jaichahal/smart-erp/apps/api/cmd
+              desc: internal packages must not import cmd; wiring lives in cmd, not the other way round
+
+        # The kit is shared code and must stay free of module knowledge.
+        kit-imports-no-module:
+          list-mode: lax
+          files:
+            - "**/internal/kit/**"
+          deny:
+            - pkg: github.com/jaichahal/smart-erp/apps/api/internal/identity
+              desc: internal/kit must not import a module (Track A kit rule)
+            - pkg: github.com/jaichahal/smart-erp/apps/api/internal/authz
+              desc: internal/kit must not import a module (Track A kit rule)
+            - pkg: github.com/jaichahal/smart-erp/apps/api/internal/approvals
+              desc: internal/kit must not import a module (Track A kit rule)
+            - pkg: github.com/jaichahal/smart-erp/apps/api/internal/audit
+              desc: internal/kit must not import a module (Track A kit rule)
+            - pkg: github.com/jaichahal/smart-erp/apps/api/internal/ledger
+              desc: internal/kit must not import a module (Track A kit rule)
+            - pkg: github.com/jaichahal/smart-erp/apps/api/internal/clocks
+              desc: internal/kit must not import a module (Track A kit rule)
+            - pkg: github.com/jaichahal/smart-erp/apps/api/internal/notifications
+              desc: internal/kit must not import a module (Track A kit rule)
+            - pkg: github.com/jaichahal/smart-erp/apps/api/internal/journeys
+              desc: internal/kit must not import a module (Track A kit rule)
+
+        module-identity:
+          list-mode: lax
+          files:
+            - "**/internal/identity/**"
+          deny:
+            - pkg: github.com/jaichahal/smart-erp/apps/api/internal/authz
+              desc: identity may not import another module; go through an interface or the kit
+            - pkg: github.com/jaichahal/smart-erp/apps/api/internal/approvals
+              desc: identity may not import another module; go through an interface or the kit
+            - pkg: github.com/jaichahal/smart-erp/apps/api/internal/audit
+              desc: identity may not import another module; go through an interface or the kit
+            - pkg: github.com/jaichahal/smart-erp/apps/api/internal/ledger
+              desc: identity may not import another module; go through an interface or the kit
+            - pkg: github.com/jaichahal/smart-erp/apps/api/internal/clocks
+              desc: identity may not import another module; go through an interface or the kit
+            - pkg: github.com/jaichahal/smart-erp/apps/api/internal/notifications
+              desc: identity may not import another module; go through an interface or the kit
+            - pkg: github.com/jaichahal/smart-erp/apps/api/internal/journeys
+              desc: identity may not import another module; go through an interface or the kit
+
+        module-authz:
+          list-mode: lax
+          files:
+            - "**/internal/authz/**"
+          deny:
+            - pkg: github.com/jaichahal/smart-erp/apps/api/internal/identity
+              desc: authz may not import another module; go through an interface or the kit
+            - pkg: github.com/jaichahal/smart-erp/apps/api/internal/approvals
+              desc: authz may not import another module; go through an interface or the kit
+            - pkg: github.com/jaichahal/smart-erp/apps/api/internal/audit
+              desc: authz may not import another module; go through an interface or the kit
+            - pkg: github.com/jaichahal/smart-erp/apps/api/internal/ledger
+              desc: authz may not import another module; go through an interface or the kit
+            - pkg: github.com/jaichahal/smart-erp/apps/api/internal/clocks
+              desc: authz may not import another module; go through an interface or the kit
+            - pkg: github.com/jaichahal/smart-erp/apps/api/internal/notifications
+              desc: authz may not import another module; go through an interface or the kit
+            - pkg: github.com/jaichahal/smart-erp/apps/api/internal/journeys
+              desc: authz may not import another module; go through an interface or the kit
+
+        module-approvals:
+          list-mode: lax
+          files:
+            - "**/internal/approvals/**"
+          deny:
+            - pkg: github.com/jaichahal/smart-erp/apps/api/internal/identity
+              desc: approvals may not import another module; go through an interface or the kit
+            - pkg: github.com/jaichahal/smart-erp/apps/api/internal/authz
+              desc: approvals may not import another module; go through an interface or the kit
+            - pkg: github.com/jaichahal/smart-erp/apps/api/internal/audit
+              desc: approvals may not import another module; go through an interface or the kit
+            - pkg: github.com/jaichahal/smart-erp/apps/api/internal/ledger
+              desc: approvals may not import another module; go through an interface or the kit
+            - pkg: github.com/jaichahal/smart-erp/apps/api/internal/clocks
+              desc: approvals may not import another module; go through an interface or the kit
+            - pkg: github.com/jaichahal/smart-erp/apps/api/internal/notifications
+              desc: approvals may not import another module; go through an interface or the kit
+            - pkg: github.com/jaichahal/smart-erp/apps/api/internal/journeys
+              desc: approvals may not import another module; go through an interface or the kit
+
+        module-audit:
+          list-mode: lax
+          files:
+            - "**/internal/audit/**"
+          deny:
+            - pkg: github.com/jaichahal/smart-erp/apps/api/internal/identity
+              desc: audit may not import another module; go through an interface or the kit
+            - pkg: github.com/jaichahal/smart-erp/apps/api/internal/authz
+              desc: audit may not import another module; go through an interface or the kit
+            - pkg: github.com/jaichahal/smart-erp/apps/api/internal/approvals
+              desc: audit may not import another module; go through an interface or the kit
+            - pkg: github.com/jaichahal/smart-erp/apps/api/internal/ledger
+              desc: audit may not import another module; go through an interface or the kit
+            - pkg: github.com/jaichahal/smart-erp/apps/api/internal/clocks
+              desc: audit may not import another module; go through an interface or the kit
+            - pkg: github.com/jaichahal/smart-erp/apps/api/internal/notifications
+              desc: audit may not import another module; go through an interface or the kit
+            - pkg: github.com/jaichahal/smart-erp/apps/api/internal/journeys
+              desc: audit may not import another module; go through an interface or the kit
+
+        module-ledger:
+          list-mode: lax
+          files:
+            - "**/internal/ledger/**"
+          deny:
+            - pkg: github.com/jaichahal/smart-erp/apps/api/internal/identity
+              desc: ledger may not import another module; go through an interface or the kit
+            - pkg: github.com/jaichahal/smart-erp/apps/api/internal/authz
+              desc: ledger may not import another module; go through an interface or the kit
+            - pkg: github.com/jaichahal/smart-erp/apps/api/internal/approvals
+              desc: ledger may not import another module; go through an interface or the kit
+            - pkg: github.com/jaichahal/smart-erp/apps/api/internal/audit
+              desc: ledger may not import another module; go through an interface or the kit
+            - pkg: github.com/jaichahal/smart-erp/apps/api/internal/clocks
+              desc: ledger may not import another module; go through an interface or the kit
+            - pkg: github.com/jaichahal/smart-erp/apps/api/internal/notifications
+              desc: ledger may not import another module; go through an interface or the kit
+            - pkg: github.com/jaichahal/smart-erp/apps/api/internal/journeys
+              desc: ledger may not import another module; go through an interface or the kit
+
+        module-clocks:
+          list-mode: lax
+          files:
+            - "**/internal/clocks/**"
+          deny:
+            - pkg: github.com/jaichahal/smart-erp/apps/api/internal/identity
+              desc: clocks may not import another module; go through an interface or the kit
+            - pkg: github.com/jaichahal/smart-erp/apps/api/internal/authz
+              desc: clocks may not import another module; go through an interface or the kit
+            - pkg: github.com/jaichahal/smart-erp/apps/api/internal/approvals
+              desc: clocks may not import another module; go through an interface or the kit
+            - pkg: github.com/jaichahal/smart-erp/apps/api/internal/audit
+              desc: clocks may not import another module; go through an interface or the kit
+            - pkg: github.com/jaichahal/smart-erp/apps/api/internal/ledger
+              desc: clocks may not import another module; go through an interface or the kit
+            - pkg: github.com/jaichahal/smart-erp/apps/api/internal/notifications
+              desc: clocks may not import another module; go through an interface or the kit
+            - pkg: github.com/jaichahal/smart-erp/apps/api/internal/journeys
+              desc: clocks may not import another module; go through an interface or the kit
+
+        module-notifications:
+          list-mode: lax
+          files:
+            - "**/internal/notifications/**"
+          deny:
+            - pkg: github.com/jaichahal/smart-erp/apps/api/internal/identity
+              desc: notifications may not import another module; go through an interface or the kit
+            - pkg: github.com/jaichahal/smart-erp/apps/api/internal/authz
+              desc: notifications may not import another module; go through an interface or the kit
+            - pkg: github.com/jaichahal/smart-erp/apps/api/internal/approvals
+              desc: notifications may not import another module; go through an interface or the kit
+            - pkg: github.com/jaichahal/smart-erp/apps/api/internal/audit
+              desc: notifications may not import another module; go through an interface or the kit
+            - pkg: github.com/jaichahal/smart-erp/apps/api/internal/ledger
+              desc: notifications may not import another module; go through an interface or the kit
+            - pkg: github.com/jaichahal/smart-erp/apps/api/internal/clocks
+              desc: notifications may not import another module; go through an interface or the kit
+            - pkg: github.com/jaichahal/smart-erp/apps/api/internal/journeys
+              desc: notifications may not import another module; go through an interface or the kit
+
+        module-journeys:
+          list-mode: lax
+          files:
+            - "**/internal/journeys/**"
+          deny:
+            - pkg: github.com/jaichahal/smart-erp/apps/api/internal/identity
+              desc: journeys may not import another module; go through an interface or the kit
+            - pkg: github.com/jaichahal/smart-erp/apps/api/internal/authz
+              desc: journeys may not import another module; go through an interface or the kit
+            - pkg: github.com/jaichahal/smart-erp/apps/api/internal/approvals
+              desc: journeys may not import another module; go through an interface or the kit
+            - pkg: github.com/jaichahal/smart-erp/apps/api/internal/audit
+              desc: journeys may not import another module; go through an interface or the kit
+            - pkg: github.com/jaichahal/smart-erp/apps/api/internal/ledger
+              desc: journeys may not import another module; go through an interface or the kit
+            - pkg: github.com/jaichahal/smart-erp/apps/api/internal/clocks
+              desc: journeys may not import another module; go through an interface or the kit
+            - pkg: github.com/jaichahal/smart-erp/apps/api/internal/notifications
+              desc: journeys may not import another module; go through an interface or the kit
+
+  exclusions:
+    generated: lax
+    warn-unused: false
+    presets:
+      - std-error-handling
+    paths:
+      - internal/kit/httpx/gen.go
+    rules:
+      # Tests may be verbose and may ignore some errors deliberately.
+      - path: _test\.go$
+        linters:
+          - gocritic
+          - errcheck
+        text: "(unnamedResult|exitAfterDefer|Error return value of .*(Close|Rollback))"
+      - path: _test\.go$
+        linters:
+          - revive
+        text: "(unused-parameter|exported)"
+      # cmd mains wire everything; long functions are expected.
+      - path: ^cmd/
+        linters:
+          - revive
+        text: "package-comments"
+
+issues:
+  max-issues-per-linter: 0
+  max-same-issues: 0

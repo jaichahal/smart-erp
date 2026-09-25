@@ -1,0 +1,71 @@
+# CODEOWNERS: directory to track mapping (docs/spec/10-execution-playbook.md "Repository layout").
+# A PR that touches a directory outside its task card is rejected here before a human looks at it.
+# Every entry is a placeholder for @jaichahal until the tracks have separate GitHub teams; the
+# comment above each block names the track and, for Wave 1, the agent that owns the directory.
+# Later lines win over earlier lines. Comments must be on their own line (GitHub parser).
+
+# Default: repository owner reviews anything not claimed below.
+*                                         @jaichahal
+
+# Governance and CI (Wave 0, Track A). Justfile is the shared command surface.
+/.github/                                 @jaichahal
+/CONTRIBUTING.md                          @jaichahal
+/WAVE1.md                                 @jaichahal
+/Justfile                                 @jaichahal
+
+# Licence files: product owner.
+/LICENSE                                  @jaichahal
+/THIRD_PARTY_NOTICES.md                   @jaichahal
+
+# Specification, the source of truth: product owner. 04 is human-reviewed on every change.
+/docs/spec/                               @jaichahal
+
+# Contracts: every contract PR is human-reviewed and lands alone (ADR-09, contracts.yml).
+/contracts/                               @jaichahal
+
+# Track A: platform kit, module boundary lint, binaries. Kit changes go through a kit PR.
+/apps/api/go.mod                          @jaichahal
+/apps/api/go.sum                          @jaichahal
+/apps/api/.golangci.yml                   @jaichahal
+/apps/api/Dockerfile                      @jaichahal
+/apps/api/internal/kit/                   @jaichahal
+/apps/api/cmd/                            @jaichahal
+
+# Track B: migrations. Any migration touching an immutable table needs the immutable-change
+# label and a Track B reviewer (contracts.yml immutable-change job).
+/apps/api/migrations/                     @jaichahal
+
+# Wave 1 agent A1 (P1.2), Track A: identity broker, token issuer, DPoP, step-up.
+/apps/api/internal/identity/              @jaichahal
+
+# Wave 1 agent A2 (P1.3), Track A: roles, permissions, RLS, SoD matrix, access review.
+/apps/api/internal/authz/                 @jaichahal
+
+# Wave 1 agent B1 (P1.7), Track B: approval engine. Human-reviewed.
+/apps/api/internal/approvals/             @jaichahal
+
+# Wave 1 agent B2 (P1.6, P1.15), Track B: anchoring worker, verifier. Human-reviewed.
+/apps/api/internal/audit/                 @jaichahal
+
+# Wave 1 agent C1 (P1.4), Track C: company, fiscal periods, numbering; business-hours clocks.
+/apps/api/internal/ledger/periods/        @jaichahal
+/apps/api/internal/clocks/                @jaichahal
+
+# Wave 1 agent E1 (P1.8), Track E: outbox consumers, WebSocket hub, FCM v1, APNs, preferences.
+/apps/api/internal/notifications/         @jaichahal
+
+# Wave 1 agent E2 (P1.14), Track E: journey engine.
+/apps/api/internal/journeys/              @jaichahal
+
+# Track I: compose stack, systemd units, NUC runbooks.
+/deploy/                                  @jaichahal
+
+# Wave 1 agent B2 (P1.15), Track B with Track I: backup.sh, restore.sh, anchor.sh, verify-chain.sh.
+# Listed after /deploy/ so it wins for this sub-directory.
+/deploy/scripts/                          @jaichahal
+
+# Clients: Track G console (G1), Track F Android (F1) and iOS (F2), Track H design tokens.
+/apps/console/                            @jaichahal
+/apps/android/                            @jaichahal
+/apps/ios/                                @jaichahal
+/packages/tokens/                         @jaichahal

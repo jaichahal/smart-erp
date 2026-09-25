@@ -44,15 +44,16 @@ func scenarioD1(t *testing.T, s *stack) {
 func scenarioD2(t *testing.T, s *stack) {
 	b := newB1(t, s)
 	b.seedSales()
+	acct := b.id("accountant")
 	status, code, raw := b.call(http.MethodPost, "/api/v1/approvals/assignments",
-		`{"doc_type":"sales_invoice","slot":"below","user_id":"accountant"}`, "accountant")
+		mustJSONString(t, map[string]any{"doc_type": "sales_invoice", "slot": "below", "user_id": acct}), "accountant")
 	if code != "SOD_VIOLATION" {
 		t.Fatalf("D2: %d %s %s", status, code, raw)
 	}
 	var n int
-	p := rls.Principal{UserID: "accountant", CompanyID: b.company, Roles: []string{"accountant"}}
+	p := rls.Principal{UserID: acct, CompanyID: b.company, Roles: []string{"accountant"}}
 	err := rls.Tx(t.Context(), b.s.db.App, p, func(tx pgx.Tx) error {
-		return tx.QueryRow(t.Context(), `SELECT count(*) FROM erp.approval_assignments WHERE user_id='accountant' AND company_id=$1`, b.company).Scan(&n)
+		return tx.QueryRow(t.Context(), `SELECT count(*) FROM erp.approval_assignments WHERE user_id=$2 AND company_id=$1`, b.company, acct).Scan(&n)
 	})
 	if err != nil || n != 0 {
 		t.Fatalf("D2 assignment stored: %d %v", n, err)
@@ -61,7 +62,7 @@ func scenarioD2(t *testing.T, s *stack) {
 		t.Fatal("D2 attempt was not audited")
 	}
 	b.ok(http.MethodPost, "/api/v1/approvals/assignments", map[string]any{
-		"doc_type": "sales_invoice", "slot": "below", "user_id": "approver-a",
+		"doc_type": "sales_invoice", "slot": "below", "user_id": b.id("approver-a"),
 	}, "accountant")
 }
 
@@ -261,7 +262,7 @@ func scenarioD11(t *testing.T, s *stack) {
 	out := b.sales("initiator", "5000.00", "sales_invoice", nil)
 	until := approvalClock.Now().Add(time.Hour).UTC().Format(time.RFC3339)
 	raw := b.ok(http.MethodPost, "/api/v1/approvals/"+out.id+"/delegate", map[string]any{
-		"to_user_id": "delegate", "until": until, "state_version": 1,
+		"to_user_id": b.id("delegate"), "until": until, "state_version": 1,
 	}, "approver-a")
 	env := decodeEnv(t, raw)
 	if env.Data.State != "delegated" {
@@ -295,7 +296,7 @@ func scenarioD11(t *testing.T, s *stack) {
 		t.Fatalf("D11 delegate approve: %s", done)
 	}
 	status, code, raw := b.call(http.MethodPost, "/api/v1/approvals/"+out.id+"/delegate", mustJSONString(t, map[string]any{
-		"to_user_id": "delegate", "until": until, "state_version": decodeEnv(t, done).Data.StateVersion,
+		"to_user_id": b.id("delegate"), "until": until, "state_version": decodeEnv(t, done).Data.StateVersion,
 	}), "final")
 	if code != "PERMISSION_DENIED" || b.count(`SELECT count(*) FROM erp.audit_events WHERE reference_id=$1 AND event_type='approval.refused' AND reason='final_gate'`, out.id) != 1 {
 		t.Fatalf("D11 final gate delegated: %d %s %s", status, code, raw)
@@ -304,7 +305,7 @@ func scenarioD11(t *testing.T, s *stack) {
 	second := b.sales("initiator", "6000.00", "sales_invoice", nil)
 	short := approvalClock.Now().Add(time.Minute).UTC().Format(time.RFC3339)
 	b.ok(http.MethodPost, "/api/v1/approvals/"+second.id+"/delegate", map[string]any{
-		"to_user_id": "delegate", "until": short, "state_version": 1,
+		"to_user_id": b.id("delegate"), "until": short, "state_version": 1,
 	}, "approver-a")
 	approvalClock.Advance(2 * time.Minute)
 	status, code, raw = b.call(http.MethodPost, "/api/v1/approvals/"+second.id+"/approve", `{"state_version":2}`, "delegate")
@@ -343,7 +344,7 @@ func scenarioD13(t *testing.T, s *stack) {
 	b.seedSales()
 	out := b.submit("initiator", map[string]any{
 		"doc_id": "corr", "doc_type": "sales_invoice", "doc_number": "CN-1", "amount": "50.00", "currency": "AED",
-		"snapshot": map[string]any{"kind": "correction"}, "original_approver_ids": []string{"approver-a"}, "original_doc_id": "orig",
+		"snapshot": map[string]any{"kind": "correction"}, "original_approver_ids": []string{b.id("approver-a")}, "original_doc_id": "orig",
 	})
 	mine := fraudHints(t, b.ok(http.MethodGet, "/api/v1/approvals/"+out.id, nil, "approver-a"))
 	found := false
@@ -378,7 +379,7 @@ func scenarioD14(t *testing.T, s *stack) {
 		t.Fatalf("D14 threshold: %d %s %s", status, code, raw)
 	}
 	b.ok(http.MethodPost, "/api/v1/approvals/"+high.id+"/approve", map[string]any{
-		"state_version": 1, "step_up_token": "stepup.approval.approver-a",
+		"state_version": 1, "step_up_token": "stepup.approval." + b.id("approver-a"),
 	}, "approver-a")
 	for _, tc := range []struct{ doc, action string }{
 		{"vendor_bank_change", "bank_change"},
@@ -392,7 +393,7 @@ func scenarioD14(t *testing.T, s *stack) {
 			t.Fatalf("D14 %s: %d %s %s", tc.doc, status, code, raw)
 		}
 		b.ok(http.MethodPost, "/api/v1/approvals/"+out.id+"/approve", map[string]any{
-			"state_version": 1, "step_up_token": "stepup." + tc.action + ".approver-a",
+			"state_version": 1, "step_up_token": "stepup." + tc.action + "." + b.id("approver-a"),
 		}, "approver-a")
 	}
 }

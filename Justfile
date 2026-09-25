@@ -83,6 +83,12 @@ seed: _envfiles
 hooks:
     git config core.hooksPath .githooks && echo "hooks installed (core.hooksPath=.githooks)"
 
+# Wave 1 filter the integrator ran (75 passing). Does not migrate, template, reset, or
+# touch databases erp and erp_template. testdb clones a private erp_test_<rand> from
+# erp_template; ERP_DATABASE_URL is only the connection template for that clone.
+e2e-wave1: _envfiles
+    set -a; source {{host_env}}; set +a; unset ERP_TEST_DATABASE; cd {{api_dir}} && go test ./e2e -count=1 -timeout 25m -run 'TestA1_FailedLoginsAreByteIdentical|TestB1_AppRoleCannotMutateImmutable|TestAcceptanceCatalog/P1\.2/|TestAcceptanceCatalog/P1\.4/|TestAcceptanceCatalogP1_3|TestC[1-5]_|TestB9_|TestB10_|TestB11_|TestI2_|TestI3_|TestI4_|TestI5_|TestI6_|TestI7_|TestI8_|TestI15_|TestI16_|TestAcceptanceCatalog/P1\.(6|7|8|14|15)/'
+
 # All acceptance cases against the composed API and Postgres. Requires the dev compose stack.
 e2e: _envfiles
     cd {{compose_dir}} && docker compose --profile {{profile}} up -d --remove-orphans postgres valkey minio minio-init zitadel caddy headless-shell mailpit otel-collector

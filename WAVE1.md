@@ -20,7 +20,7 @@ Rules that apply to every card:
   need, open an issue titled `kit: <need>` tagged Track A and stub behind an interface meanwhile.
 - Wave 0 must have merged (`Justfile`, kit, compose, contract bundle 1.0.0) before you start.
 - Branch `task/<P-id>-<slug>` in a worktree; commits `<P-id>: <imperative summary>`; PR through
-  `gh pr create` with the template filled in; the merge queue lands it.
+  `gh pr create` with the template filled in; the Integrator lands it after checks and review.
 
 Kit package reference (all under `apps/api/internal/kit/`):
 
@@ -76,7 +76,7 @@ Implement: session brokering to Zitadel's Session API over gRPC, ERP token issue
 Failed logins must be byte-identical on the wire and audited before the failure returns (A1, A2). Rate limiting and lockout return the standard envelope (A7, A8).
 Write tests for A1 to A10 named by their IDs, using kit/testdb (run `just db a1` and export the ERP_TEST_DATABASE line it prints).
 Definition of done: R-IDs and A1 to A10 listed in the PR body; just lint, just test ./internal/identity/..., contracts.yml, just licence, just sbom all green; new invariants get new 08 IDs appended; strings externalised; no cross-module import.
-Commit as "P1.2: <imperative summary>" and open the PR with gh pr create using the template; do not merge, the queue does.
+Commit as "P1.2: <imperative summary>" and open the PR with gh pr create using the template; do not merge; the Integrator merges after checks and review (CONTRIBUTING.md "Merging on GitHub Free").
 ```
 
 ---
@@ -114,7 +114,7 @@ Contracts are read-only. /sod-matrix and /approval-matrix endpoints are in docs/
 Implement: roles and permissions as data, RLS policies over the kit/rls session variables for company, territory and ownership, field-level serialiser permissions (cost and margin hidden from Sales Agent everywhere), least-privileged fallback for unknown roles, SoD matrix with override approval and audit, disable-not-delete for users, quarterly access review job producing the report and exceptions entries.
 Write tests for A11 to A16 named by their IDs, using kit/testdb (run `just db a2` and export the ERP_TEST_DATABASE line it prints). A12 must assert the count equals the rows across pages.
 Definition of done: R-IDs and A11 to A16 listed in the PR body; just lint, just test ./internal/authz/..., contracts.yml, just licence, just sbom all green; new invariants get new 08 IDs appended; strings externalised; no cross-module import (identity is a separate module: define the interface you need and file an issue for A1).
-Commit as "P1.3: <imperative summary>" and open the PR with gh pr create using the template; do not merge, the queue does.
+Commit as "P1.3: <imperative summary>" and open the PR with gh pr create using the template; do not merge; the Integrator merges after checks and review (CONTRIBUTING.md "Merging on GitHub Free").
 ```
 
 ---
@@ -154,7 +154,7 @@ Contracts are read-only: implement /approvals/inbox, /approvals/{id}, /approvals
 Implement: matrix configuration per document type with threshold, request lifecycle with row lock and state_version, independence and SoD checks, non-empty reason at API and workflow layers, decision-field restoration from storage, single-use five-minute posting token, first-stage time-boxed delegation, fraud hints, audit at every transition with refusals committed before the error is raised, and commit-before-raise for outbox events.
 Write tests for D1 to D14 named by their IDs, using kit/testdb (run `just db b1` and export the ERP_TEST_DATABASE line it prints). D7 must run two concurrent approvals.
 Definition of done: R-IDs and D1 to D14 listed in the PR body; just lint, just test ./internal/approvals/..., contracts.yml, just licence, just sbom all green; new invariants get new 08 IDs appended; strings externalised; no cross-module import (identity step-up verification and posting are interfaces you define).
-Commit as "P1.7: <imperative summary>" and open the PR with gh pr create using the template and request the human reviewer; do not merge, the queue does.
+Commit as "P1.7: <imperative summary>" and open the PR with gh pr create using the template and request the human reviewer; do not merge; the Integrator merges after checks and review (CONTRIBUTING.md "Merging on GitHub Free").
 ```
 
 ---
@@ -203,7 +203,7 @@ Contracts are read-only: implement POST /audit/verify and GET /audit/events from
 Implement: hourly anchor worker writing the signed chain head to the on-prem and off-site compliance-mode buckets with PutObject-only identity, daily anchor email, verifier with first-break reporting and anchor comparison, WAL archive lag measurement, backup engine with atomic manifest, per-file SHA-256 and aggregate checksum, refusal codes, success only after off-site verification, retention pruning after verification, restore with Stakeholder approval and post-restore re-derivation, and the deploy/scripts wrappers.
 Write tests for B9 to B11, I2 to I8, I15 and I16 named by their IDs, using kit/testdb (run `just db b2` and export the ERP_TEST_DATABASE line it prints) and the compose MinIO offsite-sim bucket.
 Definition of done: R-IDs and the test IDs listed in the PR body; just lint, just test ./internal/audit/..., contracts.yml, just licence, just sbom all green; new invariants get new 08 IDs appended; strings externalised; runbook entry text for deploy/nuc included; no cross-module import.
-Commit as "P1.6: <imperative summary>" or "P1.15: <imperative summary>" and open the PR with gh pr create using the template and request the human reviewer; do not merge, the queue does.
+Commit as "P1.6: <imperative summary>" or "P1.15: <imperative summary>" and open the PR with gh pr create using the template and request the human reviewer; do not merge; the Integrator merges after checks and review (CONTRIBUTING.md "Merging on GitHub Free").
 ```
 
 ---
@@ -243,7 +243,7 @@ Contracts are read-only. The period close endpoints and /holiday-calendar are in
 Implement: company record, fiscal years and periods with soft close (Accountant) and hard close (Stakeholder, approval) and PERIOD_CLOSED refusal, back-dating permission with exceptions-report audit, holiday calendar and weekend definition, business-hours clock service with Due(start, window) and a scheduler hook, gap-free per-type per-year numbering allocated inside the registration transaction with voids recorded on failure and a row lock per sequence.
 Write tests for C1 to C5 named by their IDs, using kit/testdb (run `just db c1` and export the ERP_TEST_DATABASE line it prints). C2 must allocate concurrently. C5 must use a calendar with a weekend and assert 16:00 on the second working day.
 Definition of done: R-IDs and C1 to C5 listed in the PR body; just lint, just test ./internal/ledger/periods/... and just test ./internal/clocks/..., contracts.yml, just licence, just sbom all green; new invariants get new 08 IDs appended; strings externalised; no cross-module import.
-Commit as "P1.4: <imperative summary>" and open the PR with gh pr create using the template; do not merge, the queue does.
+Commit as "P1.4: <imperative summary>" and open the PR with gh pr create using the template; do not merge; the Integrator merges after checks and review (CONTRIBUTING.md "Merging on GitHub Free").
 ```
 
 ---
@@ -285,7 +285,7 @@ Contracts are read-only: every payload you send must validate against contracts/
 Implement: River consumers with dedupe by event_id, WebSocket hub with per-user subscriptions and acks, FCM HTTP v1 and APNs senders with data-only flattened payloads and context JSON-encoded, token lifecycle with deletion on unregistered responses and 60-day pruning, retries with backoff and a Failed row per attempt, email fallback, recipient derivation excluding actor and disabled users, preferences with opt-in default, quiet hours that never suppress Critical, weekly FYI digest, alert rule table with blocking and advisory modes, and approve-from-shade that refetches and refuses on a changed state_version.
 Write tests for E1 to E12 named by their IDs, using kit/testdb (run `just db e1` and export the ERP_TEST_DATABASE line it prints) and the dev push-sink. E9 must prove a second connected surface clears within one second.
 Definition of done: R-IDs and E1 to E12 listed in the PR body; just lint, just test ./internal/notifications/..., contracts.yml, just licence, just sbom all green; new invariants get new 08 IDs appended; strings externalised; no cross-module import (approvals and identity are interfaces you define).
-Commit as "P1.8: <imperative summary>" and open the PR with gh pr create using the template; do not merge, the queue does.
+Commit as "P1.8: <imperative summary>" and open the PR with gh pr create using the template; do not merge; the Integrator merges after checks and review (CONTRIBUTING.md "Merging on GitHub Free").
 ```
 
 ---
@@ -324,5 +324,5 @@ Contracts are read-only. The /journeys endpoints and the journey.step.completed 
 Implement: journey definitions as data (slug, persona, ordered steps with type, input schema, guard), instances with persisted state and state_version, the step protocol returning { ok, code, message, data, problems, next_step }, await steps that report pending and stop on rejection, resumability across restarts and days, persona visibility through kit/rls, and the Go-Live journey definition skeleton as a fixture. Client-supplied state never influences permissions or workflow state.
 Write tests for E13 to E15 named by their IDs, using kit/testdb (run `just db e2` and export the ERP_TEST_DATABASE line it prints). E15 must restart the engine mid-instance and resume.
 Definition of done: R15.5, R18.1 and acceptance tests E13 to E15 listed in the PR body; just lint, just test ./internal/journeys/..., contracts.yml, just licence, just sbom all green; new invariants get new 08 IDs appended; strings externalised; no cross-module import (approvals, identity and authz are interfaces you define).
-Commit as "P1.14: <imperative summary>" and open the PR with gh pr create using the template; do not merge, the queue does.
+Commit as "P1.14: <imperative summary>" and open the PR with gh pr create using the template; do not merge; the Integrator merges after checks and review (CONTRIBUTING.md "Merging on GitHub Free").
 ```

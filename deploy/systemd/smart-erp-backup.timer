@@ -1,0 +1,13 @@
+[Unit]
+Description=smart-erp nightly backup at 02:00
+
+[Timer]
+OnCalendar=*-*-* 02:00:00
+# Run at next boot if the NUC was off at 02:00.
+Persistent=true
+RandomizedDelaySec=120
+AccuracySec=1min
+Unit=smart-erp-backup.service
+
+[Install]
+WantedBy=timers.target

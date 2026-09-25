@@ -1,0 +1,47 @@
+# Development Caddyfile (Apple Silicon Mac).
+# Caddy's internal CA issues certificates for *.localhost; trust it once with
+#   docker compose exec caddy cat /data/caddy/pki/authorities/local/root.crt > /tmp/caddy-root.crt
+#   sudo security add-trusted-cert -d -r trustRoot -k /Library/Keychains/System.keychain /tmp/caddy-root.crt
+# Host ports: 8443 (https) and 8880 (http redirect); api itself owns 8080.
+
+{
+	admin 127.0.0.1:2019
+	local_certs
+	auto_https disable_redirects
+}
+
+(common) {
+	encode zstd gzip
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options nosniff
+		Referrer-Policy strict-origin-when-cross-origin
+		-Server
+	}
+	log {
+		output stdout
+		format json
+	}
+}
+
+https://api.localhost {
+	import common
+	tls internal
+	reverse_proxy api:8080 {
+		header_up X-Forwarded-Port 8443
+		transport http {
+			read_timeout 300s
+		}
+	}
+}
+
+https://zitadel.localhost {
+	import common
+	tls internal
+	# Zitadel speaks HTTP/2 cleartext (gRPC + gRPC-web) on 8080.
+	# In dev Zitadel's ExternalDomain is localhost:8081 (direct port), so the
+	# Host header is rewritten to match; this vhost exists for prod parity.
+	reverse_proxy h2c://zitadel:8080 {
+		header_up Host localhost:8081
+	}
+}

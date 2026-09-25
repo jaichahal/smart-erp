@@ -1,0 +1,12 @@
+[Unit]
+Description=smart-erp hourly audit-chain anchor
+
+[Timer]
+OnCalendar=hourly
+Persistent=true
+RandomizedDelaySec=60
+AccuracySec=30s
+Unit=smart-erp-anchor.service
+
+[Install]
+WantedBy=timers.target

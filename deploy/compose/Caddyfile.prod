@@ -1,0 +1,44 @@
+# Production Caddyfile (Linux NUC). Mounted over /etc/caddy/Caddyfile by
+# compose.prod.yml. Automatic TLS (Let's Encrypt / ZeroSSL) on the public
+# hostname. Requires inbound 80 and 443; when no inbound port is allowed use
+# Cloudflare Tunnel or Tailscale Funnel in front and switch to `tls internal`
+# (see deploy/nuc/cert-or-tunnel-failure.md).
+#
+# Env: ERP_PUBLIC_HOSTNAME (e.g. erp.example.com), ERP_ACME_EMAIL.
+
+{
+	admin 127.0.0.1:2019
+	email {$ERP_ACME_EMAIL}
+	servers {
+		trusted_proxies static private_ranges
+	}
+}
+
+(common) {
+	encode zstd gzip
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+		X-Content-Type-Options nosniff
+		Referrer-Policy strict-origin-when-cross-origin
+		-Server
+	}
+	log {
+		output stdout
+		format json
+	}
+}
+
+{$ERP_PUBLIC_HOSTNAME} {
+	import common
+	reverse_proxy api:8080 {
+		transport http {
+			read_timeout 300s
+		}
+	}
+}
+
+auth.{$ERP_PUBLIC_HOSTNAME} {
+	import common
+	# Zitadel: gRPC and gRPC-web over h2c; ExternalDomain must equal this host.
+	reverse_proxy h2c://zitadel:8080
+}

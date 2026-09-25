@@ -1,0 +1,25 @@
+# Keep the build context to Go sources and module files.
+.git
+.gitignore
+.env
+.env.*
+*.md
+!**/README.md
+Dockerfile
+.dockerignore
+
+# Build and test artefacts
+bin/
+dist/
+out/
+coverage*
+*.out
+*.test
+*.prof
+testdata/**/*.db
+
+# Editors and OS
+.idea/
+.vscode/
+.DS_Store
+*.swp

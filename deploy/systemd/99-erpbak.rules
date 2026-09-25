@@ -1,0 +1,19 @@
+# smart-erp external backup drives.
+# Installed to /etc/udev/rules.d/99-erpbak.rules by deploy/nuc/bootstrap.sh.
+#
+# When a block device with a LUKS2 header label ERPBAK-* appears, start
+# erpbak@<label>.service (SYSTEMD_WANTS is the supported way to start units
+# from udev; RUN+= systemctl is not). The service checks the allow-list, so
+# a stranger's drive labelled ERPBAK-Z does nothing.
+#
+# Set the LUKS2 label at format time: cryptsetup luksFormat --label ERPBAK-A ...
+# blkid then exposes ID_FS_TYPE=crypto_LUKS and ID_FS_LABEL=ERPBAK-A on the
+# raw partition, before it is unlocked.
+
+ACTION=="add", SUBSYSTEM=="block", ENV{ID_FS_TYPE}=="crypto_LUKS", ENV{ID_FS_LABEL}=="ERPBAK-*", \
+  TAG+="systemd", ENV{SYSTEMD_WANTS}+="erpbak@$env{ID_FS_LABEL}.service"
+
+# On unplug, stop the instance so the mapper device and mount point are cleaned
+# up (the mount itself is already gone; this avoids a stale dm entry).
+ACTION=="remove", SUBSYSTEM=="block", ENV{ID_FS_TYPE}=="crypto_LUKS", ENV{ID_FS_LABEL}=="ERPBAK-*", \
+  RUN+="/usr/bin/systemctl --no-block stop erpbak@$env{ID_FS_LABEL}.service"

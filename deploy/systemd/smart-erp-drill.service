@@ -1,0 +1,25 @@
+# Weekly automatic restore drill (spec 10, "External backup drives and
+# restore drills"): restores the latest backup into the isolated
+# `smart-erp-drill` compose project (PostgreSQL on 5433, data under
+# /var/lib/smart-erp-drill, MinIO prefix drill/), verifies the chain head
+# against the anchor, records production row counts before/after (I29), and
+# stores a signed drill report. Alternates drive/offsite week to week; falls
+# back to offsite when no drive is mounted. Triggered by smart-erp-drill.timer.
+
+[Unit]
+Description=smart-erp weekly restore drill
+Documentation=file:///opt/smart-erp/deploy/nuc/quarterly-rehearsal.md
+Requires=smart-erp.service
+After=smart-erp.service smart-erp-backup.service
+
+[Service]
+Type=oneshot
+User=erpbackup
+Group=erpbackup
+SupplementaryGroups=docker
+WorkingDirectory=/opt/smart-erp/deploy/compose
+EnvironmentFile=-/etc/smart-erp/backup.env
+ExecStart=/opt/smart-erp/deploy/scripts/restore.sh --drill --target auto
+TimeoutStartSec=6h
+Nice=15
+IOSchedulingClass=idle

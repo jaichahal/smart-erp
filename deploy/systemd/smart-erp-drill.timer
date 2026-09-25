@@ -1,0 +1,12 @@
+[Unit]
+Description=smart-erp weekly restore drill, Sunday 03:00
+
+[Timer]
+OnCalendar=Sun *-*-* 03:00:00
+Persistent=true
+RandomizedDelaySec=300
+AccuracySec=1min
+Unit=smart-erp-drill.service
+
+[Install]
+WantedBy=timers.target

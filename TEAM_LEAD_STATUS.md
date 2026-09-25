@@ -1,66 +1,70 @@
-Team Lead Status - 2026-09-25 21:30 UTC+4 sweep (on top of 8def507)
+Team Lead Status - 2026-09-25 21:55 UTC+4 sweep (on top of 10eb050)
 
 Integration new commits this round:
-- 8def507 "Merge task/build-receivables into integration/e2e." Receivables
-  86f4b46 verified green on its branch first (go test ./internal/receivables/
-  ok 3.0s; bank has no own test files, covered via bank_accept_test.go).
-  Router: imports merged; receivables.Mount + bank.Mount moved INSIDE the auth
-  group (both handlers use rls.FromContext like sales/purchase/stock; branch
-  had them outside only because it predates the auth layout).
-  /receipts reconciliation: receivables OWNS POST /receipts. Removed sales'
-  shadowing registration (one line in sales/http.go; handler method left for
-  the sales track to remove/rename). No other route collisions (bank/*,
-  receivables/*, pdcs, advances, collectors, customers/{id} all disjoint;
-  authz /customers list path unaffected). Build + vet clean.
+- e9ac89c "Merge task/build-masters into integration/e2e." Masters 62d396e
+  verified green on its branch first on a throwaway (go test ./internal/masters/
+  ok 8.8s; harness uses kit/testdb, ERP_TEST_DATABASE unset). Router
+  auto-merged with masters.Mount outside auth; moved INSIDE (handlers use
+  rls.FromContext like all other modules) and amended into the merge. Build +
+  vet clean.
+- 10eb050 "Merge task/build-purchase fix-forward into integration/e2e."
+  Purchase 99ac877 verified green on throwaway (10.3s). Test-only change
+  (three-way gap assertion counts journal rows for the doc instead of failing
+  on any journal table). Merged clean, no conflicts. Obsoletes the known
+  purchase gap-test red.
 
-E2E-WAVE1 RESULT: known-only red. P1.7 D1-D14 401s (HOLD, untouched). No new
-failures. Wave-1 also proves the full migration set (301xx/31100?/32100/33100/
-34100/35100) applies cleanly on fresh throwaway DBs.
+CRITICAL PATH UPDATE: masters P2.2 is on integration. Stock follow-up recorded
+(not done by lead): swap stock's SnapshotCatalog placeholder for the real
+masters reader via the Catalog interface (internal/stock/masters.go). Note: now
+entangled with the P0 below (reservations ownership); land together.
 
-NEW FINDING (investigated, not ignored): sales + receivables package tests fail
-ON INTEGRATION with goose "missing migrations" (erp_sales missing 301xx/32100
-below 33100; erp_ar missing 301xx/32100/33100 below 34100). Cause: both tracks'
-harnesses use SHARED named DBs (erp_sales, erp_ar) with goose.Up instead of
-kit/testdb throwaways (backend QA already flagged erp_sales). Every merged
-migration band breaks them. NOT a product regression: bands are disjoint new
-files, both packages were green on their branches with consistent DBs, and the
-full set migrates clean on fresh DBs (wave-1 proof). Shared DBs NOT wiped or
-touched. Follow-ups (track-owned):
-- sales: switch harness from erp_sales to testdb throwaways.
-- receivables: switch harness from erp_ar to testdb throwaways.
-Until then, package-green must be read on the track branches, not integration.
+P0 NEW: duplicate erp.stock_reservations (masters vs stock). 31100_masters.sql:360
+and 32100_stock_ledger.sql:57 both CREATE TABLE it with DIFFERENT shapes:
+masters keys by real FKs (skus, warehouses), no order-line linkage; stock keys
+by snapshot catalog (stock_skus, stock_warehouses) with order_line_id unique +
+pending/active/released/consumed lifecycle. Goose runs 31100 first, 32100
+collides: relation already exists. Blast radius check: this is the ONLY
+duplicated table across all migration bands. Impact on integration: e2e C1-C5
+red + masters/stock package runs red (identical signature, confirmed). Both
+packages green on their branches. NOT fixed by lead (editing applied migrations
+is forbidden; shape choice is semantic). Owners: stock track + masters track to
+converge on ONE owning migration; needs Jai ruling on which shape wins.
+Merges KEPT (reverting masters would lose P2.2; C-tests are e2e-track owned).
 
-client-api-needs.md appended: all four rows now code-wired (receipts in
-8def507). Live 404-gone checks need API restart + migrations on dev DB.
-Clients QA: re-run all new-screen specs after next stack restart.
+E2E-WAVE1 RESULT: FAIL with P1.7 HOLD (D1-D14, untouched) PLUS new C1-C5 reds
+from the P0 above (all five: relation stock_reservations already exists at
+32100). Investigated, cause pinned, owners recorded.
+
+Shared-DB coupling (standing follow-ups, DBs untouched): sales erp_sales,
+receivables erp_ar harnesses still break on integration (missing-migrations).
+Masters/purchase harnesses use testdb throwaways (good pattern). No wipes.
 
 Tracks (branch tip / worktree / tests / blocked-on):
 - ledger: 5faa71d merged. Clean. Done.
-- masters: NEW commit 62d396e "Add master data..." (full implementation,
-  TDD note for C15, worktree clean). Next sweep: verify green, merge. May also
-  use shared erp_masters DB (commit msg cites ERP_TEST_DATABASE=erp_masters) -
-  same coupling watch. Still the critical path (stock UseCatalog + P2.2 gates).
-- stock: 7ab160a merged. Clean. Waits on masters.
-- sales: f9cac2d merged. Branch-green. Integration package run red ONLY via
-  stale erp_sales (see finding). Open seams 1-6 stand, plus NEW seam 7: local
-  /receipts handler unregistered (receivables owns route; sales track to
-  remove/rename its Receipt flow or re-point it).
-- receivables: 86f4b46 MERGED as 8def507. Branch-green. Integration package run
-  red ONLY via stale erp_ar (see finding). Follow-up: testdb throwaways.
-- purchase: 43fdcf9 merged. Clean. Done.
+- masters: 62d396e MERGED as e9ac89c. Branch-green. Integration package run red
+  via P0 only. P2.2 routes live (inside auth).
+- stock: 7ab160a merged. Branch-green. Integration run red via P0 only.
+  Follow-ups: UseCatalog swap + reservations convergence (with masters track).
+- sales: f9cac2d merged. Branch-green. Integration run red via stale erp_sales
+  only. Seams 1-7 stand.
+- receivables: 86f4b46 merged. Branch-green. Integration run red via stale
+  erp_ar only. Follow-up: testdb throwaways.
+- purchase: 99ac877 MERGED as 10eb050. Branch-green (plain + ledger-migrated
+  DBs per track). Gap-test red obsoleted. Done.
 - clients: tip f55adfd. No new branch commit checked this sweep.
 
 Plan source (task/plan-index): tip ce8cb65, unchanged.
 
-Merges done: task/build-receivables 86f4b46 -> integration/e2e 8def507.
-Unblocks made: /receipts reconciliation (receivables owns; sales unregistered).
-E2E: e2e-wave1 FAIL known-only (P1.7 HOLD).
+Merges done: task/build-masters 62d396e -> e9ac89c; task/build-purchase
+99ac877 -> 10eb050.
+Unblocks made: none (P0 needs track owners + Jai ruling).
+E2E: e2e-wave1 FAIL (P1.7 HOLD + new C1-C5 P0).
 
-QA SCALE TRIGGER: no new report this sweep; earlier FIRE stands.
+QA SCALE TRIGGER: earlier FIRE stands (no new QA report this sweep).
 
-Needs Jai (standing):
+Needs Jai (standing + new):
 1. P1.7 HOLD: bearer-only vs header-auth compat.
-2. Relay client agent to task/build-clients.
-3. QA split decision.
-4. Note: sales/receivables shared-DB harnesses (erp_sales/erp_ar) break on every
-   migration merge; tracks must move to throwaways (no wipe performed).
+2. NEW P0: which stock_reservations shape wins (masters FK shape vs stock
+   lifecycle shape)? Ruling needed before tracks converge.
+3. Relay client agent to task/build-clients.
+4. QA split decision.

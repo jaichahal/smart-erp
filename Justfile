@@ -83,7 +83,13 @@ seed: _envfiles
 hooks:
     git config core.hooksPath .githooks && echo "hooks installed (core.hooksPath=.githooks)"
 
-# --- code --------------------------------------------------------------------
+# All acceptance cases against the composed API and Postgres. Requires the dev compose stack.
+e2e: _envfiles
+    cd {{compose_dir}} && docker compose --profile {{profile}} up -d --remove-orphans postgres valkey minio minio-init zitadel caddy headless-shell mailpit otel-collector
+    @just _wait-postgres
+    @just migrate
+    @just template
+    set -a; source {{host_env}}; set +a; cd {{api_dir}} && go test ./e2e -count=1 -timeout 45m
 
 # Run code generation: sqlc, oapi-codegen, canonical fixtures.
 gen:

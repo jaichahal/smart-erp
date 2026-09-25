@@ -1,0 +1,108 @@
+// Package app is the composition root for the HTTP API. Feature modules stay
+// independent; this package is the one place that mounts them together.
+package app
+
+import (
+	"context"
+	"errors"
+	"log/slog"
+	"net/http"
+	"time"
+
+	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/chi/v5/middleware"
+	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgxpool"
+
+	"github.com/jaichahal/smart-erp/apps/api/internal/approvals"
+	"github.com/jaichahal/smart-erp/apps/api/internal/audit"
+	"github.com/jaichahal/smart-erp/apps/api/internal/authz"
+	"github.com/jaichahal/smart-erp/apps/api/internal/clocks"
+	"github.com/jaichahal/smart-erp/apps/api/internal/identity"
+	"github.com/jaichahal/smart-erp/apps/api/internal/journeys"
+	"github.com/jaichahal/smart-erp/apps/api/internal/kit/apierr"
+	"github.com/jaichahal/smart-erp/apps/api/internal/kit/httpx"
+	periods "github.com/jaichahal/smart-erp/apps/api/internal/ledger/periods"
+	"github.com/jaichahal/smart-erp/apps/api/internal/notifications"
+)
+
+// Option tunes composition. Production uses none; tests inject the Zitadel broker port.
+type Option func(*wire)
+
+type wire struct {
+	identity []identity.Option
+}
+
+// WithIdentity passes options through to the identity module.
+func WithIdentity(opts ...identity.Option) Option {
+	return func(w *wire) {
+		w.identity = append(w.identity, opts...)
+	}
+}
+
+// Handler is the production HTTP API: kit middleware, health, status, and every mounted module.
+func Handler(deps httpx.Deps, opts ...Option) (http.Handler, error) {
+	var w wire
+	for _, opt := range opts {
+		opt(&w)
+	}
+	if deps.Log == nil {
+		deps.Log = slog.Default()
+	}
+	r := chi.NewRouter()
+	r.Use(apierr.RequestIDMiddleware, middleware.Recoverer, middleware.Timeout(30*time.Second))
+	r.NotFound(func(w http.ResponseWriter, r *http.Request) {
+		apierr.Write(w, r, apierr.New(apierr.NotFound, "route not found"))
+	})
+	r.MethodNotAllowed(func(w http.ResponseWriter, r *http.Request) {
+		apierr.Write(w, r, apierr.New(apierr.ValidationError, "method not allowed"))
+	})
+	r.Get("/health", httpx.Health(deps))
+	var mountErr error
+	r.Route("/api/v1", func(v1 chi.Router) {
+		v1.Get("/health", httpx.Health(deps))
+		v1.Get("/status", httpx.Status(deps))
+		v1.Get("/design/tokens", designTokens(deps.Pool))
+		identity.Mount(v1, deps, w.identity...)
+		authz.Mount(v1, deps)
+		clocks.Mount(v1, deps)
+		periods.Mount(v1, deps, approvalGate{pool: deps.Pool})
+		audit.Mount(v1, deps)
+		approvals.Mount(v1, deps)
+		if err := notifications.Mount(v1, deps); err != nil {
+			mountErr = err
+			return
+		}
+		journeys.Mount(v1, deps)
+	})
+	if mountErr != nil {
+		return nil, mountErr
+	}
+	if err := ensureDesignTokens(context.Background(), deps.Pool); err != nil {
+		return nil, err
+	}
+	return r, nil
+}
+
+// approvalGate confirms a hard close cites an approved approval request (R4.6).
+type approvalGate struct {
+	pool *pgxpool.Pool
+}
+
+func (g approvalGate) Approved(ctx context.Context, companyID, _ uuid.UUID, approvalID string) error {
+	if approvalID == "" || g.pool == nil {
+		return errors.New("approval required")
+	}
+	var state string
+	err := g.pool.QueryRow(ctx, `
+		SELECT state FROM erp.approval_requests
+		WHERE company_id = $1 AND request_id = $2
+		ORDER BY state_version DESC LIMIT 1`, companyID, approvalID).Scan(&state)
+	if err != nil {
+		return err
+	}
+	if state != "approved" {
+		return errors.New("approval is not approved")
+	}
+	return nil
+}

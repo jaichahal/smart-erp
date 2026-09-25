@@ -13,28 +13,28 @@ import (
 
 // Defines values for AllowedAction.
 const (
-	Acknowledge AllowedAction = "acknowledge"
-	Approve     AllowedAction = "approve"
-	Delegate    AllowedAction = "delegate"
-	Open        AllowedAction = "open"
-	Reject      AllowedAction = "reject"
-	Snooze      AllowedAction = "snooze"
+	AllowedActionAcknowledge AllowedAction = "acknowledge"
+	AllowedActionApprove     AllowedAction = "approve"
+	AllowedActionDelegate    AllowedAction = "delegate"
+	AllowedActionOpen        AllowedAction = "open"
+	AllowedActionReject      AllowedAction = "reject"
+	AllowedActionSnooze      AllowedAction = "snooze"
 )
 
 // Valid indicates whether the value is a known member of the AllowedAction enum.
 func (e AllowedAction) Valid() bool {
 	switch e {
-	case Acknowledge:
+	case AllowedActionAcknowledge:
 		return true
-	case Approve:
+	case AllowedActionApprove:
 		return true
-	case Delegate:
+	case AllowedActionDelegate:
 		return true
-	case Open:
+	case AllowedActionOpen:
 		return true
-	case Reject:
+	case AllowedActionReject:
 		return true
-	case Snooze:
+	case AllowedActionSnooze:
 		return true
 	default:
 		return false
@@ -218,6 +218,45 @@ func (e HealthResponseStatus) Valid() bool {
 	}
 }
 
+// Defines values for PeriodKind.
+const (
+	AuditAdjustment PeriodKind = "audit_adjustment"
+	Month           PeriodKind = "month"
+)
+
+// Valid indicates whether the value is a known member of the PeriodKind enum.
+func (e PeriodKind) Valid() bool {
+	switch e {
+	case AuditAdjustment:
+		return true
+	case Month:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PeriodStatus.
+const (
+	PeriodStatusHardClosed PeriodStatus = "hard_closed"
+	PeriodStatusOpen       PeriodStatus = "open"
+	PeriodStatusSoftClosed PeriodStatus = "soft_closed"
+)
+
+// Valid indicates whether the value is a known member of the PeriodStatus enum.
+func (e PeriodStatus) Valid() bool {
+	switch e {
+	case PeriodStatusHardClosed:
+		return true
+	case PeriodStatusOpen:
+		return true
+	case PeriodStatusSoftClosed:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for Platform.
 const (
 	Android Platform = "android"
@@ -392,6 +431,39 @@ func (e TokenResponseStepUpMethods) Valid() bool {
 	case TokenResponseStepUpMethodsTotp:
 		return true
 	case TokenResponseStepUpMethodsWebauthn:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for Weekday.
+const (
+	Friday    Weekday = "friday"
+	Monday    Weekday = "monday"
+	Saturday  Weekday = "saturday"
+	Sunday    Weekday = "sunday"
+	Thursday  Weekday = "thursday"
+	Tuesday   Weekday = "tuesday"
+	Wednesday Weekday = "wednesday"
+)
+
+// Valid indicates whether the value is a known member of the Weekday enum.
+func (e Weekday) Valid() bool {
+	switch e {
+	case Friday:
+		return true
+	case Monday:
+		return true
+	case Saturday:
+		return true
+	case Sunday:
+		return true
+	case Thursday:
+		return true
+	case Tuesday:
+		return true
+	case Wednesday:
 		return true
 	default:
 		return false
@@ -782,6 +854,42 @@ func (e GetHealthParamsAcceptLanguage) Valid() bool {
 	}
 }
 
+// Defines values for GetHolidayCalendarParamsAcceptLanguage.
+const (
+	GetHolidayCalendarParamsAcceptLanguageAr GetHolidayCalendarParamsAcceptLanguage = "ar"
+	GetHolidayCalendarParamsAcceptLanguageEn GetHolidayCalendarParamsAcceptLanguage = "en"
+)
+
+// Valid indicates whether the value is a known member of the GetHolidayCalendarParamsAcceptLanguage enum.
+func (e GetHolidayCalendarParamsAcceptLanguage) Valid() bool {
+	switch e {
+	case GetHolidayCalendarParamsAcceptLanguageAr:
+		return true
+	case GetHolidayCalendarParamsAcceptLanguageEn:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PutHolidayCalendarParamsAcceptLanguage.
+const (
+	PutHolidayCalendarParamsAcceptLanguageAr PutHolidayCalendarParamsAcceptLanguage = "ar"
+	PutHolidayCalendarParamsAcceptLanguageEn PutHolidayCalendarParamsAcceptLanguage = "en"
+)
+
+// Valid indicates whether the value is a known member of the PutHolidayCalendarParamsAcceptLanguage enum.
+func (e PutHolidayCalendarParamsAcceptLanguage) Valid() bool {
+	switch e {
+	case PutHolidayCalendarParamsAcceptLanguageAr:
+		return true
+	case PutHolidayCalendarParamsAcceptLanguageEn:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for GetMeParamsAcceptLanguage.
 const (
 	GetMeParamsAcceptLanguageAr GetMeParamsAcceptLanguage = "ar"
@@ -830,6 +938,60 @@ func (e EndMySessionParamsAcceptLanguage) Valid() bool {
 	case EndMySessionParamsAcceptLanguageAr:
 		return true
 	case EndMySessionParamsAcceptLanguageEn:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for HardClosePeriodParamsAcceptLanguage.
+const (
+	HardClosePeriodParamsAcceptLanguageAr HardClosePeriodParamsAcceptLanguage = "ar"
+	HardClosePeriodParamsAcceptLanguageEn HardClosePeriodParamsAcceptLanguage = "en"
+)
+
+// Valid indicates whether the value is a known member of the HardClosePeriodParamsAcceptLanguage enum.
+func (e HardClosePeriodParamsAcceptLanguage) Valid() bool {
+	switch e {
+	case HardClosePeriodParamsAcceptLanguageAr:
+		return true
+	case HardClosePeriodParamsAcceptLanguageEn:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for SoftClosePeriodParamsAcceptLanguage.
+const (
+	SoftClosePeriodParamsAcceptLanguageAr SoftClosePeriodParamsAcceptLanguage = "ar"
+	SoftClosePeriodParamsAcceptLanguageEn SoftClosePeriodParamsAcceptLanguage = "en"
+)
+
+// Valid indicates whether the value is a known member of the SoftClosePeriodParamsAcceptLanguage enum.
+func (e SoftClosePeriodParamsAcceptLanguage) Valid() bool {
+	switch e {
+	case SoftClosePeriodParamsAcceptLanguageAr:
+		return true
+	case SoftClosePeriodParamsAcceptLanguageEn:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for OpenAuditAdjustmentPeriodParamsAcceptLanguage.
+const (
+	OpenAuditAdjustmentPeriodParamsAcceptLanguageAr OpenAuditAdjustmentPeriodParamsAcceptLanguage = "ar"
+	OpenAuditAdjustmentPeriodParamsAcceptLanguageEn OpenAuditAdjustmentPeriodParamsAcceptLanguage = "en"
+)
+
+// Valid indicates whether the value is a known member of the OpenAuditAdjustmentPeriodParamsAcceptLanguage enum.
+func (e OpenAuditAdjustmentPeriodParamsAcceptLanguage) Valid() bool {
+	switch e {
+	case OpenAuditAdjustmentPeriodParamsAcceptLanguageAr:
+		return true
+	case OpenAuditAdjustmentPeriodParamsAcceptLanguageEn:
 		return true
 	default:
 		return false
@@ -1111,6 +1273,43 @@ type HealthResponse struct {
 // HealthResponseStatus defines model for HealthResponse.Status.
 type HealthResponseStatus string
 
+// Holiday defines model for Holiday.
+type Holiday struct {
+	Date openapi_types.Date `json:"date"`
+	Name string             `json:"name"`
+}
+
+// HolidayCalendar Company business-hours calendar (ADR-12). Clocks count only time inside
+// `business_open`–`business_close` on days that are neither weekend nor holiday.
+type HolidayCalendar struct {
+	// BusinessClose Local end of the working day, HH:MM (24-hour), after `business_open`
+	//
+	// Examples: 20:00
+	BusinessClose string `json:"business_close"`
+
+	// BusinessOpen Local start of the working day, HH:MM (24-hour)
+	//
+	// Examples: 08:00
+	BusinessOpen string    `json:"business_open"`
+	Holidays     []Holiday `json:"holidays"`
+
+	// StateVersion Optimistic concurrency version; bumped on every transition
+	StateVersion StateVersion `json:"state_version"`
+
+	// Timezone Examples: Asia/Dubai
+	Timezone string    `json:"timezone"`
+	Weekend  []Weekday `json:"weekend"`
+}
+
+// HolidayCalendarWrite Body of POST /holiday-calendar. `state_version` is not accepted from the client.
+type HolidayCalendarWrite struct {
+	BusinessClose string    `json:"business_close"`
+	BusinessOpen  string    `json:"business_open"`
+	Holidays      []Holiday `json:"holidays"`
+	Timezone      string    `json:"timezone"`
+	Weekend       []Weekday `json:"weekend"`
+}
+
 // Meta Present on every success response.
 type Meta struct {
 	// AsOf Server time the response was computed, UTC
@@ -1141,6 +1340,33 @@ type PageMeta struct {
 	Total                *int                   `json:"total,omitempty"`
 	AdditionalProperties map[string]interface{} `json:"-"`
 }
+
+// Period defines model for Period.
+type Period struct {
+	EndDate    openapi_types.Date `json:"end_date"`
+	FiscalYear int                `json:"fiscal_year"`
+	Id         openapi_types.UUID `json:"id"`
+	Kind       PeriodKind         `json:"kind"`
+
+	// Month Null on the audit-adjustment period
+	Month     *int               `json:"month,omitempty"`
+	StartDate openapi_types.Date `json:"start_date"`
+
+	// StateVersion Optimistic concurrency version; bumped on every transition
+	StateVersion StateVersion `json:"state_version"`
+	Status       PeriodStatus `json:"status"`
+}
+
+// PeriodApproval Approval id granted by the approvals module before a Stakeholder close or open.
+type PeriodApproval struct {
+	ApprovalId string `json:"approval_id"`
+}
+
+// PeriodKind defines model for PeriodKind.
+type PeriodKind string
+
+// PeriodStatus defines model for PeriodStatus.
+type PeriodStatus string
 
 // Platform defines model for Platform.
 type Platform string
@@ -1262,6 +1488,9 @@ type UserSession struct {
 	StateVersion StateVersion `json:"state_version"`
 }
 
+// Weekday defines model for Weekday.
+type Weekday string
+
 // AcceptLanguage defines model for AcceptLanguage.
 type AcceptLanguage string
 
@@ -1271,14 +1500,23 @@ type ApprovalId = string
 // Cursor defines model for Cursor.
 type Cursor = string
 
+// FiscalYear defines model for FiscalYear.
+type FiscalYear = int
+
 // IdempotencyKey defines model for IdempotencyKey.
 type IdempotencyKey = openapi_types.UUID
 
 // IfMatch defines model for IfMatch.
 type IfMatch = string
 
+// IfMatchRequired defines model for IfMatchRequired.
+type IfMatchRequired = string
+
 // Limit defines model for Limit.
 type Limit = int
+
+// PeriodId defines model for PeriodId.
+type PeriodId = openapi_types.UUID
 
 // SessionId defines model for SessionId.
 type SessionId = string
@@ -1630,6 +1868,33 @@ type GetHealthParams struct {
 // GetHealthParamsAcceptLanguage defines parameters for GetHealth.
 type GetHealthParamsAcceptLanguage string
 
+// GetHolidayCalendarParams defines parameters for GetHolidayCalendar.
+type GetHolidayCalendarParams struct {
+	// AcceptLanguage `en` or `ar`. Affects messages and print formats, never data.
+	AcceptLanguage *GetHolidayCalendarParamsAcceptLanguage `json:"Accept-Language,omitempty"`
+}
+
+// GetHolidayCalendarParamsAcceptLanguage defines parameters for GetHolidayCalendar.
+type GetHolidayCalendarParamsAcceptLanguage string
+
+// PutHolidayCalendarParams defines parameters for PutHolidayCalendar.
+type PutHolidayCalendarParams struct {
+	// IdempotencyKey UUID chosen by the client. The server stores the response for 24 hours and replays it for a
+	// repeated key with the same body; a different body with the same key is `409 CONFLICT`.
+	IdempotencyKey IdempotencyKey `json:"Idempotency-Key"`
+
+	// IfMatch The `state_version` the client last saw. Required on period and holiday-calendar
+	// writes. A mismatch is `409 CONFLICT` with the current state in `error.details.current`.
+	// The first holiday-calendar write sends `0`.
+	IfMatch IfMatchRequired `json:"If-Match"`
+
+	// AcceptLanguage `en` or `ar`. Affects messages and print formats, never data.
+	AcceptLanguage *PutHolidayCalendarParamsAcceptLanguage `json:"Accept-Language,omitempty"`
+}
+
+// PutHolidayCalendarParamsAcceptLanguage defines parameters for PutHolidayCalendar.
+type PutHolidayCalendarParamsAcceptLanguage string
+
 // GetMeParams defines parameters for GetMe.
 type GetMeParams struct {
 	// AcceptLanguage `en` or `ar`. Affects messages and print formats, never data.
@@ -1668,6 +1933,60 @@ type EndMySessionParams struct {
 
 // EndMySessionParamsAcceptLanguage defines parameters for EndMySession.
 type EndMySessionParamsAcceptLanguage string
+
+// HardClosePeriodParams defines parameters for HardClosePeriod.
+type HardClosePeriodParams struct {
+	// IdempotencyKey UUID chosen by the client. The server stores the response for 24 hours and replays it for a
+	// repeated key with the same body; a different body with the same key is `409 CONFLICT`.
+	IdempotencyKey IdempotencyKey `json:"Idempotency-Key"`
+
+	// IfMatch The `state_version` the client last saw. Required on period and holiday-calendar
+	// writes. A mismatch is `409 CONFLICT` with the current state in `error.details.current`.
+	// The first holiday-calendar write sends `0`.
+	IfMatch IfMatchRequired `json:"If-Match"`
+
+	// AcceptLanguage `en` or `ar`. Affects messages and print formats, never data.
+	AcceptLanguage *HardClosePeriodParamsAcceptLanguage `json:"Accept-Language,omitempty"`
+}
+
+// HardClosePeriodParamsAcceptLanguage defines parameters for HardClosePeriod.
+type HardClosePeriodParamsAcceptLanguage string
+
+// SoftClosePeriodParams defines parameters for SoftClosePeriod.
+type SoftClosePeriodParams struct {
+	// IdempotencyKey UUID chosen by the client. The server stores the response for 24 hours and replays it for a
+	// repeated key with the same body; a different body with the same key is `409 CONFLICT`.
+	IdempotencyKey IdempotencyKey `json:"Idempotency-Key"`
+
+	// IfMatch The `state_version` the client last saw. Required on period and holiday-calendar
+	// writes. A mismatch is `409 CONFLICT` with the current state in `error.details.current`.
+	// The first holiday-calendar write sends `0`.
+	IfMatch IfMatchRequired `json:"If-Match"`
+
+	// AcceptLanguage `en` or `ar`. Affects messages and print formats, never data.
+	AcceptLanguage *SoftClosePeriodParamsAcceptLanguage `json:"Accept-Language,omitempty"`
+}
+
+// SoftClosePeriodParamsAcceptLanguage defines parameters for SoftClosePeriod.
+type SoftClosePeriodParamsAcceptLanguage string
+
+// OpenAuditAdjustmentPeriodParams defines parameters for OpenAuditAdjustmentPeriod.
+type OpenAuditAdjustmentPeriodParams struct {
+	// IdempotencyKey UUID chosen by the client. The server stores the response for 24 hours and replays it for a
+	// repeated key with the same body; a different body with the same key is `409 CONFLICT`.
+	IdempotencyKey IdempotencyKey `json:"Idempotency-Key"`
+
+	// IfMatch The `state_version` the client last saw. Required on period and holiday-calendar
+	// writes. A mismatch is `409 CONFLICT` with the current state in `error.details.current`.
+	// The first holiday-calendar write sends `0`.
+	IfMatch IfMatchRequired `json:"If-Match"`
+
+	// AcceptLanguage `en` or `ar`. Affects messages and print formats, never data.
+	AcceptLanguage *OpenAuditAdjustmentPeriodParamsAcceptLanguage `json:"Accept-Language,omitempty"`
+}
+
+// OpenAuditAdjustmentPeriodParamsAcceptLanguage defines parameters for OpenAuditAdjustmentPeriod.
+type OpenAuditAdjustmentPeriodParamsAcceptLanguage string
 
 // ListSodMatrixParams defines parameters for ListSodMatrix.
 type ListSodMatrixParams struct {
@@ -1737,6 +2056,15 @@ type IssueTokenJSONRequestBody IssueTokenJSONBody
 
 // RegisterPushTokenJSONRequestBody defines body for RegisterPushToken for application/json ContentType.
 type RegisterPushTokenJSONRequestBody RegisterPushTokenJSONBody
+
+// PutHolidayCalendarJSONRequestBody defines body for PutHolidayCalendar for application/json ContentType.
+type PutHolidayCalendarJSONRequestBody = HolidayCalendarWrite
+
+// HardClosePeriodJSONRequestBody defines body for HardClosePeriod for application/json ContentType.
+type HardClosePeriodJSONRequestBody = PeriodApproval
+
+// OpenAuditAdjustmentPeriodJSONRequestBody defines body for OpenAuditAdjustmentPeriod for application/json ContentType.
+type OpenAuditAdjustmentPeriodJSONRequestBody = PeriodApproval
 
 // CreateSodRuleJSONRequestBody defines body for CreateSodRule for application/json ContentType.
 type CreateSodRuleJSONRequestBody = SodRuleWrite

@@ -6,10 +6,12 @@ Version 1.1.0. This file changes before code does. Additive changes bump the min
 
 ### 1.1.0
 
-Additive. Combines the identity session routes and the authorisation matrices. No migration for clients of 1.0.0.
+Additive. No path or field removed. No data migration for clients of 1.0.0.
 
 - `GET /me/sessions` and `DELETE /me/sessions/{id}` with schema `UserSession`. Session listing and remote revocation (R1.15, A9).
-- `/sod-matrix` and `/approval-matrix`, previously named under Masters with no operation or schema. Writes send `If-Match` with `state_version` (`0` on create) and are stored as `pending_approval` until an approval request is decided. No existing schema changes shape.
+- `/sod-matrix` and `/approval-matrix`. Writes send `If-Match` with `state_version` (`0` on create) and are stored as `pending_approval` until an approval request is decided.
+- `POST /periods/{id}/soft-close`, `POST /periods/{id}/hard-close`, and `POST /periods/{year}/audit-adjustment/open`, with `Period`, `PeriodStatus`, `PeriodKind`, and `PeriodApproval`.
+- `GET|POST /holiday-calendar`, with `HolidayCalendar` and `HolidayCalendarWrite`.
 
 ## Transport
 
@@ -103,6 +105,7 @@ Draft body shape per family follows `03-domain-model.md`; the OpenAPI file carri
 - `GET|POST /customers`, `/vendors`, `/skus`, `/price-lists`, `/price-agreements`, `/tax-codes`, `/accounts`, `/dimensions`, `/posting-rules`, `/holiday-calendar`, `/print-formats`, `/alert-rules`, `/approval-matrix`, `/sod-matrix`. Mutations on sensitive masters create an approval request. `GET /{master}/{id}/versions`.
 - `GET|POST /sod-matrix`. A row is `{ id, kind: role_pair|action_pair, left_code, right_code, state_version, status: active|pending_approval, approval_request_id? }`. `role_pair` lists two roles one person must not hold. `action_pair` lists two actions one person must not both perform on a document: enter and approve; receive and count; create vendor and pay vendor; request correction and approve correction. `POST` body is `{ kind, left_code, right_code }` with `If-Match: <state_version>` (`0` on create) and `Idempotency-Key`. The stored status is `pending_approval` until the approval engine decides. Assigning a pair that an `active` rule forbids returns `403 SOD_VIOLATION` unless the caller cites an override approval; the override and the refusal are audited (A14).
 - `GET|POST /approval-matrix`. A row is `{ id, document_type, threshold: Money, below_threshold_role, first_approver_role, final_gate_role, voting_any?, voting_of?, state_version, status, approval_request_id? }`. Below the threshold any one holder of `below_threshold_role` may register; at or above it, `first_approver_role` then `final_gate_role` (R2.2). `voting_any` and `voting_of` are the optional "any N of M" tier. `POST` uses the same idempotency and `If-Match` rules as `/sod-matrix` and stays `pending_approval` until decided.
+- `GET /holiday-calendar` returns `{ state_version, timezone, business_open, business_close, weekend[], holidays[] }`. `business_open` and `business_close` are local `HH:MM`. `weekend` is weekday names. `holidays` is `{ date, name }`. `POST /holiday-calendar` replaces that document and requires `If-Match` (send `0` on the first write). Clocks count only time inside the window on days that are neither weekend nor holiday (R13.8, ADR-12).
 - `POST /imports` multipart with `type`, returns `{ import_id, preview[], rejected[] }`; `POST /imports/{id}/commit`.
 
 ### Analytics
@@ -133,7 +136,7 @@ Draft body shape per family follows `03-domain-model.md`; the OpenAPI file carri
 - `POST /audit/verify` (Auditor, System Manager) returns `{ intact, count, first_break?, anchored_head_matches }`.
 - `GET /audit/events?ref=&from=&to=&type=`.
 - `GET /exceptions?month=`.
-- `POST /periods/{id}/soft-close`, `POST /periods/{id}/hard-close` (approval), `POST /periods/{year}/audit-adjustment/open`.
+- `POST /periods/{id}/soft-close` (Accountant), `POST /periods/{id}/hard-close` (Stakeholder, body `{ approval_id }`), `POST /periods/{year}/audit-adjustment/open` (Stakeholder, body `{ approval_id }`). All three require `If-Match` with the current `state_version` (`0` when the audit-adjustment period does not exist yet). A hard-closed period refuses later posting with `PERIOD_CLOSED`. Soft close and hard close emit `period.closed`.
 - `POST /go-live/...` steps per R18.
 
 ## Event payload (outbox, socket, push data)
@@ -157,7 +160,7 @@ Draft body shape per family follows `03-domain-model.md`; the OpenAPI file carri
 
 Push messages are data-only and carry exactly this object flattened to string values with `context` JSON-encoded. Severity in {LOW, MEDIUM, HIGH, CRITICAL}; unknown severity is treated as HIGH by clients.
 
-Event types (initial): `approval.requested|decided|delegated|snoozed`, `document.registered`, `delivery.confirmed`, `clock.expired`, `receipt.posted`, `pdc.bounced`, `stock.received`, `stock.count.approved`, `production.posted`, `correction.posted`, `payment.released`, `chain.verified|broken`, `backup.completed|failed`, `bank.feed.completed|failed`, `forecast.below_floor`, `exception.raised`, `config.changed`, `break_glass.used`.
+Event types (initial): `approval.requested|decided|delegated|snoozed`, `document.registered`, `delivery.confirmed`, `clock.expired`, `period.closed`, `receipt.posted`, `pdc.bounced`, `stock.received`, `stock.count.approved`, `production.posted`, `correction.posted`, `payment.released`, `chain.verified|broken`, `backup.completed|failed`, `bank.feed.completed|failed`, `forecast.below_floor`, `exception.raised`, `config.changed`, `break_glass.used`.
 
 ## Deep link scheme
 

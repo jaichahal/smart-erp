@@ -67,9 +67,9 @@ Services and pinned multi-arch images. Versions are pinned by digest in the real
 | --- | --- | --- | --- |
 | postgres | `postgres:16` | data, ledger, River jobs, Zitadel database | one instance, separate databases `erp`, `zitadel`, plus `erp_test_<n>` per agent |
 | valkey | `valkey/valkey:8` | pub/sub, JTI replay, rate limits | |
-| minio | `minio/minio` | attachments, PDFs, snapshots, local backup staging; buckets `erp-files`, `erp-backups`, `erp-anchors`, and in dev `offsite-sim` with object lock | object lock requires buckets created with lock enabled at creation |
-| zitadel | `ghcr.io/zitadel/zitadel:v3` | identity, run unmodified, headless | bootstrap creates a machine user and PAT for the API and a `dev` org with seeded personas |
-| caddy | `caddy:2` | TLS termination and reverse proxy | dev uses internal CA; prod automatic TLS or tunnel |
+| minio | `cgr.dev/chainguard/minio:latest` (upstream MinIO rebuilt unmodified; `minio/minio` is no longer published on Docker Hub) | attachments, PDFs, snapshots, local backup staging; buckets `erp-files`, `erp-backups`, `erp-anchors`, and in dev `offsite-sim` with object lock | object lock requires buckets created with lock enabled at creation |
+| zitadel | `ghcr.io/zitadel/zitadel:v3.4.15` (latest v3.x; v4 is a separate major) | identity, run unmodified, headless | bootstrap creates a machine user and PAT for the API and a `dev` org with seeded personas |
+| caddy | `caddy:2-alpine` | TLS termination and reverse proxy | dev binds 8443 (HTTPS) and 8880 (HTTP) because 8080 is the API; prod automatic TLS or tunnel |
 | api, worker, scheduler | built from `apps/api` | the product | `develop.watch` rebuilds on save in dev |
 | headless-shell | `chromedp/headless-shell` | PDF rendering | multi-arch |
 | mailpit | `axllent/mailpit` | outbound mail catcher and inbound IMAP for the supplier-invoice mailbox | dev only; prod uses the company relay and mailbox |

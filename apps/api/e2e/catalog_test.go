@@ -20,9 +20,8 @@ var coveredByDedicated = map[string]bool{
 }
 
 // acceptanceScenarios replaces the gap probe for one acceptance id.
-// Track helpers in a1_*.go (and the same pattern for other tracks) register
-// here from init. The probe's expected codes stay unchanged for every id
-// that has no scenario.
+// Track helpers register here from init. The probe's expected codes stay
+// unchanged for every id that has no scenario.
 var acceptanceScenarios = map[string]func(*testing.T, *stack){}
 
 // dedicatedAcceptance runs the real scenario for one acceptance ID.
@@ -30,7 +29,6 @@ var acceptanceScenarios = map[string]func(*testing.T, *stack){}
 // other ID, and a registered scenario must still fail the test when the
 // invariant does not hold.
 var dedicatedAcceptance = map[string]func(*testing.T, *stack){}
-
 func TestAcceptanceCatalog(t *testing.T) {
 	root := repoRoot()
 	tasks := loadTasks(t, filepath.Join(root, "docs/spec/07-tracks-and-tasks.md"))
@@ -88,6 +86,10 @@ func probe(t *testing.T, s *stack, task, id, sentence string) {
 	t.Helper()
 	if fn := dedicatedAcceptance[id]; fn != nil {
 		fn(t, s)
+		return
+	}
+	if run, ok := acceptanceScenarios[id]; ok {
+		run(t, s)
 		return
 	}
 	method, path, want := probeFor(id, sentence)

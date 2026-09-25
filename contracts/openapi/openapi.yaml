@@ -1,10 +1,10 @@
 openapi: 3.1.0
 info:
   title: Smart ERP API
-  version: 1.0.0
+  version: 1.1.0
   summary: Machine form of docs/spec/04-api-contracts.md
   description: |
-    Seeded from `docs/spec/04-api-contracts.md` version 1.0.0. That file is the human form and
+    Seeded from `docs/spec/04-api-contracts.md` version 1.1.0. That file is the human form and
     wins on conflict until this document is regenerated. Additive changes bump the minor version;
     breaking changes bump the major version and carry a migration note.
 
@@ -45,6 +45,8 @@ tags:
     description: Push token lifecycle
   - name: audit
     description: Audit chain verification and event query
+  - name: authz
+    description: Segregation of duties and the approval matrix (R1.13, R2.2). Roles themselves are data, not a new route.
 
 paths:
   /health:
@@ -874,6 +876,173 @@ paths:
         "503":
           $ref: "#/components/responses/Unavailable"
 
+  /sod-matrix:
+    get:
+      operationId: listSodMatrix
+      tags: [authz]
+      summary: List the segregation-of-duties matrix
+      description: |
+        Incompatible role pairs and incompatible actions on one document (R1.13). Includes
+        pending rows created by a mutation that is waiting on an approval request (04 Masters).
+      parameters:
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/AcceptLanguage"
+      responses:
+        "200":
+          description: Matrix rows visible to the caller
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, meta]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/SodRule"
+                  meta:
+                    $ref: "#/components/schemas/PageMeta"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+        "500":
+          $ref: "#/components/responses/InternalError"
+        "503":
+          $ref: "#/components/responses/Unavailable"
+    post:
+      operationId: createSodRule
+      tags: [authz]
+      summary: Propose a segregation-of-duties rule
+      description: |
+        Sensitive master mutation (04 Masters). The row is stored as `pending_approval` and is
+        not enforced until the approval request is decided. `If-Match` carries `state_version`
+        (`0` when creating). An incompatible role assignment is refused with `SOD_VIOLATION`
+        unless an override approval is cited (A14); that enforcement is on role assignment, and
+        this route is the matrix itself (A23 when the approval engine consumes the request).
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+        - $ref: "#/components/parameters/IfMatch"
+        - $ref: "#/components/parameters/AcceptLanguage"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SodRuleWrite"
+      responses:
+        "200":
+          description: Rule stored, pending approval or already decided with the current row
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, meta]
+                properties:
+                  data:
+                    $ref: "#/components/schemas/SodRule"
+                  meta:
+                    $ref: "#/components/schemas/Meta"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+        "500":
+          $ref: "#/components/responses/InternalError"
+        "503":
+          $ref: "#/components/responses/Unavailable"
+
+  /approval-matrix:
+    get:
+      operationId: listApprovalMatrix
+      tags: [authz]
+      summary: List approval matrix rules
+      description: |
+        Per document type: amount threshold, below-threshold role, independent first approver
+        and final gate (R2.2). Pending mutations are included.
+      parameters:
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/AcceptLanguage"
+      responses:
+        "200":
+          description: Matrix rows visible to the caller
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, meta]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/ApprovalMatrixRule"
+                  meta:
+                    $ref: "#/components/schemas/PageMeta"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+        "500":
+          $ref: "#/components/responses/InternalError"
+        "503":
+          $ref: "#/components/responses/Unavailable"
+    post:
+      operationId: createApprovalMatrixRule
+      tags: [authz]
+      summary: Propose an approval matrix rule
+      description: |
+        Sensitive master mutation (04 Masters). Stored as `pending_approval` until the approval
+        engine decides the request. `If-Match` carries `state_version` (`0` when creating).
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+        - $ref: "#/components/parameters/IfMatch"
+        - $ref: "#/components/parameters/AcceptLanguage"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ApprovalMatrixRuleWrite"
+      responses:
+        "200":
+          description: Rule stored pending approval
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, meta]
+                properties:
+                  data:
+                    $ref: "#/components/schemas/ApprovalMatrixRule"
+                  meta:
+                    $ref: "#/components/schemas/Meta"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+        "500":
+          $ref: "#/components/responses/InternalError"
+        "503":
+          $ref: "#/components/responses/Unavailable"
+
 components:
   securitySchemes:
     bearer:
@@ -1409,3 +1578,117 @@ components:
           type: string
         hash:
           type: string
+
+    SodRule:
+      type: object
+      description: One row of the segregation-of-duties matrix (R1.13).
+      required: [id, kind, left_code, right_code, state_version, status]
+      properties:
+        id:
+          type: string
+          format: uuid
+        kind:
+          type: string
+          enum: [role_pair, action_pair]
+          description: |
+            `role_pair` is two roles one person must not hold together. `action_pair` is two
+            actions one person must not both perform on a document (enter and approve, receive
+            and count, create vendor and pay vendor, request correction and approve correction).
+        left_code:
+          type: string
+          description: Role name or permission code
+        right_code:
+          type: string
+          description: Role name or permission code
+        state_version:
+          $ref: "#/components/schemas/StateVersion"
+        status:
+          type: string
+          enum: [active, pending_approval]
+        approval_request_id:
+          type: [string, "null"]
+          description: Set when the mutation is waiting on the approval engine
+
+    SodRuleWrite:
+      type: object
+      required: [kind, left_code, right_code]
+      properties:
+        kind:
+          type: string
+          enum: [role_pair, action_pair]
+        left_code:
+          type: string
+          minLength: 1
+        right_code:
+          type: string
+          minLength: 1
+
+    ApprovalMatrixRule:
+      type: object
+      description: Approval routing for one document type (R2.2). The engine that consumes it is the approvals module.
+      required:
+        - id
+        - document_type
+        - threshold
+        - below_threshold_role
+        - first_approver_role
+        - final_gate_role
+        - state_version
+        - status
+      properties:
+        id:
+          type: string
+          format: uuid
+        document_type:
+          type: string
+        threshold:
+          $ref: "#/components/schemas/Money"
+          description: At or above this amount the first approver and the final gate both apply
+        below_threshold_role:
+          type: string
+          description: Any one holder of this role may register the document below the threshold
+        first_approver_role:
+          type: string
+          description: Independent first approver at or above the threshold
+        final_gate_role:
+          type: string
+          description: Named final gate; not delegable
+        voting_any:
+          type: [integer, "null"]
+          minimum: 1
+          description: When set with `voting_of`, the company requires any N of M
+        voting_of:
+          type: [integer, "null"]
+          minimum: 1
+        state_version:
+          $ref: "#/components/schemas/StateVersion"
+        status:
+          type: string
+          enum: [active, pending_approval]
+        approval_request_id:
+          type: [string, "null"]
+
+    ApprovalMatrixRuleWrite:
+      type: object
+      required: [document_type, threshold, below_threshold_role, first_approver_role, final_gate_role]
+      properties:
+        document_type:
+          type: string
+          minLength: 1
+        threshold:
+          $ref: "#/components/schemas/Money"
+        below_threshold_role:
+          type: string
+          minLength: 1
+        first_approver_role:
+          type: string
+          minLength: 1
+        final_gate_role:
+          type: string
+          minLength: 1
+        voting_any:
+          type: [integer, "null"]
+          minimum: 1
+        voting_of:
+          type: [integer, "null"]
+          minimum: 1

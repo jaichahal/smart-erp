@@ -27,11 +27,11 @@ type DirectoryUser struct {
 
 // NewUser is the directory row to insert. There is no delete operation.
 type NewUser struct {
-	ID          string
-	Name        string
-	TerritoryID *uuid.UUID
-	WarehouseID *uuid.UUID
-	LastLogin   *time.Time
+	ID          string     `json:"id"`
+	Name        string     `json:"name"`
+	TerritoryID *uuid.UUID `json:"territory_id"`
+	WarehouseID *uuid.UUID `json:"warehouse_id"`
+	LastLogin   *time.Time `json:"last_login"`
 }
 
 // CreateUser inserts a user. Callers who lack user:write are refused.

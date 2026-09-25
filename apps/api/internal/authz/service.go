@@ -20,14 +20,15 @@ type Service struct {
 	matrix    MatrixApprover
 }
 
-// New builds a service from the shared dependencies. Override and matrix
-// approvals fail closed until the approvals module is wired in.
+// New builds a service from the shared dependencies. SoD overrides are granted
+// only when a sod.override row exists; matrix edits stay pending until the
+// approvals module supplies a request id.
 func New(deps httpx.Deps) *Service {
 	return &Service{
 		pool:      deps.Pool,
 		river:     deps.River,
 		messages:  loadCatalog(),
-		overrides: closedOverride{},
+		overrides: settingsOverride{pool: deps.Pool},
 		matrix:    pendingMatrix{},
 	}
 }

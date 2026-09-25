@@ -9,9 +9,11 @@ see and do:
 - An unknown token role resolves to the `least_privileged` persona.
 - `Service.AssignRoles` refuses an active SoD pair unless `OverrideApprover`
   grants it, and writes the refusal before returning the error.
-- Users are disabled with `Service.DisableUser`. There is no delete path.
+- Users are disabled with `Service.DisableUser`. There is no delete path. A bearer
+  access token for a disabled user is refused; the directory row stays.
 - `Service.RunScheduledAccessReviewForCompany` is what `cmd/scheduler` calls
-  once per company each quarter.
+  once per company each quarter. HTTP callers with the system role can run the
+  same job for their company.
 
 Identity (P1.2) calls `LoginGate` before minting a token. Approvals (P1.7)
 implement `OverrideApprover` and `MatrixApprover`. Both seams are filed as issues

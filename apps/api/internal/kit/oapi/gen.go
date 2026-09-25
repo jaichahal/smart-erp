@@ -200,6 +200,90 @@ func (e HealthResponseStatus) Valid() bool {
 	}
 }
 
+// Defines values for JourneyInstanceStatus.
+const (
+	JourneyInstanceStatusAwaiting  JourneyInstanceStatus = "awaiting"
+	JourneyInstanceStatusCompleted JourneyInstanceStatus = "completed"
+	JourneyInstanceStatusRejected  JourneyInstanceStatus = "rejected"
+	JourneyInstanceStatusRunning   JourneyInstanceStatus = "running"
+)
+
+// Valid indicates whether the value is a known member of the JourneyInstanceStatus enum.
+func (e JourneyInstanceStatus) Valid() bool {
+	switch e {
+	case JourneyInstanceStatusAwaiting:
+		return true
+	case JourneyInstanceStatusCompleted:
+		return true
+	case JourneyInstanceStatusRejected:
+		return true
+	case JourneyInstanceStatusRunning:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for JourneyKind.
+const (
+	Await      JourneyKind = "await"
+	Form       JourneyKind = "form"
+	Post       JourneyKind = "post"
+	Read       JourneyKind = "read"
+	Route      JourneyKind = "route"
+	Validate   JourneyKind = "validate"
+	WriteDraft JourneyKind = "write_draft"
+)
+
+// Valid indicates whether the value is a known member of the JourneyKind enum.
+func (e JourneyKind) Valid() bool {
+	switch e {
+	case Await:
+		return true
+	case Form:
+		return true
+	case Post:
+		return true
+	case Read:
+		return true
+	case Route:
+		return true
+	case Validate:
+		return true
+	case WriteDraft:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for JourneyStepCode.
+const (
+	JourneyStepCodeCONFLICT         JourneyStepCode = "CONFLICT"
+	JourneyStepCodePENDING          JourneyStepCode = "PENDING"
+	JourneyStepCodePERMISSIONDENIED JourneyStepCode = "PERMISSION_DENIED"
+	JourneyStepCodeREJECTED         JourneyStepCode = "REJECTED"
+	JourneyStepCodeVALIDATIONERROR  JourneyStepCode = "VALIDATION_ERROR"
+)
+
+// Valid indicates whether the value is a known member of the JourneyStepCode enum.
+func (e JourneyStepCode) Valid() bool {
+	switch e {
+	case JourneyStepCodeCONFLICT:
+		return true
+	case JourneyStepCodePENDING:
+		return true
+	case JourneyStepCodePERMISSIONDENIED:
+		return true
+	case JourneyStepCodeREJECTED:
+		return true
+	case JourneyStepCodeVALIDATIONERROR:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for Platform.
 const (
 	Android Platform = "android"
@@ -674,6 +758,78 @@ func (e GetHealthParamsAcceptLanguage) Valid() bool {
 	}
 }
 
+// Defines values for ListJourneysParamsAcceptLanguage.
+const (
+	ListJourneysParamsAcceptLanguageAr ListJourneysParamsAcceptLanguage = "ar"
+	ListJourneysParamsAcceptLanguageEn ListJourneysParamsAcceptLanguage = "en"
+)
+
+// Valid indicates whether the value is a known member of the ListJourneysParamsAcceptLanguage enum.
+func (e ListJourneysParamsAcceptLanguage) Valid() bool {
+	switch e {
+	case ListJourneysParamsAcceptLanguageAr:
+		return true
+	case ListJourneysParamsAcceptLanguageEn:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetJourneyInstanceParamsAcceptLanguage.
+const (
+	GetJourneyInstanceParamsAcceptLanguageAr GetJourneyInstanceParamsAcceptLanguage = "ar"
+	GetJourneyInstanceParamsAcceptLanguageEn GetJourneyInstanceParamsAcceptLanguage = "en"
+)
+
+// Valid indicates whether the value is a known member of the GetJourneyInstanceParamsAcceptLanguage enum.
+func (e GetJourneyInstanceParamsAcceptLanguage) Valid() bool {
+	switch e {
+	case GetJourneyInstanceParamsAcceptLanguageAr:
+		return true
+	case GetJourneyInstanceParamsAcceptLanguageEn:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for SubmitJourneyStepParamsAcceptLanguage.
+const (
+	SubmitJourneyStepParamsAcceptLanguageAr SubmitJourneyStepParamsAcceptLanguage = "ar"
+	SubmitJourneyStepParamsAcceptLanguageEn SubmitJourneyStepParamsAcceptLanguage = "en"
+)
+
+// Valid indicates whether the value is a known member of the SubmitJourneyStepParamsAcceptLanguage enum.
+func (e SubmitJourneyStepParamsAcceptLanguage) Valid() bool {
+	switch e {
+	case SubmitJourneyStepParamsAcceptLanguageAr:
+		return true
+	case SubmitJourneyStepParamsAcceptLanguageEn:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for CreateJourneyInstanceParamsAcceptLanguage.
+const (
+	CreateJourneyInstanceParamsAcceptLanguageAr CreateJourneyInstanceParamsAcceptLanguage = "ar"
+	CreateJourneyInstanceParamsAcceptLanguageEn CreateJourneyInstanceParamsAcceptLanguage = "en"
+)
+
+// Valid indicates whether the value is a known member of the CreateJourneyInstanceParamsAcceptLanguage enum.
+func (e CreateJourneyInstanceParamsAcceptLanguage) Valid() bool {
+	switch e {
+	case CreateJourneyInstanceParamsAcceptLanguageAr:
+		return true
+	case CreateJourneyInstanceParamsAcceptLanguageEn:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for GetMeParamsAcceptLanguage.
 const (
 	GetMeParamsAcceptLanguageAr GetMeParamsAcceptLanguage = "ar"
@@ -888,6 +1044,107 @@ type HealthResponse struct {
 // HealthResponseStatus defines model for HealthResponse.Status.
 type HealthResponseStatus string
 
+// JourneyDefinition defines model for JourneyDefinition.
+type JourneyDefinition struct {
+	Group    string        `json:"group"`
+	Personas []string      `json:"personas"`
+	Slug     string        `json:"slug"`
+	Steps    []JourneyStep `json:"steps"`
+
+	// Title Localised by Accept-Language. The stored title is a message key.
+	Title string `json:"title"`
+}
+
+// JourneyGroup defines model for JourneyGroup.
+type JourneyGroup struct {
+	Definitions []JourneyDefinition `json:"definitions"`
+	Persona     string              `json:"persona"`
+}
+
+// JourneyInstance defines model for JourneyInstance.
+type JourneyInstance struct {
+	CurrentStep JourneyStep        `json:"current_step"`
+	InstanceId  openapi_types.UUID `json:"instance_id"`
+	Persona     string             `json:"persona"`
+
+	// ServerState Written only by the engine. Client input is not copied here until forbidden keys
+	// (permissions, roles, personas, workflow state) are removed.
+	ServerState map[string]interface{} `json:"server_state"`
+	Slug        string                 `json:"slug"`
+
+	// StateVersion Optimistic concurrency version; bumped on every transition
+	StateVersion StateVersion          `json:"state_version"`
+	Status       JourneyInstanceStatus `json:"status"`
+	UpdatedAt    time.Time             `json:"updated_at"`
+}
+
+// JourneyInstanceCreated defines model for JourneyInstanceCreated.
+type JourneyInstanceCreated struct {
+	InstanceId openapi_types.UUID `json:"instance_id"`
+
+	// StateVersion Optimistic concurrency version; bumped on every transition
+	StateVersion StateVersion `json:"state_version"`
+	Step         JourneyStep  `json:"step"`
+}
+
+// JourneyInstanceStatus defines model for JourneyInstanceStatus.
+type JourneyInstanceStatus string
+
+// JourneyKind defines model for JourneyKind.
+type JourneyKind string
+
+// JourneyList defines model for JourneyList.
+type JourneyList struct {
+	Groups []JourneyGroup `json:"groups"`
+}
+
+// JourneyProblem defines model for JourneyProblem.
+type JourneyProblem struct {
+	Code  string  `json:"code"`
+	Field *string `json:"field,omitempty"`
+
+	// Message Localised by Accept-Language
+	Message string `json:"message"`
+}
+
+// JourneyStep defines model for JourneyStep.
+type JourneyStep struct {
+	// Guard Server-evaluated guard data. Not an expression the client can supply.
+	Guard *map[string]interface{} `json:"guard,omitempty"`
+
+	// InputSchema JSON Schema for the step input. The client does not execute guards.
+	InputSchema map[string]interface{} `json:"input_schema"`
+	Kind        JourneyKind            `json:"kind"`
+	StepId      string                 `json:"step_id"`
+	Title       string                 `json:"title"`
+}
+
+// JourneyStepCode Outcome code on a step result. Distinct from the error-envelope ErrorCode set so that
+// PENDING and REJECTED stay journey outcomes rather than transport failures.
+type JourneyStepCode string
+
+// JourneyStepResult Step protocol result. `ok` is false while an await is pending and when the run stops on
+// rejection. `problems` is always present and empty when there are none. `next_step` is
+// omitted when the run has stopped.
+type JourneyStepResult struct {
+	// Code Outcome code on a step result. Distinct from the error-envelope ErrorCode set so that
+	// PENDING and REJECTED stay journey outcomes rather than transport failures.
+	Code     *JourneyStepCode        `json:"code,omitempty"`
+	Data     *map[string]interface{} `json:"data,omitempty"`
+	Message  *string                 `json:"message,omitempty"`
+	NextStep *JourneyStep            `json:"next_step,omitempty"`
+	Ok       bool                    `json:"ok"`
+	Problems []JourneyProblem        `json:"problems"`
+}
+
+// JourneyStepSubmission defines model for JourneyStepSubmission.
+type JourneyStepSubmission struct {
+	// Input Business fields for this step. Keys permissions, roles, personas, workflow_state,
+	// granted, and status are ignored.
+	Input  map[string]interface{} `json:"input"`
+	StepId string                 `json:"step_id"`
+}
+
 // Meta Present on every success response.
 type Meta struct {
 	// AsOf Server time the response was computed, UTC
@@ -997,6 +1254,12 @@ type IdempotencyKey = openapi_types.UUID
 
 // IfMatch defines model for IfMatch.
 type IfMatch = string
+
+// JourneyInstanceId defines model for JourneyInstanceId.
+type JourneyInstanceId = openapi_types.UUID
+
+// JourneySlug defines model for JourneySlug.
+type JourneySlug = string
 
 // Limit defines model for Limit.
 type Limit = int
@@ -1318,6 +1581,56 @@ type GetHealthParams struct {
 // GetHealthParamsAcceptLanguage defines parameters for GetHealth.
 type GetHealthParamsAcceptLanguage string
 
+// ListJourneysParams defines parameters for ListJourneys.
+type ListJourneysParams struct {
+	// Persona Persona group to return. Ignored as a grant; used only as a filter.
+	Persona *string `form:"persona,omitempty" json:"persona,omitempty"`
+
+	// AcceptLanguage `en` or `ar`. Affects messages and print formats, never data.
+	AcceptLanguage *ListJourneysParamsAcceptLanguage `json:"Accept-Language,omitempty"`
+}
+
+// ListJourneysParamsAcceptLanguage defines parameters for ListJourneys.
+type ListJourneysParamsAcceptLanguage string
+
+// GetJourneyInstanceParams defines parameters for GetJourneyInstance.
+type GetJourneyInstanceParams struct {
+	// AcceptLanguage `en` or `ar`. Affects messages and print formats, never data.
+	AcceptLanguage *GetJourneyInstanceParamsAcceptLanguage `json:"Accept-Language,omitempty"`
+}
+
+// GetJourneyInstanceParamsAcceptLanguage defines parameters for GetJourneyInstance.
+type GetJourneyInstanceParamsAcceptLanguage string
+
+// SubmitJourneyStepParams defines parameters for SubmitJourneyStep.
+type SubmitJourneyStepParams struct {
+	// IdempotencyKey UUID chosen by the client. The server stores the response for 24 hours and replays it for a
+	// repeated key with the same body; a different body with the same key is `409 CONFLICT`.
+	IdempotencyKey IdempotencyKey `json:"Idempotency-Key"`
+
+	// IfMatch Current `state_version` of the instance.
+	IfMatch string `json:"If-Match"`
+
+	// AcceptLanguage `en` or `ar`. Affects messages and print formats, never data.
+	AcceptLanguage *SubmitJourneyStepParamsAcceptLanguage `json:"Accept-Language,omitempty"`
+}
+
+// SubmitJourneyStepParamsAcceptLanguage defines parameters for SubmitJourneyStep.
+type SubmitJourneyStepParamsAcceptLanguage string
+
+// CreateJourneyInstanceParams defines parameters for CreateJourneyInstance.
+type CreateJourneyInstanceParams struct {
+	// IdempotencyKey UUID chosen by the client. The server stores the response for 24 hours and replays it for a
+	// repeated key with the same body; a different body with the same key is `409 CONFLICT`.
+	IdempotencyKey IdempotencyKey `json:"Idempotency-Key"`
+
+	// AcceptLanguage `en` or `ar`. Affects messages and print formats, never data.
+	AcceptLanguage *CreateJourneyInstanceParamsAcceptLanguage `json:"Accept-Language,omitempty"`
+}
+
+// CreateJourneyInstanceParamsAcceptLanguage defines parameters for CreateJourneyInstance.
+type CreateJourneyInstanceParamsAcceptLanguage string
+
 // GetMeParams defines parameters for GetMe.
 type GetMeParams struct {
 	// AcceptLanguage `en` or `ar`. Affects messages and print formats, never data.
@@ -1362,6 +1675,9 @@ type IssueTokenJSONRequestBody IssueTokenJSONBody
 
 // RegisterPushTokenJSONRequestBody defines body for RegisterPushToken for application/json ContentType.
 type RegisterPushTokenJSONRequestBody RegisterPushTokenJSONBody
+
+// SubmitJourneyStepJSONRequestBody defines body for SubmitJourneyStep for application/json ContentType.
+type SubmitJourneyStepJSONRequestBody = JourneyStepSubmission
 
 // Getter for additional properties for DecisionMeta. Returns the specified
 // element and whether it was found

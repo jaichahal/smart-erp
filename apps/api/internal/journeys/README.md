@@ -1,3 +1,4 @@
 # journeys
 
-Owned by the Wave 1 task listed in WAVE1.md. Empty until that agent starts.
+Journey engine (P1.14). Definitions, instances, and the step protocol live in this package.
+See the package comment in `doc.go`.

@@ -27,6 +27,7 @@ import (
 	periods "github.com/jaichahal/smart-erp/apps/api/internal/ledger/periods"
 	"github.com/jaichahal/smart-erp/apps/api/internal/notifications"
 	"github.com/jaichahal/smart-erp/apps/api/internal/stock"
+	"github.com/jaichahal/smart-erp/apps/api/internal/purchase"
 )
 
 // Option tunes composition. Production uses none; tests inject the Zitadel broker port.
@@ -80,6 +81,7 @@ func Handler(deps httpx.Deps, opts ...Option) (http.Handler, error) {
 			authed.Use(id.Authenticate)
 			approvals.Mount(authed, deps)
 			stock.Mount(authed, deps)
+			purchase.Mount(authed, deps)
 			if err := notifications.Mount(authed, deps); err != nil {
 				mountErr = err
 			}

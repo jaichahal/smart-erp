@@ -64,7 +64,7 @@ type a1API struct {
 func openA1(t *testing.T, db *testdb.DB, policy identity.Policy, gate bool) *a1API {
 	t.Helper()
 	n := a1IP.Add(1)
-	ip := "10.8." + itoa((n>>8)&255) + "." + itoa(n&255)
+	ip := "10.8." + formatInt64((n>>8)&255) + "." + formatInt64(n&255)
 	clock := &a1Clock{t: time.Date(2026, 9, 25, 8, 0, 0, 0, time.UTC)}
 	broker := newMemBroker()
 	dir := &memDir{byLogin: map[string]identity.Account{}, byID: map[string]identity.Account{}}
@@ -289,7 +289,7 @@ func a1SignDPoP(key jwk.Key, method, htu, access string, now time.Time) (string,
 	return string(signed), nil
 }
 
-func itoa(n int64) string {
+func formatInt64(n int64) string {
 	if n == 0 {
 		return "0"
 	}

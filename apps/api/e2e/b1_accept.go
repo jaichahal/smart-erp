@@ -225,7 +225,7 @@ func scenarioD9(t *testing.T, s *stack) {
 		t.Fatalf("D9 no token: %s", raw)
 	}
 	b.ok(http.MethodPost, "/api/v1/approvals/posting-tokens/consume", map[string]any{"token": tok, "content": snap}, "approver-a")
-	status, code, raw := b.call(http.MethodPost, "/api/v1/approvals/posting-tokens/consume", mustJSON(t, map[string]any{"token": tok, "content": snap}), "approver-a")
+	status, code, raw := b.call(http.MethodPost, "/api/v1/approvals/posting-tokens/consume", mustJSONString(t, map[string]any{"token": tok, "content": snap}), "approver-a")
 	if code != "CONFLICT" || b.count(`SELECT count(*) FROM erp.audit_events WHERE reference_id=$1 AND event_type='approval.refused' AND reason='token_used'`, out.id) != 1 {
 		t.Fatalf("D9 second use: %d %s %s", status, code, raw)
 	}
@@ -233,7 +233,7 @@ func scenarioD9(t *testing.T, s *stack) {
 	raw = b.ok(http.MethodPost, "/api/v1/approvals/"+again.id+"/approve", map[string]any{"state_version": 1}, "approver-a")
 	tok = b.tokenOf(raw)
 	approvalClock.Advance(6 * time.Minute)
-	status, code, raw = b.call(http.MethodPost, "/api/v1/approvals/posting-tokens/consume", mustJSON(t, map[string]any{"token": tok, "content": snap}), "approver-a")
+	status, code, raw = b.call(http.MethodPost, "/api/v1/approvals/posting-tokens/consume", mustJSONString(t, map[string]any{"token": tok, "content": snap}), "approver-a")
 	if code != "CONFLICT" || b.count(`SELECT count(*) FROM erp.audit_events WHERE reference_id=$1 AND event_type='approval.refused' AND reason='token_expired'`, again.id) != 1 {
 		t.Fatalf("D9 expired: %d %s %s", status, code, raw)
 	}
@@ -247,7 +247,7 @@ func scenarioD10(t *testing.T, s *stack) {
 	raw := b.ok(http.MethodPost, "/api/v1/approvals/"+out.id+"/approve", map[string]any{"state_version": 1}, "approver-a")
 	tok := b.tokenOf(raw)
 	edited := map[string]any{"sku": "A", "qty": "9"}
-	status, code, raw := b.call(http.MethodPost, "/api/v1/approvals/posting-tokens/consume", mustJSON(t, map[string]any{"token": tok, "content": edited}), "approver-a")
+	status, code, raw := b.call(http.MethodPost, "/api/v1/approvals/posting-tokens/consume", mustJSONString(t, map[string]any{"token": tok, "content": edited}), "approver-a")
 	if code != "CONFLICT" || b.count(`SELECT count(*) FROM erp.audit_events WHERE reference_id=$1 AND event_type='approval.refused' AND reason='hash_mismatch'`, out.id) != 1 {
 		t.Fatalf("D10 mismatch: %d %s %s", status, code, raw)
 	}
@@ -294,7 +294,7 @@ func scenarioD11(t *testing.T, s *stack) {
 	if decodeEnv(t, done).Data.State != "pending" {
 		t.Fatalf("D11 delegate approve: %s", done)
 	}
-	status, code, raw := b.call(http.MethodPost, "/api/v1/approvals/"+out.id+"/delegate", mustJSON(t, map[string]any{
+	status, code, raw := b.call(http.MethodPost, "/api/v1/approvals/"+out.id+"/delegate", mustJSONString(t, map[string]any{
 		"to_user_id": "delegate", "until": until, "state_version": decodeEnv(t, done).Data.StateVersion,
 	}), "final")
 	if code != "PERMISSION_DENIED" || b.count(`SELECT count(*) FROM erp.audit_events WHERE reference_id=$1 AND event_type='approval.refused' AND reason='final_gate'`, out.id) != 1 {
@@ -410,7 +410,7 @@ func fraudHints(t *testing.T, raw []byte) []string {
 	return body.Data.FraudHints
 }
 
-func mustJSON(t *testing.T, v any) string {
+func mustJSONString(t *testing.T, v any) string {
 	t.Helper()
 	buf, err := json.Marshal(v)
 	if err != nil {

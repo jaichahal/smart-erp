@@ -34,7 +34,7 @@ import java.net.URL
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        val baseUrl = BuildConfig.API_BASE_URL
+        val baseUrl = currentApiBaseUrl()
         setContent {
             MaterialTheme {
                 Column {

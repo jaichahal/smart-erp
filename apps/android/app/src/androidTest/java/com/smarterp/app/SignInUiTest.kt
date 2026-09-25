@@ -26,7 +26,7 @@ class SignInUiTest {
 
     @Test
     fun signsInAndShowsDirectoryUserFromDockerApi() {
-        val base = BuildConfig.API_BASE_URL.trimEnd('/')
+        val base = currentApiBaseUrl()
         val health = get("$base/health")
         if (health.code != 200 || !health.body.contains("\"ready\"")) {
             fail("baseline API is not reachable at $base/health: HTTP ${health.code} ${health.body}")

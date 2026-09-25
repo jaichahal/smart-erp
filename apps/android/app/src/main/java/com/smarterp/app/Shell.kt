@@ -47,6 +47,7 @@ fun SignedInHome(session: DeviceSession.Session) {
         Text(kind, modifier = Modifier.testTag("home-kind"))
         PersonaBlock(kind)
         ApprovalInbox(session)
+        PhoneHome(session)
     }
 }
 

@@ -61,7 +61,8 @@ func Handler(deps httpx.Deps, opts ...Option) (http.Handler, error) {
 	var mountErr error
 	r.Route("/api/v1", func(v1 chi.Router) {
 		v1.Get("/health", httpx.Health(deps))
-		v1.Get("/status", httpx.Status(deps))
+		// B2 route: status includes last backup, chain verification, and the recovery point.
+		v1.Get("/status", audit.StatusHandler(deps))
 		v1.Get("/design/tokens", designTokens(deps.Pool))
 		identity.Mount(v1, deps, w.identity...)
 		authz.Mount(v1, deps)

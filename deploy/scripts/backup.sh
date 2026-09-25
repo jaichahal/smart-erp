@@ -41,7 +41,7 @@ case "${TARGET}" in
   *) die "--target must be all, offsite, or drive" ;;
 esac
 
-require_cmd docker
+require_cmd go
 BACKUP_ID="$(timestamp_id)"
 mkdir -p "${STAGING_DIR}" "${REPORT_DIR}" 2>/dev/null || true
 log "backup ${BACKUP_ID} starting (target=${TARGET}, dry-run=${DRY_RUN})"
@@ -50,42 +50,25 @@ run() {
   if [[ "${DRY_RUN}" -eq 1 ]]; then log "dry-run: $*"; else "$@"; fi
 }
 
-# 1. Archives to local staging + manifest.
-todo "erp_run backup create --id ${BACKUP_ID} --staging /staging  (pg + objects + manifest.json, signed)"
-# run erp_run backup create --id "${BACKUP_ID}" --staging /staging
-
-# 2. Off-site upload and verify.
+# Archives, off-site copy, verification, then the manifest. Success is recorded
+# only after the off-site copy verifies.
 if [[ "${TARGET}" == "all" || "${TARGET}" == "offsite" ]]; then
-  todo "erp_run backup push --id ${BACKUP_ID} --target offsite && erp_run backup verify --id ${BACKUP_ID} --target offsite"
-  # run erp_run backup push   --id "${BACKUP_ID}" --target offsite
-  # run erp_run backup verify --id "${BACKUP_ID}" --target offsite
-fi
-
-# 3. External drive, only if one on the allow-list is mounted.
-if [[ "${TARGET}" == "all" || "${TARGET}" == "drive" ]]; then
-  mounted=""
-  for l in $( [[ -n "${LABEL}" ]] && echo "${LABEL}" || allowlist_labels ); do
-    if mountpoint -q "${DRIVE_MOUNT_ROOT}/${l}" 2>/dev/null; then mounted="${l}"; break; fi
-  done
-  if [[ -z "${mounted}" ]]; then
-    if [[ "${TARGET}" == "drive" ]]; then die "no allow-listed drive mounted under ${DRIVE_MOUNT_ROOT}"; fi
-    warn "no backup drive mounted; skipping drive target (status page will show drive=absent)"
-    todo "erp_run status set backup.drive=absent"
+  if [[ "${DRY_RUN}" -eq 1 ]]; then
+    log "dry-run: auditctl backup run --id ${BACKUP_ID}"
   else
-    log "drive ${mounted} mounted at ${DRIVE_MOUNT_ROOT}/${mounted}"
-    todo "erp_run backup push --id ${BACKUP_ID} --target drive --path /drive  (bind ${DRIVE_MOUNT_ROOT}/${mounted} into the run)"
-    todo "erp_run backup verify --id ${BACKUP_ID} --target drive --reread"
-    todo "erp_run backup prune --target drive --policy from-allowlist"
-    # run compose run --rm --no-deps -T -v "${DRIVE_MOUNT_ROOT}/${mounted}:/drive" api backup push --id "${BACKUP_ID}" --target drive --path /drive
-    run sync
-    if [[ "${ERP_BACKUP_UNMOUNT_AFTER:-1}" == "1" ]] && is_linux; then
-      run systemctl stop "erpbak@${mounted}.service" || warn "could not stop erpbak@${mounted}; unmount manually"
-      log "SAFE TO REMOVE: ${mounted}"
-      todo "erp_run status set backup.drive=safe-to-remove --label ${mounted}"
-    fi
+    run auditctl backup run --id "${BACKUP_ID}"
+    run auditctl backup prune
   fi
 fi
 
-# 4. Report.
-todo "erp_run backup report --id ${BACKUP_ID} --out /reports/backup-${BACKUP_ID}.json (signed, also written to the chain)"
+# 3. External drive (P1.17). This task does not copy to the drive; the off-site
+# result above is independent and is not marked successful because the drive
+# is absent.
+if [[ "${TARGET}" == "drive" ]]; then
+  die "drive backup is P1.17 and is not implemented here; use --target offsite or all"
+fi
+if [[ "${TARGET}" == "all" ]]; then
+  warn "external drive copy is P1.17 and was not performed; the off-site result stands on its own"
+fi
+
 log "backup ${BACKUP_ID} finished"

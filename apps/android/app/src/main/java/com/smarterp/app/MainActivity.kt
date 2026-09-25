@@ -4,14 +4,18 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.Column
+import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextField
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import kotlinx.coroutines.launch
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import kotlinx.coroutines.Dispatchers
@@ -27,7 +31,10 @@ class MainActivity : ComponentActivity() {
         val baseUrl = BuildConfig.API_BASE_URL
         setContent {
             MaterialTheme {
-                BaselineHealthStatus(baseUrl)
+                Column {
+                    BaselineHealthStatus(baseUrl)
+                    SignInScreen(baseUrl)
+                }
             }
         }
     }
@@ -51,6 +58,48 @@ fun BaselineHealthStatus(baseUrl: String) {
             error != null -> Text(error!!, modifier = Modifier.testTag("health-error"))
             else -> Text("Checking the baseline API")
         }
+    }
+}
+
+@Composable
+fun SignInScreen(baseUrl: String) {
+    var loginName by remember { mutableStateOf("") }
+    var password by remember { mutableStateOf("") }
+    var signedInName by remember { mutableStateOf<String?>(null) }
+    var error by remember { mutableStateOf<String?>(null) }
+    val scope = rememberCoroutineScope()
+    Column {
+        TextField(
+            value = loginName,
+            onValueChange = { loginName = it },
+            label = { Text("Login name") },
+            modifier = Modifier.testTag("login-name"),
+        )
+        TextField(
+            value = password,
+            onValueChange = { password = it },
+            label = { Text("Password") },
+            modifier = Modifier.testTag("password"),
+        )
+        Button(
+            onClick = {
+                error = null
+                scope.launch {
+                    try {
+                        signedInName = withContext(Dispatchers.IO) {
+                            DeviceSession.signIn(baseUrl, loginName, password)
+                        }
+                    } catch (failure: Exception) {
+                        error = failure.message
+                    }
+                }
+            },
+            modifier = Modifier.testTag("sign-in"),
+        ) {
+            Text("Sign in")
+        }
+        signedInName?.let { Text(it, modifier = Modifier.testTag("signed-in-name")) }
+        error?.let { Text(it, modifier = Modifier.testTag("sign-in-error")) }
     }
 }
 

@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+# Refuse direct pushes to main. Work lands through pull requests and the Integrator
+# (CONTRIBUTING.md "Merging on GitHub Free"). Install with `just hooks`.
+while read -r local_ref local_sha remote_ref remote_sha; do
+  if [ "$remote_ref" = "refs/heads/main" ] && [ "${ALLOW_MAIN_PUSH:-}" != "1" ]; then
+    echo "pre-push: direct push to main is refused. Open a PR; the Integrator merges with 'gh pr merge --squash --auto'." >&2
+    echo "pre-push: (Wave 0 bootstrap only: ALLOW_MAIN_PUSH=1 git push)" >&2
+    exit 1
+  fi
+done
+exit 0

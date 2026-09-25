@@ -79,6 +79,10 @@ new-immutable table name:
 seed: _envfiles
     @echo "seed: no seed data yet (Phase 2, task P2.1/P2.2)"
 
+# Install repo git hooks (pre-push refuses direct pushes to main).
+hooks:
+    git config core.hooksPath .githooks && echo "hooks installed (core.hooksPath=.githooks)"
+
 # --- code --------------------------------------------------------------------
 
 # Run code generation: sqlc, oapi-codegen, canonical fixtures.

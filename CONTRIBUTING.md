@@ -229,3 +229,25 @@ goose oapi-codegen just age` then `gh auth login`. Open pull requests with `gh p
 | `lint` with `depguard` | You imported another module; go through an interface or move the code to the kit |
 | `licence` | Replace the dependency; GPL and LGPL are forbidden (ADR-01) |
 | CODEOWNERS review missing | You touched a directory outside your card; move the change to a PR owned by that track |
+
+## Merging on GitHub Free
+
+The repository is private on a GitHub Free plan, which does not offer branch protection,
+rulesets, required status checks, or the merge queue. The equivalent is enforced by
+convention and tooling until the plan changes:
+
+- Nobody pushes to `main`. Run `just hooks` once per clone; the `pre-push` hook refuses
+  it. Agents are told the same in their task prompts.
+- Every change is a pull request from a `task/<id>-<slug>` branch in its own worktree.
+- The Integrator agent is the only merger. It merges with
+  `gh pr merge <n> --squash --auto --delete-branch`, and only when `gh pr checks <n>`
+  shows every job green (lint, test, licence, sbom, openapi drift, contract-first,
+  immutable-change label, spec traceability) and the PR has one approving review from
+  someone other than its author. `--auto` waits for checks before merging.
+- Human review is required on: any PR touching `contracts/`, any PR carrying
+  `immutable-change`, any PR from Track B, and any PR touching `apps/api/internal/kit`.
+  The Integrator does not merge those without a human approval.
+- When the repository moves to GitHub Pro or an organisation plan, apply the ruleset in
+  `docs/github-ruleset.json` with
+  `gh api -X POST repos/jaichahal/smart-erp/rulesets --input docs/github-ruleset.json`
+  and delete this section.

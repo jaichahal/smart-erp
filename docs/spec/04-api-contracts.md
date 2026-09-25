@@ -1,6 +1,10 @@
 # 04 API Contracts
 
-Version 1.0.0. Frozen. This file changes before code does. Additive changes bump the minor version; breaking changes bump the major version and carry a migration note. Server and clients generate types from the OpenAPI document that this file governs; the OpenAPI file is the machine form, this file is the human form and wins on conflict until the OpenAPI is regenerated.
+Version 1.1.0. This file changes before code does. Additive changes bump the minor version; breaking changes bump the major version and carry a migration note. Server and clients generate types from the OpenAPI document that this file governs; the OpenAPI file is the machine form, this file is the human form and wins on conflict until the OpenAPI is regenerated.
+
+## Changelog
+
+- 1.1.0 (additive). Journey routes from 1.0.0 are specified fully enough to generate types, including the step result `{ ok, code?, message?, data?, problems[], next_step? }`. Event type `journey.step.completed` added. Deep link route `journey` added. No existing route, field, or error code changed.
 
 ## Transport
 
@@ -102,10 +106,12 @@ Draft body shape per family follows `03-domain-model.md`; the OpenAPI file carri
 
 ### Journeys
 
-- `GET /journeys?persona=` grouped definitions.
-- `POST /journeys/{slug}/instances` returns `{ instance_id, step }`.
-- `POST /journeys/instances/{id}/step` body `{ step_id, input }` returns `{ ok, code?, message?, data?, problems[], next_step? }`.
-- `GET /journeys/instances/{id}` resumable state.
+Persona filtering is server-enforced (R15.5). The `persona` query selects a group; it is intersected with the personas the server has evaluated for the caller. A persona the caller does not hold is `403 PERMISSION_DENIED`. Omitting `persona` returns every group the caller holds. Client-supplied roles, personas, permissions, or workflow state never grant access and never advance an instance.
+
+- `GET /journeys?persona=` grouped definitions: `{ groups: [ { persona, definitions: [ { slug, title, group, personas[], steps[] } ] } ] }`. A step summary is `{ step_id, kind, title, input_schema, guard? }`. `kind` is `form | validate | write_draft | route | await | post | read`.
+- `POST /journeys/{slug}/instances` returns `{ instance_id, step, state_version }`. `state_version` starts at 1 so the first step can send `If-Match`.
+- `POST /journeys/instances/{id}/step` body `{ step_id, input }` requires `Idempotency-Key` and `If-Match: <state_version>`. HTTP 200 carries the step result even when the step did not complete: `{ ok, code?, message?, data?, problems[], next_step? }`. `problems[]` items are `{ code, message, field? }`. `code` on this result (not the error envelope) is `PERMISSION_DENIED | VALIDATION_ERROR | PENDING | REJECTED | CONFLICT`. `PENDING` means an await step is still waiting and the run has not advanced. `REJECTED` means the await was decided against the run and the run has stopped. A later step submitted after rejection does not run. Transport failures (malformed JSON, missing headers, unknown instance, stale `If-Match`) use the error envelope, not this result.
+- `GET /journeys/instances/{id}` resumable state: `{ instance_id, slug, persona, status, current_step, state_version, server_state, updated_at }`. `status` is `running | awaiting | rejected | completed`. `server_state` is written only by the engine. It survives process restarts; there is no in-memory journey state.
 
 ### Devices and notifications
 
@@ -144,11 +150,13 @@ Draft body shape per family follows `03-domain-model.md`; the OpenAPI file carri
 
 Push messages are data-only and carry exactly this object flattened to string values with `context` JSON-encoded. Severity in {LOW, MEDIUM, HIGH, CRITICAL}; unknown severity is treated as HIGH by clients.
 
-Event types (initial): `approval.requested|decided|delegated|snoozed`, `document.registered`, `delivery.confirmed`, `clock.expired`, `receipt.posted`, `pdc.bounced`, `stock.received`, `stock.count.approved`, `production.posted`, `correction.posted`, `payment.released`, `chain.verified|broken`, `backup.completed|failed`, `bank.feed.completed|failed`, `forecast.below_floor`, `exception.raised`, `config.changed`, `break_glass.used`.
+Event types (initial): `approval.requested|decided|delegated|snoozed`, `document.registered`, `delivery.confirmed`, `clock.expired`, `receipt.posted`, `pdc.bounced`, `stock.received`, `stock.count.approved`, `production.posted`, `correction.posted`, `payment.released`, `chain.verified|broken`, `backup.completed|failed`, `bank.feed.completed|failed`, `forecast.below_floor`, `exception.raised`, `config.changed`, `break_glass.used`, `journey.step.completed`.
+
+`journey.step.completed` is emitted when a step reaches a terminal outcome (`completed` or `rejected`), in the same transaction as the instance transition. `context` carries `{ slug, step_id, outcome, instance_status }`. An await step that is still pending does not emit it. `subject.doc_type` is `journey_instance`. `amount` is null. `deep_link` is `smarterp://journey/{instance_id}`.
 
 ## Deep link scheme
 
-`smarterp://{route}/{id}` with routes: `approval`, `document/{doc_type}`, `brief/{section}`, `customer`, `vendor`, `sku`, `trip`, `notification`. Universal Links and App Links map `https://app.<domain>/l/...` to the same routes. An unauthenticated tap stashes the link and resumes it after login.
+`smarterp://{route}/{id}` with routes: `approval`, `document/{doc_type}`, `brief/{section}`, `customer`, `vendor`, `sku`, `trip`, `notification`, `journey`. Universal Links and App Links map `https://app.<domain>/l/...` to the same routes. An unauthenticated tap stashes the link and resumes it after login.
 
 ## Change control
 

@@ -25,6 +25,12 @@ var coveredByDedicated = map[string]bool{
 // that has no scenario.
 var acceptanceScenarios = map[string]func(*testing.T, *stack){}
 
+// dedicatedAcceptance runs the real scenario for one acceptance ID.
+// Track helpers register here. The generic probe below is unchanged for every
+// other ID, and a registered scenario must still fail the test when the
+// invariant does not hold.
+var dedicatedAcceptance = map[string]func(*testing.T, *stack){}
+
 func TestAcceptanceCatalog(t *testing.T) {
 	root := repoRoot()
 	tasks := loadTasks(t, filepath.Join(root, "docs/spec/07-tracks-and-tasks.md"))
@@ -80,6 +86,10 @@ func TestAcceptanceCatalog(t *testing.T) {
 
 func probe(t *testing.T, s *stack, task, id, sentence string) {
 	t.Helper()
+	if fn := dedicatedAcceptance[id]; fn != nil {
+		fn(t, s)
+		return
+	}
 	method, path, want := probeFor(id, sentence)
 	status, code, raw := s.call(t, method, path, `{}`, nil)
 	if want != "" && code == want {

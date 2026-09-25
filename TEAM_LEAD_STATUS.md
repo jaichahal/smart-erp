@@ -1,59 +1,66 @@
-Team Lead Status - 2026-09-25 21:05 UTC+4 sweep (on top of e34d03b)
+Team Lead Status - 2026-09-25 21:30 UTC+4 sweep (on top of 8def507)
 
 Integration new commits this round:
-- 00ebf85 "Merge task/build-sales into integration/e2e." Sales f9cac2d
-  verified green first on a throwaway DB (go test ./internal/sales/ ok, 4.0s).
-  Router conflict was import-hunk only; mounts auto-merged with sales.Mount
-  inside the auth group. .golangci.yml auto-merged (sales added to module deny
-  lists per repo convention). Build + vet clean.
-- e34d03b "Client UI work in progress: iOS home layout rework." New direct
-  edits on integration/e2e by client agent (SignedInHome scroll/card rework +
-  JourneyUITests swipe fallback). Swift parse clean, identifiers unchanged.
-  Redirect to task/build-clients standing; parent relays.
-
-Sales seams: WIRED none, OPEN six (merged with sales-local intact, no rewrites):
-1. ledger-posting: pgLedger writes erp.sales_postings, not ledger journals.
-2. stock-reservation: pgStock uses erp.sales_stock/sales_reservations, not the
-   stock module (moving-average logic duplicated).
-3. numbering: erp.sales_sequences local; gap-free doc numbering not unified.
-4. approval-token: invoice submit/approve/register sales-local (S1-S27, D23-D25
-   green locally); no approvals-module token wiring.
-5. period-close: sales-local clocks (calendar.go) vs periods/clocks packages.
-6. tax-invoice-pdf: printInvoice local vs ledger tax-invoice path.
-Ports (Stock, Ledger, CreditChecker in ports.go) are the boundaries to wire later.
+- 8def507 "Merge task/build-receivables into integration/e2e." Receivables
+  86f4b46 verified green on its branch first (go test ./internal/receivables/
+  ok 3.0s; bank has no own test files, covered via bank_accept_test.go).
+  Router: imports merged; receivables.Mount + bank.Mount moved INSIDE the auth
+  group (both handlers use rls.FromContext like sales/purchase/stock; branch
+  had them outside only because it predates the auth layout).
+  /receipts reconciliation: receivables OWNS POST /receipts. Removed sales'
+  shadowing registration (one line in sales/http.go; handler method left for
+  the sales track to remove/rename). No other route collisions (bank/*,
+  receivables/*, pdcs, advances, collectors, customers/{id} all disjoint;
+  authz /customers list path unaffected). Build + vet clean.
 
 E2E-WAVE1 RESULT: known-only red. P1.7 D1-D14 401s (HOLD, untouched). No new
-failures after the sales merge.
+failures. Wave-1 also proves the full migration set (301xx/31100?/32100/33100/
+34100/35100) applies cleanly on fresh throwaway DBs.
 
-client-api-needs.md appended: POST /sales-orders code-wired (merge 00ebf85);
-live 404-gone check needs API restart + 33100 on dev DB. Dashboard + LPOs
-merged earlier (7c90932). Still missing: POST /receipts (receivables).
+NEW FINDING (investigated, not ignored): sales + receivables package tests fail
+ON INTEGRATION with goose "missing migrations" (erp_sales missing 301xx/32100
+below 33100; erp_ar missing 301xx/32100/33100 below 34100). Cause: both tracks'
+harnesses use SHARED named DBs (erp_sales, erp_ar) with goose.Up instead of
+kit/testdb throwaways (backend QA already flagged erp_sales). Every merged
+migration band breaks them. NOT a product regression: bands are disjoint new
+files, both packages were green on their branches with consistent DBs, and the
+full set migrates clean on fresh DBs (wave-1 proof). Shared DBs NOT wiped or
+touched. Follow-ups (track-owned):
+- sales: switch harness from erp_sales to testdb throwaways.
+- receivables: switch harness from erp_ar to testdb throwaways.
+Until then, package-green must be read on the track branches, not integration.
+
+client-api-needs.md appended: all four rows now code-wired (receipts in
+8def507). Live 404-gone checks need API restart + migrations on dev DB.
+Clients QA: re-run all new-screen specs after next stack restart.
 
 Tracks (branch tip / worktree / tests / blocked-on):
 - ledger: 5faa71d merged. Clean. Done.
-- masters: tip c9b2a46, uncommitted pkg + 31100. RED (P0 migration). Next: fix
-  31100, green, merge. Still blocks stock placeholder + sales credit/masters use.
-- stock: 7ab160a merged. Clean. Waits on masters UseCatalog.
-- sales: f9cac2d MERGED as 00ebf85. Worktree clean. Done from lead view; six
-  open seams above are sales-track follow-ups.
-- receivables: tip c9b2a46, uncommitted bank/ + receivables/ + 34100. RED (P0
-  mounts). Next: Mount fns + green + merge; then POST /receipts closes the last
-  client-api-needs row.
-- purchase: 43fdcf9 merged. Clean. Done (posting gap open).
-- clients: tip f55adfd, worktree state unchecked this sweep (no new branch
-  commit). Direct integration edits continue; redirect standing.
+- masters: NEW commit 62d396e "Add master data..." (full implementation,
+  TDD note for C15, worktree clean). Next sweep: verify green, merge. May also
+  use shared erp_masters DB (commit msg cites ERP_TEST_DATABASE=erp_masters) -
+  same coupling watch. Still the critical path (stock UseCatalog + P2.2 gates).
+- stock: 7ab160a merged. Clean. Waits on masters.
+- sales: f9cac2d merged. Branch-green. Integration package run red ONLY via
+  stale erp_sales (see finding). Open seams 1-6 stand, plus NEW seam 7: local
+  /receipts handler unregistered (receivables owns route; sales track to
+  remove/rename its Receipt flow or re-point it).
+- receivables: 86f4b46 MERGED as 8def507. Branch-green. Integration package run
+  red ONLY via stale erp_ar (see finding). Follow-up: testdb throwaways.
+- purchase: 43fdcf9 merged. Clean. Done.
+- clients: tip f55adfd. No new branch commit checked this sweep.
 
 Plan source (task/plan-index): tip ce8cb65, unchanged.
 
-Merges done: task/build-sales f9cac2d -> integration/e2e 00ebf85.
-Unblocks made: none (no track stuck).
+Merges done: task/build-receivables 86f4b46 -> integration/e2e 8def507.
+Unblocks made: /receipts reconciliation (receivables owns; sales unregistered).
 E2E: e2e-wave1 FAIL known-only (P1.7 HOLD).
 
-QA SCALE TRIGGER: no change this sweep (backend 3 P0s already reported; sales
-P0 now self-resolved by f9cac2d but masters/receivables P0s stand; no new QA
-report). Earlier FIRE recommendation stands; awaiting parent/Jai decision.
+QA SCALE TRIGGER: no new report this sweep; earlier FIRE stands.
 
 Needs Jai (standing):
 1. P1.7 HOLD: bearer-only vs header-auth compat.
 2. Relay client agent to task/build-clients.
 3. QA split decision.
+4. Note: sales/receivables shared-DB harnesses (erp_sales/erp_ar) break on every
+   migration merge; tracks must move to throwaways (no wipe performed).

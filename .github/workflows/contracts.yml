@@ -1,0 +1,234 @@
+# contracts: contract-first governance on every pull request.
+#   openapi-drift      generated Go code must match contracts/openapi/openapi.yaml
+#   contract-first     a PR may change contracts/ OR apps/, never both (ADR-09)
+#   immutable-change   migrations need the `immutable-change` label (05 "DDL guard"), with a
+#                      documented escape hatch for migrations that touch no immutable table
+#   spec-traceability  the PR body names at least one R-ID and one 08 test ID
+# The rules are explained for contributors in CONTRIBUTING.md.
+
+name: contracts
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, edited, labeled, unlabeled]
+  merge_group:
+
+concurrency:
+  group: contracts-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pull-requests: read
+
+defaults:
+  run:
+    shell: bash
+
+env:
+  GO_VERSION: "1.27.1"
+  GOTOOLCHAIN: local
+
+jobs:
+  openapi-lint:
+    name: openapi lint (redocly)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: redocly lint
+        run: npx --yes @redocly/cli@latest lint contracts/openapi/openapi.yaml
+
+  event-schema:
+    name: event schema examples validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Validate examples against contracts/events/event.schema.json
+        run: |
+          set -euo pipefail
+          npm install --no-save --silent ajv@8 ajv-formats@3 >/dev/null
+          node <<'EOF'
+          const fs = require("fs");
+          const path = require("path");
+          const Ajv2020 = require("ajv/dist/2020");
+          const addFormats = require("ajv-formats");
+          const ajv = new Ajv2020({ strict: true, allErrors: true });
+          addFormats(ajv);
+          const schema = JSON.parse(fs.readFileSync("contracts/events/event.schema.json", "utf8"));
+          const validate = ajv.compile(schema);
+          const dir = "contracts/events/examples";
+          let failed = 0;
+          for (const f of fs.readdirSync(dir).filter((f) => f.endsWith(".json"))) {
+            const data = JSON.parse(fs.readFileSync(path.join(dir, f), "utf8"));
+            if (validate(data)) {
+              console.log(`ok   ${f}`);
+            } else {
+              failed++;
+              console.log(`FAIL ${f}`);
+              console.log(JSON.stringify(validate.errors, null, 2));
+            }
+          }
+          if (failed) process.exit(1);
+          EOF
+
+  openapi-drift:
+    name: openapi drift (go generate)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
+          cache-dependency-path: apps/api/go.sum
+
+      - name: Install oapi-codegen
+        run: go install github.com/oapi-codegen/oapi-codegen/v2/cmd/oapi-codegen@latest
+
+      # apps/api/internal/kit/oapi has a //go:generate directive that runs oapi-codegen against
+      # ../../contracts/openapi/openapi.yaml and writes gen.go. If the directive or its target is
+      # missing the job fails: the drift check is only meaningful when generation actually runs.
+      # (`just gen` runs the same `go generate ./...` plus the canonical fixture regeneration.)
+      - name: go generate
+        working-directory: apps/api
+        run: |
+          set -euo pipefail
+          if ! grep -rq --include='*.go' '^//go:generate' ./internal/kit/oapi 2>/dev/null; then
+            echo "::error title=openapi-drift::apps/api/internal/kit/oapi has no //go:generate directive for oapi-codegen; the contract drift check cannot run. Add the directive (target gen.go, spec ../../../../contracts/openapi/openapi.yaml) in a kit PR."
+            exit 1
+          fi
+          go generate ./...
+          if [ ! -f internal/kit/oapi/gen.go ]; then
+            echo "::error title=openapi-drift::go generate ran but apps/api/internal/kit/oapi/gen.go does not exist. The generator must write that file."
+            exit 1
+          fi
+
+      - name: Fail on drift
+        run: |
+          set -euo pipefail
+          git add -N .
+          if ! git diff --exit-code -- apps contracts; then
+            echo "::error title=openapi-drift::Generated code differs from contracts/openapi/openapi.yaml. Run 'just gen' (or 'go generate ./...' in apps/api) and commit the result. Never hand-edit gen.go."
+            exit 1
+          fi
+
+  contract-first:
+    name: contract-first (contracts/ and apps/ never in one PR)
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Changed files
+        id: changed
+        uses: tj-actions/changed-files@v45
+        with:
+          files_yaml: |
+            contracts:
+              - contracts/**
+            apps:
+              - apps/**
+
+      - name: Enforce
+        env:
+          CONTRACTS: ${{ steps.changed.outputs.contracts_any_changed }}
+          APPS: ${{ steps.changed.outputs.apps_any_changed }}
+          CONTRACT_FILES: ${{ steps.changed.outputs.contracts_all_changed_files }}
+          APP_FILES: ${{ steps.changed.outputs.apps_all_changed_files }}
+        run: |
+          set -euo pipefail
+          echo "contracts changed: $CONTRACTS"
+          echo "apps changed:      $APPS"
+          if [ "$CONTRACTS" = "true" ] && [ "$APPS" = "true" ]; then
+            echo "::error title=contract-first::Contract changes must land in their own PR. This PR changes both contracts/ and apps/. Split it: first a PR touching only contracts/ (and docs/spec/04-api-contracts.md with a version bump), wait for it to merge, then the code PR. See CONTRIBUTING.md 'Contract first' and ADR-09."
+            echo "contracts/: $CONTRACT_FILES"
+            echo "apps/:      $APP_FILES"
+            exit 1
+          fi
+          echo "ok"
+
+  immutable-change:
+    name: immutable-change (migrations need the label)
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Changed migrations
+        id: changed
+        uses: tj-actions/changed-files@v45
+        with:
+          files: |
+            apps/api/migrations/**
+
+      - name: Enforce
+        env:
+          MIGRATIONS_CHANGED: ${{ steps.changed.outputs.any_changed }}
+          MIGRATION_FILES: ${{ steps.changed.outputs.all_changed_files }}
+          LABELS: ${{ join(github.event.pull_request.labels.*.name, ',') }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: |
+          set -euo pipefail
+          if [ "$MIGRATIONS_CHANGED" != "true" ]; then
+            echo "no migration files changed; ok"
+            exit 0
+          fi
+          echo "migrations changed: $MIGRATION_FILES"
+          if echo ",$LABELS," | grep -q ",immutable-change,"; then
+            echo "label immutable-change present; ok (Track B review required by CODEOWNERS)"
+            exit 0
+          fi
+          # Escape hatch: the PR body carries the exact line `migrations: mutable-only`, meaning the
+          # author asserts the migration touches no table created with the immutable helper. The
+          # assertion is audited by the kit's immutable-table test (B3) and by the reviewer.
+          if printf '%s\n' "$PR_BODY" | grep -qxE '[[:space:]]*migrations: mutable-only[[:space:]]*'; then
+            echo "::notice title=immutable-change::PR body declares 'migrations: mutable-only'; skipping label requirement. The reviewer must confirm no immutable table is touched."
+            exit 0
+          fi
+          echo "::error title=immutable-change::This PR changes apps/api/migrations but does not carry the 'immutable-change' label. Either add the label (a Track B reviewer is then required), or, if the migration touches no immutable table, add the exact line 'migrations: mutable-only' to the PR body. See CONTRIBUTING.md 'Migrations'."
+          exit 1
+
+  spec-traceability:
+    name: spec-traceability (R-IDs and 08 test IDs in PR body)
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check PR body
+        env:
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: |
+          set -euo pipefail
+          # Strip HTML comments so the template's own guidance text never satisfies the check.
+          body="$(printf '%s' "$PR_BODY" | perl -0pe 's/<!--.*?-->//gs')"
+          has_r=0; has_t=0
+          # Requirement IDs look like R1.3, R13.8, R17.14
+          if printf '%s' "$body" | grep -qE '(^|[^A-Za-z0-9])R[0-9]+\.[0-9]+([^0-9]|$)'; then has_r=1; fi
+          # 08 test IDs look like A1, B11, D14, I34, and the letter block is one or more capitals.
+          # We exclude R<digits>.<digits> matches by requiring no dot after the digits.
+          if printf '%s' "$body" | grep -qE '(^|[^A-Za-z0-9])[A-Z]+[0-9]+([^0-9.]|$)'; then has_t=1; fi
+          if [ "$has_r" = 1 ] && [ "$has_t" = 1 ]; then
+            echo "ok: PR body names requirement IDs and acceptance test IDs"
+            exit 0
+          fi
+          msg="PR body must list the requirements it satisfies and the acceptance tests it proves."
+          [ "$has_r" = 0 ] && msg="$msg Missing: at least one requirement ID like R2.6 (docs/spec/01-requirements.md)."
+          [ "$has_t" = 0 ] && msg="$msg Missing: at least one acceptance test ID like D7 (docs/spec/08-acceptance-tests.md)."
+          echo "::error title=spec-traceability::$msg Fill in the 'Requirements' and 'Acceptance tests' sections of the PR template."
+          exit 1

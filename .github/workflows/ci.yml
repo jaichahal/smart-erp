@@ -1,0 +1,206 @@
+# CI: lint, test, licence, sbom.
+# Runs on every pull request and on pushes to main (including merge-queue results).
+# See docs/spec/10-execution-playbook.md "Definition of done is mechanical".
+
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  merge_group:
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  GO_VERSION: "1.27.1"
+  GOFLAGS: -mod=mod
+  GOTOOLCHAIN: local
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  lint:
+    name: lint (golangci-lint)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
+          cache-dependency-path: apps/api/go.sum
+
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@v7
+        with:
+          version: v2.14.0
+          working-directory: apps/api
+          args: --config .golangci.yml --timeout 10m
+
+  test:
+    name: test (go test -race)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    env:
+      ERP_ADMIN_DATABASE_URL: postgres://postgres:postgres@localhost:5432/postgres?sslmode=disable
+      ERP_MIGRATOR_DATABASE_URL: postgres://erp_migrator:erp_migrator@localhost:5432/erp?sslmode=disable
+      ERP_DATABASE_URL: postgres://erp_app:erp_app@localhost:5432/erp?sslmode=disable
+      # Read by deploy/compose/postgres-init/*.sql via psql \getenv; must match the URLs above.
+      ERP_MIGRATOR_PASSWORD: erp_migrator
+      ERP_APP_PASSWORD: erp_app
+      ZITADEL_DB_PASSWORD: zitadel
+      PGPASSWORD: postgres
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
+          cache-dependency-path: apps/api/go.sum
+
+      - name: Install PostgreSQL client
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq postgresql-client >/dev/null
+
+      # Roles (erp_migrator, erp_app, ...) and the erp database are created by the same
+      # init SQL the compose stack uses, so CI and the developer Mac share one definition.
+      # deploy/compose/postgres-init/ is owned by Track I; this job only consumes it.
+      - name: Apply postgres init SQL
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          files=(deploy/compose/postgres-init/*.sql)
+          if [ ${#files[@]} -eq 0 ]; then
+            echo "::error::deploy/compose/postgres-init/*.sql not found; the test job needs the role and database bootstrap SQL"
+            exit 1
+          fi
+          for f in "${files[@]}"; do
+            echo "== applying $f"
+            psql -v ON_ERROR_STOP=1 "$ERP_ADMIN_DATABASE_URL" -f "$f"
+          done
+
+      - name: Download modules
+        working-directory: apps/api
+        run: go mod download
+
+      # `just migrate` and `just template` wrap exactly these two commands, but they also source
+      # deploy/compose/.env.dev.host, which is a developer-machine file. CI sets the env above and
+      # calls the binary directly so the two stay equivalent without that file.
+      - name: Migrate (goose, as erp_migrator; superuser migrations as admin)
+        working-directory: apps/api
+        run: go run ./cmd/migrate up
+
+      # erp_template is cloned per test package by kit/testdb (CREATE DATABASE ... TEMPLATE erp_template).
+      - name: Create erp_template
+        working-directory: apps/api
+        run: go run ./cmd/migrate template
+
+      - name: go vet
+        working-directory: apps/api
+        run: go vet ./...
+
+      - name: go test
+        working-directory: apps/api
+        run: go test ./... -race -count=1 -timeout 20m
+
+  licence:
+    name: licence (go-licenses)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
+          cache-dependency-path: apps/api/go.sum
+
+      - name: Install go-licenses
+        run: go install github.com/google/go-licenses/v2@latest
+
+      # Policy (docs/spec/02-architecture.md ADR-01, ADR-14, ADR-15):
+      #   forbidden   -> GPL family: fails the build. P1.1 acceptance: "PR fails on GPL dependency".
+      #   restricted  -> LGPL and similar: fails the build.
+      #   reciprocal  -> MPL-2.0 and similar. River (riverqueue.com/river) is MPL-2.0 and is used
+      #                  unmodified, which imposes no obligation on the product's own code (ADR-14).
+      #                  Reciprocal is therefore allowed explicitly and is NOT in --disallowed_types.
+      #   notice, permissive, unencumbered -> allowed.
+      # Zitadel and MinIO are AGPL-3.0 but are run unmodified as separate services, never
+      # imported; they never appear in go.sum and are recorded in THIRD_PARTY_NOTICES.md.
+      - name: go-licenses check
+        working-directory: apps/api
+        run: |
+          set -euo pipefail
+          go mod download
+          go-licenses check ./... \
+            --disallowed_types=forbidden,restricted \
+            --ignore github.com/jaichahal/smart-erp
+
+      - name: go-licenses report (artifact)
+        working-directory: apps/api
+        if: always()
+        run: |
+          set -euo pipefail
+          mkdir -p ../../dist
+          go-licenses report ./... --ignore github.com/jaichahal/smart-erp > ../../dist/third-party-licences.csv || true
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: third-party-licences
+          path: dist/third-party-licences.csv
+          if-no-files-found: ignore
+
+  sbom:
+    name: sbom (syft, spdx-json)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
+          cache-dependency-path: apps/api/go.sum
+
+      - name: Download modules (so syft sees the full graph)
+        working-directory: apps/api
+        run: go mod download
+
+      - name: Generate SBOM for apps/api
+        uses: anchore/sbom-action@v0
+        with:
+          path: apps/api
+          format: spdx-json
+          artifact-name: sbom-apps-api.spdx.json
+          output-file: sbom-apps-api.spdx.json
+          upload-artifact: true
+          upload-release-assets: false

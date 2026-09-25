@@ -1,0 +1,27 @@
+{
+  "input": {
+    "z_last": true,
+    "a_first": 1.0,
+    "nested": {
+      "b": [
+        3,
+        2,
+        1
+      ],
+      "a": {
+        "y": "ü",
+        "x": "text with \"quotes\" and \\ backslash"
+      }
+    },
+    "money": {
+      "amount": "0.10",
+      "currency": "AED"
+    },
+    "empty_obj": {},
+    "empty_arr": [],
+    "nil": null
+  },
+  "prev_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+  "canonical": "{\"a_first\":1,\"empty_arr\":[],\"empty_obj\":{},\"money\":{\"amount\":\"0.10\",\"currency\":\"AED\"},\"nested\":{\"a\":{\"x\":\"text with \\\"quotes\\\" and \\\\ backslash\",\"y\":\"ü\"},\"b\":[3,2,1]},\"nil\":null,\"z_last\":true}",
+  "hash": "27afbe7f7dc9875e29bf2be6685e00d7a5729f7d0ac2df36cc722a21fde3c39c"
+}

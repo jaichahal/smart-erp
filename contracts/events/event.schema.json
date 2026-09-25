@@ -1,0 +1,158 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.smart-erp.local/events/event.schema.json",
+  "title": "Smart ERP event",
+  "description": "Outbox, WebSocket and push event payload, exactly as in docs/spec/04-api-contracts.md 'Event payload'. Push messages are data-only (ADR-07): they carry this object flattened to string values with `context` JSON-encoded, and never a `notification` block (E3). A payload with an amount and no currency is refused before enqueue (E4). Consumers deduplicate by `event_id` (E2).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "event_id",
+    "type",
+    "severity",
+    "company_id",
+    "occurred_at",
+    "actor",
+    "subject",
+    "amount",
+    "deep_link",
+    "allowed_actions",
+    "state_version",
+    "context"
+  ],
+  "properties": {
+    "event_id": {
+      "description": "ULID (Crockford base32, 26 characters). Consumers deduplicate by this value.",
+      "type": "string",
+      "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$"
+    },
+    "type": {
+      "$ref": "#/$defs/EventType"
+    },
+    "severity": {
+      "$ref": "#/$defs/Severity"
+    },
+    "company_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "occurred_at": {
+      "description": "UTC ISO 8601, database-assigned",
+      "type": "string",
+      "format": "date-time"
+    },
+    "actor": {
+      "$ref": "#/$defs/Actor"
+    },
+    "subject": {
+      "$ref": "#/$defs/Subject"
+    },
+    "amount": {
+      "description": "Money or null when the event has no amount. An amount without a currency is invalid.",
+      "oneOf": [
+        { "$ref": "#/$defs/Money" },
+        { "type": "null" }
+      ]
+    },
+    "deep_link": {
+      "description": "smarterp://{route}/{id}; routes per 04 'Deep link scheme'",
+      "type": "string",
+      "pattern": "^smarterp://"
+    },
+    "allowed_actions": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "$ref": "#/$defs/AllowedAction"
+      }
+    },
+    "state_version": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "context": {
+      "description": "Event-type specific detail. JSON-encoded to a string in push data.",
+      "type": "object"
+    }
+  },
+  "$defs": {
+    "EventType": {
+      "description": "Initial event types from 04. Additive changes bump the contract minor version.",
+      "type": "string",
+      "enum": [
+        "approval.requested",
+        "approval.decided",
+        "approval.delegated",
+        "approval.snoozed",
+        "document.registered",
+        "delivery.confirmed",
+        "clock.expired",
+        "receipt.posted",
+        "pdc.bounced",
+        "stock.received",
+        "stock.count.approved",
+        "production.posted",
+        "correction.posted",
+        "payment.released",
+        "chain.verified",
+        "chain.broken",
+        "backup.completed",
+        "backup.failed",
+        "bank.feed.completed",
+        "bank.feed.failed",
+        "forecast.below_floor",
+        "exception.raised",
+        "config.changed",
+        "break_glass.used"
+      ]
+    },
+    "Severity": {
+      "description": "Unknown severity is treated as HIGH by clients.",
+      "type": "string",
+      "enum": ["LOW", "MEDIUM", "HIGH", "CRITICAL"]
+    },
+    "AllowedAction": {
+      "type": "string",
+      "enum": ["approve", "reject", "acknowledge", "snooze", "delegate", "open"]
+    },
+    "Actor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "name"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "name": { "type": "string" }
+      }
+    },
+    "Subject": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["doc_type", "doc_id", "doc_number", "party"],
+      "properties": {
+        "doc_type": {
+          "description": "snake_case document type, e.g. sales_invoice",
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_]*$"
+        },
+        "doc_id": { "type": "string", "minLength": 1 },
+        "doc_number": { "type": ["string", "null"] },
+        "party": { "type": ["string", "null"] }
+      }
+    },
+    "Money": {
+      "description": "Decimal amount as a string plus an ISO 4217 code. Mirrors components.schemas.Money in contracts/openapi/openapi.yaml.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["amount", "currency"],
+      "properties": {
+        "amount": {
+          "type": "string",
+          "pattern": "^-?[0-9]+(\\.[0-9]+)?$"
+        },
+        "currency": {
+          "type": "string",
+          "pattern": "^[A-Z]{3}$"
+        }
+      }
+    }
+  }
+}

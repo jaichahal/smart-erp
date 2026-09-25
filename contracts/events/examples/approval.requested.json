@@ -1,0 +1,31 @@
+{
+  "event_id": "01J8Q5X3K2M4N6P8R0S2T4V6W8",
+  "type": "approval.requested",
+  "severity": "HIGH",
+  "company_id": "01J8Q5WZ0A0000000000000001",
+  "occurred_at": "2026-09-25T10:00:00Z",
+  "actor": {
+    "id": "01J8Q5X0USER00000000000001",
+    "name": "Fatima Al Mansoori"
+  },
+  "subject": {
+    "doc_type": "sales_invoice",
+    "doc_id": "01J8Q5X1DOC000000000000311",
+    "doc_number": "INV-2026-000311",
+    "party": "Al Noor Trading LLC"
+  },
+  "amount": {
+    "amount": "14350.00",
+    "currency": "AED"
+  },
+  "deep_link": "smarterp://approval/01J8Q5X2REQ000000000000042",
+  "allowed_actions": ["approve", "reject", "open"],
+  "state_version": 3,
+  "context": {
+    "request_id": "01J8Q5X2REQ000000000000042",
+    "requester": "Fatima Al Mansoori",
+    "waiting_since": "2026-09-25T10:00:00Z",
+    "fraud_hints": [],
+    "threshold_crossed": true
+  }
+}

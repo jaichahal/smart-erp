@@ -1,38 +1,38 @@
-Team Lead Status - 2026-09-25 22:15 UTC+4 live-check round (on top of 54909ee)
+Team Lead Status - 2026-09-25 22:30 UTC+4 sweep (on top of ccdc80a)
 
-No product code changed this round. No merges. No test runs (no throwaways needed).
+Integration new commit this round:
+- ccdc80a "Merge task/fix-approvals-bearer into integration/e2e." Bearer fix
+  9cc1b38 verified first (D1-D14 pass on throwaway, 6.6s). Test-only change
+  (b1_accept.go, b1_world.go: DPoP bearer instead of X-User headers); router
+  untouched. Merged clean, no conflicts.
 
-Live stack work (dev erp DB + API on :8080):
-- `just migrate` on dev erp: applied 301xx + 31100, then STOPPED at 32100 on the
-  known stock_reservations P0 (31100 vs 32100 duplicate). Dev goose version now
-  31100. Forward-only; no reset, no down, erp_template untouched. Tables for
-  32100/33100/34100/35100 are NOT on dev erp: authenticated calls into
-  stock/sales/receivables/purchase handlers will 500 until the P0 resolves.
-- API restarted: killed /tmp/smarterp-api pid 52431 (stale, pre-merge build),
-  rebuilt from integration/e2e, new pid 2775, health 200. Same binary path, same
-  worktree cwd, same host env.
+P1.7 HOLD LIFTED. Wave-1 D1-D14 all pass on integration. Bearer-only approvals
+stands as the decided semantics (no header-auth restore).
 
-Per-endpoint live status (unauthenticated curl; 401 = route live behind auth):
-- POST /api/v1/sales-orders -> 401 LIVE (was 404). Genuine (exact static route).
-- POST /api/v1/receipts -> 401 LIVE (was 404, receivables owns it). Genuine.
-- GET /api/v1/vendors/dashboard?sku= -> 401 FALSE POSITIVE. No such route;
-  chi matches masters /vendors/{id} with id=dashboard. Correction: purchase
-  dashboard is live at GET /api/v1/purchase/dashboard (401), masters best-price
-  at GET /api/v1/vendors/best-price (401). Owner purchase track: add the
-  /vendors/dashboard shape or confirm clients use /purchase/dashboard.
-- GET /api/v1/lpos -> 404, genuinely code-missing. Owner purchase track.
+E2E-WAVE1 RESULT: FAIL with C1-C5 only (known reservations P0: 32100 collides
+after 31100, identical signature confirmed). Zero P1.7 lines in the output.
+Everything else in the filter passes.
 
-client-api-needs.md updated with the above (corrects the earlier over-claim
-that dashboard+LPOs had merged; only /purchase/dashboard exists).
+Noted for next sweeps:
+- Backend QA closed its loop: all six tracks PASS, report at
+  qa-reviews/backend.md. Earlier per-track P0s are superseded by that report;
+  the reservations P0 and shared-DB harness follow-ups recorded here stand
+  (they postdate / extend the QA report scope on integration).
+- LPO list + vendor-dashboard-shape now owned by purchase track (parent routing
+  directly). Live check stands: /purchase/dashboard live, /lpos + exact
+  /vendors/dashboard shape missing.
 
-Tracks: unchanged since 21:55 sweep (ledger/stock/purchase/sales/receivables/
-masters merged; P1.7 HOLD + reservations P0 stand; masters 62d396e was already
-merged as e9ac89c). Clients QA sweep 2 Android 404s should clear for
-sales-orders/receipts on re-run against the restarted API; dashboard/LPO specs
-still blocked on purchase-track routes above.
+Tracks: ledger/stock/purchase/sales/receivables/masters merged (same reds as
+before: C1-C5 P0 on integration package runs for masters/stock; stale
+erp_sales/erp_ar for sales/receivables). Clients tip f55adfd.
+
+Plan source (task/plan-index): tip ce8cb65, unchanged.
+
+Merges done: task/fix-approvals-bearer 9cc1b38 -> integration/e2e ccdc80a.
+Unblocks made: none.
+E2E: e2e-wave1 FAIL (C1-C5 P0 only; P1.7 green).
 
 Needs Jai (standing):
-1. P1.7 HOLD: bearer-only vs header-auth compat.
-2. P0: which stock_reservations shape wins.
-3. Relay client agent to task/build-clients.
-4. QA split decision.
+1. P0: which stock_reservations shape wins.
+2. Relay client agent to task/build-clients.
+3. QA split decision (backend loop closed; split may be moot).

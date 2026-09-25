@@ -1,0 +1,34 @@
+{
+  "input": {
+    "id": "0192b7f0-2a7e-7c3a-9d1e-1f2a3b4c5d6e",
+    "company_id": "0192b7f0-0000-7000-8000-000000000001",
+    "event_type": "APPROVAL_REQUESTED",
+    "actor_id": "accountant@example.com",
+    "occurred_at": "2026-09-25T10:00:00.123456Z",
+    "reference_type": "sales_invoice",
+    "reference_id": "INV-2026-000311",
+    "before_state": null,
+    "after_state": {
+      "amount": "14350.00",
+      "currency": "AED",
+      "lines": [
+        {
+          "line_no": 1,
+          "qty": "10",
+          "sku": "SKU-1"
+        },
+        {
+          "line_no": 2,
+          "qty": "2.50",
+          "sku": "SKU-2"
+        }
+      ]
+    },
+    "reason": "",
+    "prev_hash": "must-be-ignored",
+    "hash": "must-be-ignored"
+  },
+  "prev_hash": "",
+  "canonical": "{\"actor_id\":\"accountant@example.com\",\"after_state\":{\"amount\":\"14350.00\",\"currency\":\"AED\",\"lines\":[{\"line_no\":1,\"qty\":\"10\",\"sku\":\"SKU-1\"},{\"line_no\":2,\"qty\":\"2.50\",\"sku\":\"SKU-2\"}]},\"before_state\":null,\"company_id\":\"0192b7f0-0000-7000-8000-000000000001\",\"event_type\":\"APPROVAL_REQUESTED\",\"id\":\"0192b7f0-2a7e-7c3a-9d1e-1f2a3b4c5d6e\",\"occurred_at\":\"2026-09-25T10:00:00.123456Z\",\"reason\":\"\",\"reference_id\":\"INV-2026-000311\",\"reference_type\":\"sales_invoice\"}",
+  "hash": "586069a88ab15ff3ad2bea91b352e0d3f3a639cd8b296c7f835ea22ab8a25493"
+}

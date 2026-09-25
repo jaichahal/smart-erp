@@ -1,0 +1,1411 @@
+openapi: 3.1.0
+info:
+  title: Smart ERP API
+  version: 1.0.0
+  summary: Machine form of docs/spec/04-api-contracts.md
+  description: |
+    Seeded from `docs/spec/04-api-contracts.md` version 1.0.0. That file is the human form and
+    wins on conflict until this document is regenerated. Additive changes bump the minor version;
+    breaking changes bump the major version and carry a migration note.
+
+    Transport rules that apply to every operation:
+
+    - JSON over HTTPS. All timestamps are UTC ISO 8601. Money is `{ amount, currency }` with the
+      amount as a decimal string.
+    - Every success response is `{ data, meta }`. Every failure, including 429 and gateway errors,
+      is `{ error: { code, message, details, request_id } }`.
+    - Every mutating request accepts `Idempotency-Key` (UUID); the server replays a stored response
+      for 24 hours; a different body with the same key is `409 CONFLICT`.
+    - Every mutable resource carries `state_version`; mutating requests send `If-Match`; a mismatch
+      is `409 CONFLICT` with the current state in `error.details`.
+    - `Accept-Language: en | ar` affects messages and print formats, never data.
+  contact:
+    name: Smart ERP contract owner
+  license:
+    name: Proprietary
+    identifier: LicenseRef-Proprietary
+  x-spec-source: docs/spec/04-api-contracts.md
+
+servers:
+  - url: /api/v1
+    description: Same origin as the console; mobile clients use https://api.<domain>/api/v1
+
+security:
+  - bearer: []
+    dpop: []
+
+tags:
+  - name: system
+    description: Health and operator status
+  - name: identity
+    description: Session brokering to Zitadel, token issuance, device binding, step-up
+  - name: approvals
+    description: Approval inbox and decisions
+  - name: devices
+    description: Push token lifecycle
+  - name: audit
+    description: Audit chain verification and event query
+
+paths:
+  /health:
+    get:
+      operationId: getHealth
+      tags: [system]
+      summary: Readiness probe
+      description: Public. Returns 200 when the API can serve traffic; 503 otherwise.
+      security: []
+      parameters:
+        - $ref: "#/components/parameters/AcceptLanguage"
+      responses:
+        "200":
+          description: Ready
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, meta]
+                properties:
+                  data:
+                    $ref: "#/components/schemas/HealthResponse"
+                  meta:
+                    $ref: "#/components/schemas/Meta"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+        "500":
+          $ref: "#/components/responses/InternalError"
+        "503":
+          $ref: "#/components/responses/Unavailable"
+
+  /status:
+    get:
+      operationId: getStatus
+      tags: [system]
+      summary: Operator status page data
+      description: |
+        System Manager only (A20). Last backup, last chain verification, last bank feed, queue
+        depth, worker health, clock drift and which recovery point is in force (I16).
+      parameters:
+        - $ref: "#/components/parameters/AcceptLanguage"
+      responses:
+        "200":
+          description: Status
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, meta]
+                properties:
+                  data:
+                    $ref: "#/components/schemas/StatusResponse"
+                  meta:
+                    $ref: "#/components/schemas/Meta"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+        "500":
+          $ref: "#/components/responses/InternalError"
+        "503":
+          $ref: "#/components/responses/Unavailable"
+
+  /auth/session:
+    post:
+      operationId: createAuthSession
+      tags: [identity]
+      summary: Start a login session
+      description: |
+        Brokered to Zitadel's Session API; clients never call Zitadel directly (R1.3). Every
+        failure path returns a byte-identical body and status regardless of cause (A1, R1.7).
+        Rate limited per user and per IP with the standard envelope (A7, R1.8).
+      security: []
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+        - $ref: "#/components/parameters/AcceptLanguage"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [login_name]
+              properties:
+                login_name:
+                  type: string
+                  minLength: 1
+                  maxLength: 254
+      responses:
+        "200":
+          description: Session created; challenges to satisfy
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, meta]
+                properties:
+                  data:
+                    $ref: "#/components/schemas/AuthSession"
+                  meta:
+                    $ref: "#/components/schemas/Meta"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+        "500":
+          $ref: "#/components/responses/InternalError"
+        "503":
+          $ref: "#/components/responses/Unavailable"
+
+  /auth/session/{id}/check:
+    post:
+      operationId: checkAuthSession
+      tags: [identity]
+      summary: Advance a login session by one or more factors
+      description: |
+        Verifies password, TOTP or WebAuthn assertion against the session. MFA-mandatory roles
+        cannot complete without a second factor (A10). Failures are indistinguishable (A1).
+      security: []
+      parameters:
+        - $ref: "#/components/parameters/SessionId"
+        - $ref: "#/components/parameters/IdempotencyKey"
+        - $ref: "#/components/parameters/AcceptLanguage"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              minProperties: 1
+              properties:
+                password:
+                  type: string
+                totp:
+                  type: string
+                  pattern: "^[0-9]{6,8}$"
+                webauthn_assertion:
+                  type: object
+                  description: WebAuthn assertion as produced by the platform authenticator
+                  additionalProperties: true
+      responses:
+        "200":
+          description: Factor state after this check
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, meta]
+                properties:
+                  data:
+                    $ref: "#/components/schemas/AuthSession"
+                  meta:
+                    $ref: "#/components/schemas/Meta"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+        "500":
+          $ref: "#/components/responses/InternalError"
+        "503":
+          $ref: "#/components/responses/Unavailable"
+
+  /auth/token:
+    post:
+      operationId: issueToken
+      tags: [identity]
+      summary: Exchange a verified session and enrolled device for ERP tokens
+      description: |
+        Issued by the ERP token issuer with KMS-held signing keys (R1.3). Access tokens live 15
+        minutes or less; refresh tokens are bound to the device key (R1.4, R1.5). A proof from a
+        device other than the enrolled one is `DEVICE_MISMATCH` (A3).
+      security:
+        - dpop: []
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+        - $ref: "#/components/parameters/AcceptLanguage"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [session_id, device_id]
+              properties:
+                session_id:
+                  type: string
+                device_id:
+                  type: string
+      responses:
+        "200":
+          description: Tokens issued
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, meta]
+                properties:
+                  data:
+                    $ref: "#/components/schemas/TokenResponse"
+                  meta:
+                    $ref: "#/components/schemas/Meta"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+        "500":
+          $ref: "#/components/responses/InternalError"
+        "503":
+          $ref: "#/components/responses/Unavailable"
+
+  /auth/refresh:
+    post:
+      operationId: refreshToken
+      tags: [identity]
+      summary: Rotate the refresh token and issue a new access token
+      description: |
+        Refresh tokens rotate on use. A reused refresh token revokes the device and every token
+        issued to it (A4, R1.5).
+      security:
+        - dpop: []
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+        - $ref: "#/components/parameters/AcceptLanguage"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [refresh_token]
+              properties:
+                refresh_token:
+                  type: string
+      responses:
+        "200":
+          description: Rotated
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, meta]
+                properties:
+                  data:
+                    $ref: "#/components/schemas/TokenResponse"
+                  meta:
+                    $ref: "#/components/schemas/Meta"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+        "500":
+          $ref: "#/components/responses/InternalError"
+        "503":
+          $ref: "#/components/responses/Unavailable"
+
+  /auth/logout:
+    post:
+      operationId: logout
+      tags: [identity]
+      summary: End the current session
+      description: Revokes the device refresh token and unregisters the device's push token.
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+        - $ref: "#/components/parameters/AcceptLanguage"
+      responses:
+        "200":
+          description: Logged out
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, meta]
+                properties:
+                  data:
+                    $ref: "#/components/schemas/Empty"
+                  meta:
+                    $ref: "#/components/schemas/Meta"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+        "500":
+          $ref: "#/components/responses/InternalError"
+        "503":
+          $ref: "#/components/responses/Unavailable"
+
+  /auth/step-up:
+    post:
+      operationId: stepUp
+      tags: [identity]
+      summary: Obtain a single-use step-up token for one action
+      description: |
+        Required for approvals at or above threshold, payment release, bank changes, corrections
+        and break-glass (R1.6, D14). The token is single-use and expires in two minutes (A6).
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+        - $ref: "#/components/parameters/AcceptLanguage"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [method, code]
+              properties:
+                method:
+                  type: string
+                  enum: [totp, webauthn, biometric]
+                code:
+                  type: string
+                  description: TOTP code, or the serialised assertion for webauthn and biometric
+      responses:
+        "200":
+          description: Step-up token
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, meta]
+                properties:
+                  data:
+                    type: object
+                    required: [step_up_token, expires_in]
+                    properties:
+                      step_up_token:
+                        type: string
+                      expires_in:
+                        type: integer
+                        description: Seconds until expiry; at most 120
+                        maximum: 120
+                  meta:
+                    $ref: "#/components/schemas/Meta"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+        "500":
+          $ref: "#/components/responses/InternalError"
+        "503":
+          $ref: "#/components/responses/Unavailable"
+
+  /auth/device/enroll:
+    post:
+      operationId: enrollDevice
+      tags: [identity]
+      summary: Enrol a device public key
+      description: |
+        The device generates a key pair in Android Keystore or iOS Secure Enclave and sends the
+        public key; the server stores it and binds later tokens to it (R1.4).
+      security: []
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+        - $ref: "#/components/parameters/AcceptLanguage"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [public_key, platform, app_version, device_name]
+              properties:
+                public_key:
+                  type: object
+                  description: JWK of the device public key (EC P-256 or RSA)
+                  additionalProperties: true
+                platform:
+                  $ref: "#/components/schemas/Platform"
+                app_version:
+                  type: string
+                device_name:
+                  type: string
+                  maxLength: 120
+      responses:
+        "201":
+          description: Enrolled
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, meta]
+                properties:
+                  data:
+                    type: object
+                    required: [device_id]
+                    properties:
+                      device_id:
+                        type: string
+                  meta:
+                    $ref: "#/components/schemas/Meta"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+        "500":
+          $ref: "#/components/responses/InternalError"
+        "503":
+          $ref: "#/components/responses/Unavailable"
+
+  /me:
+    get:
+      operationId: getMe
+      tags: [identity]
+      summary: Current user
+      parameters:
+        - $ref: "#/components/parameters/AcceptLanguage"
+      responses:
+        "200":
+          description: Current user
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, meta]
+                properties:
+                  data:
+                    $ref: "#/components/schemas/User"
+                  meta:
+                    $ref: "#/components/schemas/Meta"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+        "500":
+          $ref: "#/components/responses/InternalError"
+        "503":
+          $ref: "#/components/responses/Unavailable"
+
+  /approvals/inbox:
+    get:
+      operationId: listApprovalInbox
+      tags: [approvals]
+      summary: Approval inbox cards
+      description: Cards for the authenticated approver, filtered by state (R2.10 fraud hints included).
+      parameters:
+        - name: state
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [needs_me, waiting_on_others, fyi]
+            default: needs_me
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/AcceptLanguage"
+      responses:
+        "200":
+          description: Cards
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, meta]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/ApprovalCard"
+                  meta:
+                    $ref: "#/components/schemas/PageMeta"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+        "500":
+          $ref: "#/components/responses/InternalError"
+        "503":
+          $ref: "#/components/responses/Unavailable"
+
+  /approvals/{id}:
+    get:
+      operationId: getApproval
+      tags: [approvals]
+      summary: Live view of one approval request
+      description: Includes the document snapshot at submission and its content hash (R2.11).
+      parameters:
+        - $ref: "#/components/parameters/ApprovalId"
+        - $ref: "#/components/parameters/AcceptLanguage"
+      responses:
+        "200":
+          description: Approval request
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, meta]
+                properties:
+                  data:
+                    $ref: "#/components/schemas/ApprovalDetail"
+                  meta:
+                    $ref: "#/components/schemas/Meta"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+        "500":
+          $ref: "#/components/responses/InternalError"
+        "503":
+          $ref: "#/components/responses/Unavailable"
+
+  /approvals/{id}/approve:
+    post:
+      operationId: approveApproval
+      tags: [approvals]
+      summary: Approve
+      description: |
+        Serialised per request with a row lock and state version (R2.6). A concurrent second
+        decision receives 200 with the decided state and `ALREADY_DECIDED` in `meta.notice`, not an
+        error (D7). Step-up required at or above threshold (D14).
+      parameters:
+        - $ref: "#/components/parameters/ApprovalId"
+        - $ref: "#/components/parameters/IdempotencyKey"
+        - $ref: "#/components/parameters/IfMatch"
+        - $ref: "#/components/parameters/AcceptLanguage"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [state_version]
+              properties:
+                comment:
+                  type: string
+                  maxLength: 2000
+                state_version:
+                  $ref: "#/components/schemas/StateVersion"
+                step_up_token:
+                  type: string
+      responses:
+        "200":
+          description: Decision recorded, or already decided
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, meta]
+                properties:
+                  data:
+                    $ref: "#/components/schemas/ApprovalDecision"
+                  meta:
+                    $ref: "#/components/schemas/DecisionMeta"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+        "500":
+          $ref: "#/components/responses/InternalError"
+        "503":
+          $ref: "#/components/responses/Unavailable"
+
+  /approvals/{id}/reject:
+    post:
+      operationId: rejectApproval
+      tags: [approvals]
+      summary: Reject
+      description: An empty or whitespace reason is `400 VALIDATION_ERROR` (R2.4, D5).
+      parameters:
+        - $ref: "#/components/parameters/ApprovalId"
+        - $ref: "#/components/parameters/IdempotencyKey"
+        - $ref: "#/components/parameters/IfMatch"
+        - $ref: "#/components/parameters/AcceptLanguage"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reason, state_version]
+              properties:
+                reason:
+                  type: string
+                  minLength: 1
+                  maxLength: 2000
+                  pattern: "\\S"
+                state_version:
+                  $ref: "#/components/schemas/StateVersion"
+      responses:
+        "200":
+          description: Decision recorded, or already decided
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, meta]
+                properties:
+                  data:
+                    $ref: "#/components/schemas/ApprovalDecision"
+                  meta:
+                    $ref: "#/components/schemas/DecisionMeta"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+        "500":
+          $ref: "#/components/responses/InternalError"
+        "503":
+          $ref: "#/components/responses/Unavailable"
+
+  /devices/push-token:
+    post:
+      operationId: registerPushToken
+      tags: [devices]
+      summary: Register the push token for the current device
+      description: Idempotent; bound to the session user and device (R13.6).
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+        - $ref: "#/components/parameters/AcceptLanguage"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [token, platform, app_version]
+              properties:
+                token:
+                  type: string
+                platform:
+                  $ref: "#/components/schemas/Platform"
+                app_version:
+                  type: string
+      responses:
+        "200":
+          description: Registered
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, meta]
+                properties:
+                  data:
+                    $ref: "#/components/schemas/Empty"
+                  meta:
+                    $ref: "#/components/schemas/Meta"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+        "500":
+          $ref: "#/components/responses/InternalError"
+        "503":
+          $ref: "#/components/responses/Unavailable"
+    delete:
+      operationId: deletePushToken
+      tags: [devices]
+      summary: Unregister the push token for the current device
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+        - $ref: "#/components/parameters/AcceptLanguage"
+      responses:
+        "200":
+          description: Unregistered
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, meta]
+                properties:
+                  data:
+                    $ref: "#/components/schemas/Empty"
+                  meta:
+                    $ref: "#/components/schemas/Meta"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+        "500":
+          $ref: "#/components/responses/InternalError"
+        "503":
+          $ref: "#/components/responses/Unavailable"
+
+  /audit/verify:
+    post:
+      operationId: verifyAuditChain
+      tags: [audit]
+      summary: Walk the audit chain and report the first break
+      description: |
+        Auditor and System Manager only. Recomputes every hash, compares each `prev_hash` to the
+        previous stored hash and the recomputed head to the anchored head (B6, B7, B11).
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+        - $ref: "#/components/parameters/AcceptLanguage"
+      responses:
+        "200":
+          description: Verification result
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, meta]
+                properties:
+                  data:
+                    $ref: "#/components/schemas/ChainVerification"
+                  meta:
+                    $ref: "#/components/schemas/Meta"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+        "500":
+          $ref: "#/components/responses/InternalError"
+        "503":
+          $ref: "#/components/responses/Unavailable"
+
+  /audit/events:
+    get:
+      operationId: listAuditEvents
+      tags: [audit]
+      summary: Query audit events
+      parameters:
+        - name: ref
+          in: query
+          description: Document or entity reference (id or number) the event is about
+          schema:
+            type: string
+        - name: from
+          in: query
+          schema:
+            type: string
+            format: date-time
+        - name: to
+          in: query
+          schema:
+            type: string
+            format: date-time
+        - name: type
+          in: query
+          description: Event type, e.g. approval.decided
+          schema:
+            type: string
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/AcceptLanguage"
+      responses:
+        "200":
+          description: Events
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, meta]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/AuditEvent"
+                  meta:
+                    $ref: "#/components/schemas/PageMeta"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+        "500":
+          $ref: "#/components/responses/InternalError"
+        "503":
+          $ref: "#/components/responses/Unavailable"
+
+components:
+  securitySchemes:
+    bearer:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: ERP access token issued by POST /auth/token. Expires in 15 minutes or less.
+    dpop:
+      type: apiKey
+      in: header
+      name: DPoP
+      description: |
+        DPoP proof JWT signed by the enrolled device key (RFC 9449). Required on every mobile
+        request alongside the bearer token; the console uses a session cookie with a CSRF token.
+
+  parameters:
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      description: |
+        UUID chosen by the client. The server stores the response for 24 hours and replays it for a
+        repeated key with the same body; a different body with the same key is `409 CONFLICT`.
+      schema:
+        type: string
+        format: uuid
+    IfMatch:
+      name: If-Match
+      in: header
+      required: false
+      description: |
+        The `state_version` the client last saw. A mismatch is `409 CONFLICT` with the current
+        state in `error.details.current`.
+      schema:
+        type: string
+    AcceptLanguage:
+      name: Accept-Language
+      in: header
+      required: false
+      description: "`en` or `ar`. Affects messages and print formats, never data."
+      schema:
+        type: string
+        enum: [en, ar]
+    Cursor:
+      name: cursor
+      in: query
+      required: false
+      description: Opaque cursor from `meta.next_cursor` of the previous page.
+      schema:
+        type: string
+    Limit:
+      name: limit
+      in: query
+      required: false
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 200
+        default: 50
+    SessionId:
+      name: id
+      in: path
+      required: true
+      description: Login session id returned by POST /auth/session
+      schema:
+        type: string
+    ApprovalId:
+      name: id
+      in: path
+      required: true
+      description: Approval request id
+      schema:
+        type: string
+
+  responses:
+    BadRequest:
+      description: Validation failed (`VALIDATION_ERROR`) or a required header is missing
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorEnvelope"
+    Unauthorized:
+      description: "`AUTH_REQUIRED`, `TOKEN_EXPIRED`, `TOKEN_REVOKED` or `DEVICE_MISMATCH`"
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorEnvelope"
+    Forbidden:
+      description: "`PERMISSION_DENIED`, `STEP_UP_REQUIRED` or `SOD_VIOLATION`"
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorEnvelope"
+    NotFound:
+      description: "`NOT_FOUND`"
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorEnvelope"
+    Conflict:
+      description: |
+        `CONFLICT` (stale `If-Match`, current state in `error.details.current`, or a reused
+        `Idempotency-Key` with a different body), `IMMUTABLE` or `PERIOD_CLOSED`.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorEnvelope"
+    RateLimited:
+      description: "`RATE_LIMITED`, in the standard envelope (A7, A17)"
+      headers:
+        Retry-After:
+          schema:
+            type: integer
+          description: Seconds until the client may retry
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorEnvelope"
+    InternalError:
+      description: "`INTERNAL_ERROR`; the message never leaks internals, `request_id` correlates logs"
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorEnvelope"
+    Unavailable:
+      description: "`INTERNAL_ERROR` or `MISSING_CONFIG` while the service is not ready; also returned by the gateway in the same envelope"
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorEnvelope"
+
+  schemas:
+    Money:
+      type: object
+      description: Decimal amount as a string plus an ISO 4217 currency code. Never a float.
+      required: [amount, currency]
+      properties:
+        amount:
+          type: string
+          pattern: "^-?[0-9]+(\\.[0-9]+)?$"
+          examples: ["1234.56"]
+        currency:
+          type: string
+          pattern: "^[A-Z]{3}$"
+          examples: ["AED"]
+
+    Meta:
+      type: object
+      description: Present on every success response.
+      required: [as_of, request_id]
+      properties:
+        as_of:
+          type: string
+          format: date-time
+          description: Server time the response was computed, UTC
+        request_id:
+          type: string
+          description: Correlates the response with logs and audit rows
+      additionalProperties: true
+
+    PageMeta:
+      description: Meta for list responses. `total` is present only where cheap.
+      allOf:
+        - $ref: "#/components/schemas/Meta"
+        - type: object
+          properties:
+            next_cursor:
+              type: [string, "null"]
+            total:
+              type: integer
+              minimum: 0
+
+    DecisionMeta:
+      description: Meta for approval decisions. `notice` carries `ALREADY_DECIDED` when a concurrent decision won (D7).
+      allOf:
+        - $ref: "#/components/schemas/Meta"
+        - type: object
+          properties:
+            notice:
+              type: string
+              enum: [ALREADY_DECIDED]
+
+    ErrorCode:
+      type: string
+      description: The closed set of error codes from docs/spec/04-api-contracts.md.
+      enum:
+        - AUTH_REQUIRED
+        - TOKEN_EXPIRED
+        - TOKEN_REVOKED
+        - DEVICE_MISMATCH
+        - STEP_UP_REQUIRED
+        - PERMISSION_DENIED
+        - VALIDATION_ERROR
+        - MISSING_CONFIG
+        - NOT_FOUND
+        - CONFLICT
+        - ALREADY_DECIDED
+        - IMMUTABLE
+        - PERIOD_CLOSED
+        - SOD_VIOLATION
+        - CREDIT_HOLD
+        - PRICE_FLOOR_HOLD
+        - NEGATIVE_STOCK
+        - RATE_LIMITED
+        - INTERNAL_ERROR
+
+    Error:
+      type: object
+      required: [code, message, details, request_id]
+      properties:
+        code:
+          $ref: "#/components/schemas/ErrorCode"
+        message:
+          type: string
+          description: Human readable, localised by Accept-Language
+        details:
+          type: object
+          description: Code-specific detail, e.g. `{ field }` for VALIDATION_ERROR or `{ current }` for CONFLICT
+          additionalProperties: true
+        request_id:
+          type: string
+
+    ErrorEnvelope:
+      type: object
+      description: Returned on every failure path including 429 and gateway errors (A17).
+      required: [error]
+      properties:
+        error:
+          $ref: "#/components/schemas/Error"
+
+    Empty:
+      type: object
+      description: Success with no payload
+      additionalProperties: false
+
+    StateVersion:
+      type: integer
+      minimum: 0
+      description: Optimistic concurrency version; bumped on every transition
+
+    Platform:
+      type: string
+      enum: [android, ios, console]
+
+    HealthResponse:
+      type: object
+      required: [status, version, commit]
+      properties:
+        status:
+          type: string
+          enum: [ok, degraded, unavailable]
+        version:
+          type: string
+          description: Semantic version or tag of the running build
+        commit:
+          type: string
+          description: Git commit of the running build
+
+    StatusResponse:
+      type: object
+      description: Operator status (A20, I16). Absent data is `null` with a reason, never a fabricated value.
+      required:
+        - last_backup
+        - last_chain_verification
+        - last_bank_feed
+        - queue_depth
+        - worker_health
+        - clock_drift_ms
+        - recovery_point_in_force
+      properties:
+        last_backup:
+          $ref: "#/components/schemas/StatusRun"
+        last_chain_verification:
+          $ref: "#/components/schemas/StatusRun"
+        last_bank_feed:
+          $ref: "#/components/schemas/StatusRun"
+        queue_depth:
+          type: integer
+          minimum: 0
+          description: Jobs waiting in the outbox
+        worker_health:
+          type: string
+          enum: [ok, degraded, down]
+        clock_drift_ms:
+          type: integer
+          description: Signed drift between the database clock and NTP, in milliseconds
+        recovery_point_in_force:
+          type: string
+          enum: ["15m", "24h"]
+          description: Which recovery point currently holds, given WAL archive lag
+
+    StatusRun:
+      type: object
+      required: [at, result]
+      properties:
+        at:
+          type: [string, "null"]
+          format: date-time
+        result:
+          type: string
+          enum: [ok, failed, never]
+        detail:
+          type: string
+
+    AuthSession:
+      type: object
+      required: [session_id, challenges]
+      properties:
+        session_id:
+          type: string
+        challenges:
+          type: object
+          properties:
+            passkey:
+              type: object
+              description: WebAuthn request options when a passkey challenge is available
+              additionalProperties: true
+            totp_required:
+              type: boolean
+        verified:
+          type: boolean
+          description: True once every required factor has been verified
+
+    TokenResponse:
+      type: object
+      required: [access_token, refresh_token, expires_in, user, step_up_methods]
+      properties:
+        access_token:
+          type: string
+        refresh_token:
+          type: string
+        expires_in:
+          type: integer
+          description: Access token lifetime in seconds; at most 900
+          maximum: 900
+        user:
+          $ref: "#/components/schemas/User"
+        step_up_methods:
+          type: array
+          items:
+            type: string
+            enum: [totp, webauthn, biometric]
+
+    User:
+      type: object
+      required: [id, name, roles, personas, company_id]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        roles:
+          type: array
+          items:
+            type: string
+        personas:
+          type: array
+          items:
+            type: string
+        company_id:
+          type: string
+
+    Actor:
+      type: object
+      required: [id, name]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+
+    ApprovalCard:
+      type: object
+      required:
+        - request_id
+        - doc_type
+        - doc_number
+        - amount
+        - requester
+        - waiting_since
+        - severity
+        - fraud_hints
+        - allowed_actions
+        - state_version
+        - deep_link
+      properties:
+        request_id:
+          type: string
+        doc_type:
+          type: string
+        doc_number:
+          type: string
+        party:
+          type: [string, "null"]
+        amount:
+          $ref: "#/components/schemas/Money"
+        requester:
+          $ref: "#/components/schemas/Actor"
+        waiting_since:
+          type: string
+          format: date-time
+        severity:
+          $ref: "#/components/schemas/Severity"
+        fraud_hints:
+          type: array
+          items:
+            type: string
+        allowed_actions:
+          type: array
+          items:
+            $ref: "#/components/schemas/AllowedAction"
+        state_version:
+          $ref: "#/components/schemas/StateVersion"
+        deep_link:
+          type: string
+          pattern: "^smarterp://"
+
+    ApprovalDetail:
+      allOf:
+        - $ref: "#/components/schemas/ApprovalCard"
+        - type: object
+          required: [state, snapshot, snapshot_hash]
+          properties:
+            state:
+              $ref: "#/components/schemas/ApprovalState"
+            snapshot:
+              type: object
+              description: The document as submitted
+              additionalProperties: true
+            snapshot_hash:
+              type: string
+              description: sha256 of the canonical snapshot (R2.11); shown to approvers
+              pattern: "^[a-f0-9]{64}$"
+            decisions:
+              type: array
+              items:
+                type: object
+                required: [by, at, decision, hash_seen]
+                properties:
+                  by:
+                    $ref: "#/components/schemas/Actor"
+                  at:
+                    type: string
+                    format: date-time
+                  decision:
+                    type: string
+                    enum: [approved, rejected, delegated]
+                  comment:
+                    type: string
+                  hash_seen:
+                    type: string
+
+    ApprovalState:
+      type: string
+      enum: [pending, approved, rejected, delegated, snoozed, posted, cancelled]
+
+    ApprovalDecision:
+      type: object
+      required: [request_id, state, state_version]
+      properties:
+        request_id:
+          type: string
+        state:
+          $ref: "#/components/schemas/ApprovalState"
+        state_version:
+          $ref: "#/components/schemas/StateVersion"
+        decided_by:
+          $ref: "#/components/schemas/Actor"
+        decided_at:
+          type: string
+          format: date-time
+
+    Severity:
+      type: string
+      enum: [LOW, MEDIUM, HIGH, CRITICAL]
+
+    AllowedAction:
+      type: string
+      enum: [approve, reject, acknowledge, snooze, delegate, open]
+
+    ChainVerification:
+      type: object
+      required: [intact, count, anchored_head_matches]
+      properties:
+        intact:
+          type: boolean
+        count:
+          type: integer
+          minimum: 0
+          description: Rows walked
+        first_break:
+          type: object
+          description: Present only when `intact` is false; the first row whose hash or prev_hash failed (B6, B7)
+          required: [chain_seq, table, row_id]
+          properties:
+            chain_seq:
+              type: integer
+            table:
+              type: string
+            row_id:
+              type: string
+            reason:
+              type: string
+        anchored_head_matches:
+          type: boolean
+          description: Recomputed head at each anchored chain_seq equals the anchored value (B11)
+
+    AuditEvent:
+      type: object
+      required: [event_id, type, at, actor, chain_seq, hash]
+      properties:
+        event_id:
+          type: string
+        type:
+          type: string
+        at:
+          type: string
+          format: date-time
+          description: Database-assigned (B8)
+        actor:
+          $ref: "#/components/schemas/Actor"
+        ref:
+          type: string
+        before:
+          type: object
+          additionalProperties: true
+        after:
+          type: object
+          additionalProperties: true
+        chain_seq:
+          type: integer
+        prev_hash:
+          type: string
+        hash:
+          type: string

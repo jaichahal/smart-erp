@@ -1,6 +1,6 @@
 Team Lead Status - 2026-09-25 20:15 UTC+4 sweep
 
-Integration (integration/e2e worktree): HEAD13066fc. New commits this round:
+Integration (integration/e2e worktree): HEAD e76b090. New commits this round:
 - 59f436e "Merge task/build-ledger into integration/e2e." Ledger 5faa71d
   verified green first (go test ./internal/ledger/... ok, incl. periods).
   Router auto-merged correctly: ledger.Mount outside auth, approvals + stock +

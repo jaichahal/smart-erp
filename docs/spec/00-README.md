@@ -16,6 +16,9 @@ This folder is the hand-off to the delivery team. The rationale behind every dec
 - `08-acceptance-tests.md`: invariants that must hold, as one-line assertions grouped by area, to be automated first.
 - `09-glossary.md`: terms, roles, abbreviations.
 - `10-execution-playbook.md`: how agents turn this spec into software. Test-driven development, Working baseline, and Mobile UI automation in that file are the execution rules.
+- `14-crm.md`: Phase 10 CRM. Leads and pipeline that convert into the existing customer master. Starts after Phase 3.
+- `15-hr.md`: Phase 11 HR. Employees, documents expiry, and leave on the existing approval engine. Starts after the approval engine and cost centres exist.
+- `16-payroll.md`: Phase 12 Payroll. UAE monthly pay, WPS file, and a gratuity or pension path, posted through the existing ledger. Depends on Phase 11.
 
 ## How to use this spec
 

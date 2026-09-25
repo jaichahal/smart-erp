@@ -24,6 +24,7 @@ import (
 	"github.com/jaichahal/smart-erp/apps/api/internal/kit/apierr"
 	"github.com/jaichahal/smart-erp/apps/api/internal/kit/httpx"
 	periods "github.com/jaichahal/smart-erp/apps/api/internal/ledger/periods"
+	"github.com/jaichahal/smart-erp/apps/api/internal/masters"
 	"github.com/jaichahal/smart-erp/apps/api/internal/notifications"
 )
 
@@ -84,6 +85,7 @@ func Handler(deps httpx.Deps, opts ...Option) (http.Handler, error) {
 			return
 		}
 		journeys.Mount(v1, deps)
+		masters.Mount(v1, deps)
 	})
 	if mountErr != nil {
 		return nil, mountErr

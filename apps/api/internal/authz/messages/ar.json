@@ -1,0 +1,12 @@
+{
+  "auth.required": "يلزم تسجيل الدخول",
+  "permission.denied": "ليست لديك صلاحية لهذا الإجراء",
+  "sod.violation": "هذه الأدوار متعارضة وفق مصفوفة فصل المهام",
+  "validation.body": "نص الطلب غير صالح",
+  "validation.if_match": "يلزم ترويسة If-Match مع رقم إصدار الحالة",
+  "validation.field": "أحد الحقول غير صالح",
+  "validation.role": "أحد الأدوار غير معروف",
+  "not_found": "السجل غير موجود",
+  "conflict.state": "تعارض في رقم إصدار الحالة",
+  "internal": "خطأ داخلي"
+}

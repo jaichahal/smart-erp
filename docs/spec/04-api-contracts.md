@@ -1,8 +1,15 @@
 # 04 API Contracts
 
-Version 1.1.0. Frozen. This file changes before code does. Additive changes bump the minor version; breaking changes bump the major version and carry a migration note. Server and clients generate types from the OpenAPI document that this file governs; the OpenAPI file is the machine form, this file is the human form and wins on conflict until the OpenAPI is regenerated.
+Version 1.1.0. This file changes before code does. Additive changes bump the minor version; breaking changes bump the major version and carry a migration note. Server and clients generate types from the OpenAPI document that this file governs; the OpenAPI file is the machine form, this file is the human form and wins on conflict until the OpenAPI is regenerated.
 
-1.1.0 (additive, 2026-09-25): `GET /me/sessions` and `DELETE /me/sessions/{id}` with schema `UserSession`. No migration for clients of 1.0.0; the new routes are optional to call. Required so session listing and remote revocation (R1.15, A9) have a contract before the identity implementation.
+## Changelog
+
+### 1.1.0
+
+Additive. Combines the identity session routes and the authorisation matrices. No migration for clients of 1.0.0.
+
+- `GET /me/sessions` and `DELETE /me/sessions/{id}` with schema `UserSession`. Session listing and remote revocation (R1.15, A9).
+- `/sod-matrix` and `/approval-matrix`, previously named under Masters with no operation or schema. Writes send `If-Match` with `state_version` (`0` on create) and are stored as `pending_approval` until an approval request is decided. No existing schema changes shape.
 
 ## Transport
 
@@ -94,6 +101,8 @@ Draft body shape per family follows `03-domain-model.md`; the OpenAPI file carri
 ### Masters
 
 - `GET|POST /customers`, `/vendors`, `/skus`, `/price-lists`, `/price-agreements`, `/tax-codes`, `/accounts`, `/dimensions`, `/posting-rules`, `/holiday-calendar`, `/print-formats`, `/alert-rules`, `/approval-matrix`, `/sod-matrix`. Mutations on sensitive masters create an approval request. `GET /{master}/{id}/versions`.
+- `GET|POST /sod-matrix`. A row is `{ id, kind: role_pair|action_pair, left_code, right_code, state_version, status: active|pending_approval, approval_request_id? }`. `role_pair` lists two roles one person must not hold. `action_pair` lists two actions one person must not both perform on a document: enter and approve; receive and count; create vendor and pay vendor; request correction and approve correction. `POST` body is `{ kind, left_code, right_code }` with `If-Match: <state_version>` (`0` on create) and `Idempotency-Key`. The stored status is `pending_approval` until the approval engine decides. Assigning a pair that an `active` rule forbids returns `403 SOD_VIOLATION` unless the caller cites an override approval; the override and the refusal are audited (A14).
+- `GET|POST /approval-matrix`. A row is `{ id, document_type, threshold: Money, below_threshold_role, first_approver_role, final_gate_role, voting_any?, voting_of?, state_version, status, approval_request_id? }`. Below the threshold any one holder of `below_threshold_role` may register; at or above it, `first_approver_role` then `final_gate_role` (R2.2). `voting_any` and `voting_of` are the optional "any N of M" tier. `POST` uses the same idempotency and `If-Match` rules as `/sod-matrix` and stays `pending_approval` until decided.
 - `POST /imports` multipart with `type`, returns `{ import_id, preview[], rejected[] }`; `POST /imports/{id}/commit`.
 
 ### Analytics

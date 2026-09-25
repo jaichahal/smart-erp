@@ -62,6 +62,24 @@ func (e ApprovalDetailDecisionsDecision) Valid() bool {
 	}
 }
 
+// Defines values for ApprovalMatrixRuleStatus.
+const (
+	ApprovalMatrixRuleStatusActive          ApprovalMatrixRuleStatus = "active"
+	ApprovalMatrixRuleStatusPendingApproval ApprovalMatrixRuleStatus = "pending_approval"
+)
+
+// Valid indicates whether the value is a known member of the ApprovalMatrixRuleStatus enum.
+func (e ApprovalMatrixRuleStatus) Valid() bool {
+	switch e {
+	case ApprovalMatrixRuleStatusActive:
+		return true
+	case ApprovalMatrixRuleStatusPendingApproval:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ApprovalState.
 const (
 	ApprovalStateApproved  ApprovalState = "approved"
@@ -245,6 +263,60 @@ func (e Severity) Valid() bool {
 	}
 }
 
+// Defines values for SodRuleKind.
+const (
+	SodRuleKindActionPair SodRuleKind = "action_pair"
+	SodRuleKindRolePair   SodRuleKind = "role_pair"
+)
+
+// Valid indicates whether the value is a known member of the SodRuleKind enum.
+func (e SodRuleKind) Valid() bool {
+	switch e {
+	case SodRuleKindActionPair:
+		return true
+	case SodRuleKindRolePair:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for SodRuleStatus.
+const (
+	SodRuleStatusActive          SodRuleStatus = "active"
+	SodRuleStatusPendingApproval SodRuleStatus = "pending_approval"
+)
+
+// Valid indicates whether the value is a known member of the SodRuleStatus enum.
+func (e SodRuleStatus) Valid() bool {
+	switch e {
+	case SodRuleStatusActive:
+		return true
+	case SodRuleStatusPendingApproval:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for SodRuleWriteKind.
+const (
+	SodRuleWriteKindActionPair SodRuleWriteKind = "action_pair"
+	SodRuleWriteKindRolePair   SodRuleWriteKind = "role_pair"
+)
+
+// Valid indicates whether the value is a known member of the SodRuleWriteKind enum.
+func (e SodRuleWriteKind) Valid() bool {
+	switch e {
+	case SodRuleWriteKindActionPair:
+		return true
+	case SodRuleWriteKindRolePair:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for StatusResponseRecoveryPointInForce.
 const (
 	N15m StatusResponseRecoveryPointInForce = "15m"
@@ -338,6 +410,42 @@ func (e AcceptLanguage) Valid() bool {
 	case AcceptLanguageAr:
 		return true
 	case AcceptLanguageEn:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ListApprovalMatrixParamsAcceptLanguage.
+const (
+	ListApprovalMatrixParamsAcceptLanguageAr ListApprovalMatrixParamsAcceptLanguage = "ar"
+	ListApprovalMatrixParamsAcceptLanguageEn ListApprovalMatrixParamsAcceptLanguage = "en"
+)
+
+// Valid indicates whether the value is a known member of the ListApprovalMatrixParamsAcceptLanguage enum.
+func (e ListApprovalMatrixParamsAcceptLanguage) Valid() bool {
+	switch e {
+	case ListApprovalMatrixParamsAcceptLanguageAr:
+		return true
+	case ListApprovalMatrixParamsAcceptLanguageEn:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for CreateApprovalMatrixRuleParamsAcceptLanguage.
+const (
+	CreateApprovalMatrixRuleParamsAcceptLanguageAr CreateApprovalMatrixRuleParamsAcceptLanguage = "ar"
+	CreateApprovalMatrixRuleParamsAcceptLanguageEn CreateApprovalMatrixRuleParamsAcceptLanguage = "en"
+)
+
+// Valid indicates whether the value is a known member of the CreateApprovalMatrixRuleParamsAcceptLanguage enum.
+func (e CreateApprovalMatrixRuleParamsAcceptLanguage) Valid() bool {
+	switch e {
+	case CreateApprovalMatrixRuleParamsAcceptLanguageAr:
+		return true
+	case CreateApprovalMatrixRuleParamsAcceptLanguageEn:
 		return true
 	default:
 		return false
@@ -728,6 +836,42 @@ func (e EndMySessionParamsAcceptLanguage) Valid() bool {
 	}
 }
 
+// Defines values for ListSodMatrixParamsAcceptLanguage.
+const (
+	ListSodMatrixParamsAcceptLanguageAr ListSodMatrixParamsAcceptLanguage = "ar"
+	ListSodMatrixParamsAcceptLanguageEn ListSodMatrixParamsAcceptLanguage = "en"
+)
+
+// Valid indicates whether the value is a known member of the ListSodMatrixParamsAcceptLanguage enum.
+func (e ListSodMatrixParamsAcceptLanguage) Valid() bool {
+	switch e {
+	case ListSodMatrixParamsAcceptLanguageAr:
+		return true
+	case ListSodMatrixParamsAcceptLanguageEn:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for CreateSodRuleParamsAcceptLanguage.
+const (
+	CreateSodRuleParamsAcceptLanguageAr CreateSodRuleParamsAcceptLanguage = "ar"
+	CreateSodRuleParamsAcceptLanguageEn CreateSodRuleParamsAcceptLanguage = "en"
+)
+
+// Valid indicates whether the value is a known member of the CreateSodRuleParamsAcceptLanguage enum.
+func (e CreateSodRuleParamsAcceptLanguage) Valid() bool {
+	switch e {
+	case CreateSodRuleParamsAcceptLanguageAr:
+		return true
+	case CreateSodRuleParamsAcceptLanguageEn:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for GetStatusParamsAcceptLanguage.
 const (
 	GetStatusParamsAcceptLanguageAr GetStatusParamsAcceptLanguage = "ar"
@@ -822,6 +966,49 @@ type ApprovalDetail struct {
 
 // ApprovalDetailDecisionsDecision defines model for ApprovalDetail.Decisions.Decision.
 type ApprovalDetailDecisionsDecision string
+
+// ApprovalMatrixRule Approval routing for one document type (R2.2). The engine that consumes it is the approvals module.
+type ApprovalMatrixRule struct {
+	ApprovalRequestId *string `json:"approval_request_id,omitempty"`
+
+	// BelowThresholdRole Any one holder of this role may register the document below the threshold
+	BelowThresholdRole string `json:"below_threshold_role"`
+	DocumentType       string `json:"document_type"`
+
+	// FinalGateRole Named final gate; not delegable
+	FinalGateRole string `json:"final_gate_role"`
+
+	// FirstApproverRole Independent first approver at or above the threshold
+	FirstApproverRole string             `json:"first_approver_role"`
+	Id                openapi_types.UUID `json:"id"`
+
+	// StateVersion Optimistic concurrency version; bumped on every transition
+	StateVersion StateVersion             `json:"state_version"`
+	Status       ApprovalMatrixRuleStatus `json:"status"`
+
+	// Threshold At or above this amount the first approver and the final gate both apply
+	Threshold Money `json:"threshold"`
+
+	// VotingAny When set with `voting_of`, the company requires any N of M
+	VotingAny *int `json:"voting_any,omitempty"`
+	VotingOf  *int `json:"voting_of,omitempty"`
+}
+
+// ApprovalMatrixRuleStatus defines model for ApprovalMatrixRule.Status.
+type ApprovalMatrixRuleStatus string
+
+// ApprovalMatrixRuleWrite defines model for ApprovalMatrixRuleWrite.
+type ApprovalMatrixRuleWrite struct {
+	BelowThresholdRole string `json:"below_threshold_role"`
+	DocumentType       string `json:"document_type"`
+	FinalGateRole      string `json:"final_gate_role"`
+	FirstApproverRole  string `json:"first_approver_role"`
+
+	// Threshold Decimal amount as a string plus an ISO 4217 currency code. Never a float.
+	Threshold Money `json:"threshold"`
+	VotingAny *int  `json:"voting_any,omitempty"`
+	VotingOf  *int  `json:"voting_of,omitempty"`
+}
 
 // ApprovalState defines model for ApprovalState.
 type ApprovalState string
@@ -961,6 +1148,46 @@ type Platform string
 // Severity defines model for Severity.
 type Severity string
 
+// SodRule One row of the segregation-of-duties matrix (R1.13).
+type SodRule struct {
+	// ApprovalRequestId Set when the mutation is waiting on the approval engine
+	ApprovalRequestId *string            `json:"approval_request_id,omitempty"`
+	Id                openapi_types.UUID `json:"id"`
+
+	// Kind `role_pair` is two roles one person must not hold together. `action_pair` is two
+	// actions one person must not both perform on a document (enter and approve, receive
+	// and count, create vendor and pay vendor, request correction and approve correction).
+	Kind SodRuleKind `json:"kind"`
+
+	// LeftCode Role name or permission code
+	LeftCode string `json:"left_code"`
+
+	// RightCode Role name or permission code
+	RightCode string `json:"right_code"`
+
+	// StateVersion Optimistic concurrency version; bumped on every transition
+	StateVersion StateVersion  `json:"state_version"`
+	Status       SodRuleStatus `json:"status"`
+}
+
+// SodRuleKind `role_pair` is two roles one person must not hold together. `action_pair` is two
+// actions one person must not both perform on a document (enter and approve, receive
+// and count, create vendor and pay vendor, request correction and approve correction).
+type SodRuleKind string
+
+// SodRuleStatus defines model for SodRule.Status.
+type SodRuleStatus string
+
+// SodRuleWrite defines model for SodRuleWrite.
+type SodRuleWrite struct {
+	Kind      SodRuleWriteKind `json:"kind"`
+	LeftCode  string           `json:"left_code"`
+	RightCode string           `json:"right_code"`
+}
+
+// SodRuleWriteKind defines model for SodRuleWrite.Kind.
+type SodRuleWriteKind string
+
 // StateVersion Optimistic concurrency version; bumped on every transition
 type StateVersion = int
 
@@ -1082,6 +1309,36 @@ type Unauthorized = ErrorEnvelope
 
 // Unavailable Returned on every failure path including 429 and gateway errors (A17).
 type Unavailable = ErrorEnvelope
+
+// ListApprovalMatrixParams defines parameters for ListApprovalMatrix.
+type ListApprovalMatrixParams struct {
+	// Cursor Opaque cursor from `meta.next_cursor` of the previous page.
+	Cursor *Cursor `form:"cursor,omitempty" json:"cursor,omitempty"`
+	Limit  *Limit  `form:"limit,omitempty" json:"limit,omitempty"`
+
+	// AcceptLanguage `en` or `ar`. Affects messages and print formats, never data.
+	AcceptLanguage *ListApprovalMatrixParamsAcceptLanguage `json:"Accept-Language,omitempty"`
+}
+
+// ListApprovalMatrixParamsAcceptLanguage defines parameters for ListApprovalMatrix.
+type ListApprovalMatrixParamsAcceptLanguage string
+
+// CreateApprovalMatrixRuleParams defines parameters for CreateApprovalMatrixRule.
+type CreateApprovalMatrixRuleParams struct {
+	// IdempotencyKey UUID chosen by the client. The server stores the response for 24 hours and replays it for a
+	// repeated key with the same body; a different body with the same key is `409 CONFLICT`.
+	IdempotencyKey IdempotencyKey `json:"Idempotency-Key"`
+
+	// IfMatch The `state_version` the client last saw. A mismatch is `409 CONFLICT` with the current
+	// state in `error.details.current`.
+	IfMatch *IfMatch `json:"If-Match,omitempty"`
+
+	// AcceptLanguage `en` or `ar`. Affects messages and print formats, never data.
+	AcceptLanguage *CreateApprovalMatrixRuleParamsAcceptLanguage `json:"Accept-Language,omitempty"`
+}
+
+// CreateApprovalMatrixRuleParamsAcceptLanguage defines parameters for CreateApprovalMatrixRule.
+type CreateApprovalMatrixRuleParamsAcceptLanguage string
 
 // ListApprovalInboxParams defines parameters for ListApprovalInbox.
 type ListApprovalInboxParams struct {
@@ -1412,6 +1669,36 @@ type EndMySessionParams struct {
 // EndMySessionParamsAcceptLanguage defines parameters for EndMySession.
 type EndMySessionParamsAcceptLanguage string
 
+// ListSodMatrixParams defines parameters for ListSodMatrix.
+type ListSodMatrixParams struct {
+	// Cursor Opaque cursor from `meta.next_cursor` of the previous page.
+	Cursor *Cursor `form:"cursor,omitempty" json:"cursor,omitempty"`
+	Limit  *Limit  `form:"limit,omitempty" json:"limit,omitempty"`
+
+	// AcceptLanguage `en` or `ar`. Affects messages and print formats, never data.
+	AcceptLanguage *ListSodMatrixParamsAcceptLanguage `json:"Accept-Language,omitempty"`
+}
+
+// ListSodMatrixParamsAcceptLanguage defines parameters for ListSodMatrix.
+type ListSodMatrixParamsAcceptLanguage string
+
+// CreateSodRuleParams defines parameters for CreateSodRule.
+type CreateSodRuleParams struct {
+	// IdempotencyKey UUID chosen by the client. The server stores the response for 24 hours and replays it for a
+	// repeated key with the same body; a different body with the same key is `409 CONFLICT`.
+	IdempotencyKey IdempotencyKey `json:"Idempotency-Key"`
+
+	// IfMatch The `state_version` the client last saw. A mismatch is `409 CONFLICT` with the current
+	// state in `error.details.current`.
+	IfMatch *IfMatch `json:"If-Match,omitempty"`
+
+	// AcceptLanguage `en` or `ar`. Affects messages and print formats, never data.
+	AcceptLanguage *CreateSodRuleParamsAcceptLanguage `json:"Accept-Language,omitempty"`
+}
+
+// CreateSodRuleParamsAcceptLanguage defines parameters for CreateSodRule.
+type CreateSodRuleParamsAcceptLanguage string
+
 // GetStatusParams defines parameters for GetStatus.
 type GetStatusParams struct {
 	// AcceptLanguage `en` or `ar`. Affects messages and print formats, never data.
@@ -1420,6 +1707,9 @@ type GetStatusParams struct {
 
 // GetStatusParamsAcceptLanguage defines parameters for GetStatus.
 type GetStatusParamsAcceptLanguage string
+
+// CreateApprovalMatrixRuleJSONRequestBody defines body for CreateApprovalMatrixRule for application/json ContentType.
+type CreateApprovalMatrixRuleJSONRequestBody = ApprovalMatrixRuleWrite
 
 // ApproveApprovalJSONRequestBody defines body for ApproveApproval for application/json ContentType.
 type ApproveApprovalJSONRequestBody ApproveApprovalJSONBody
@@ -1447,6 +1737,9 @@ type IssueTokenJSONRequestBody IssueTokenJSONBody
 
 // RegisterPushTokenJSONRequestBody defines body for RegisterPushToken for application/json ContentType.
 type RegisterPushTokenJSONRequestBody RegisterPushTokenJSONBody
+
+// CreateSodRuleJSONRequestBody defines body for CreateSodRule for application/json ContentType.
+type CreateSodRuleJSONRequestBody = SodRuleWrite
 
 // Getter for additional properties for DecisionMeta. Returns the specified
 // element and whether it was found

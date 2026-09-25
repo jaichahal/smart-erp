@@ -82,6 +82,10 @@ func TestAcceptanceCatalog(t *testing.T) {
 	}
 }
 
+func registerAcceptance(id string, fn func(*testing.T, *stack)) {
+	acceptanceScenarios[id] = fn
+}
+
 func probe(t *testing.T, s *stack, task, id, sentence string) {
 	t.Helper()
 	if fn := dedicatedAcceptance[id]; fn != nil {

@@ -945,6 +945,11 @@ func userSession(view sessionView, current bool) oapi.UserSession {
 	}
 }
 
+// Authenticate requires a bearer token or console cookie and stores the RLS principal.
+func (s *Service) Authenticate(next http.Handler) http.Handler {
+	return s.authenticate(next)
+}
+
 func (s *Service) authenticate(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx, err := s.authContext(r)

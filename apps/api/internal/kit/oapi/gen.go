@@ -11,6 +11,42 @@ import (
 	openapi_types "github.com/oapi-codegen/runtime/types"
 )
 
+// Defines values for AlertRuleMode.
+const (
+	AlertRuleModeAdvisory AlertRuleMode = "advisory"
+	AlertRuleModeBlocking AlertRuleMode = "blocking"
+)
+
+// Valid indicates whether the value is a known member of the AlertRuleMode enum.
+func (e AlertRuleMode) Valid() bool {
+	switch e {
+	case AlertRuleModeAdvisory:
+		return true
+	case AlertRuleModeBlocking:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AlertRuleInputMode.
+const (
+	AlertRuleInputModeAdvisory AlertRuleInputMode = "advisory"
+	AlertRuleInputModeBlocking AlertRuleInputMode = "blocking"
+)
+
+// Valid indicates whether the value is a known member of the AlertRuleInputMode enum.
+func (e AlertRuleInputMode) Valid() bool {
+	switch e {
+	case AlertRuleInputModeAdvisory:
+		return true
+	case AlertRuleInputModeBlocking:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for AllowedAction.
 const (
 	AllowedActionAcknowledge AllowedAction = "acknowledge"
@@ -212,6 +248,30 @@ func (e HealthResponseStatus) Valid() bool {
 	case HealthResponseStatusOk:
 		return true
 	case HealthResponseStatusUnavailable:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for NotificationPreferencesChannelsChannel.
+const (
+	Digest    NotificationPreferencesChannelsChannel = "digest"
+	Email     NotificationPreferencesChannelsChannel = "email"
+	Push      NotificationPreferencesChannelsChannel = "push"
+	Websocket NotificationPreferencesChannelsChannel = "websocket"
+)
+
+// Valid indicates whether the value is a known member of the NotificationPreferencesChannelsChannel enum.
+func (e NotificationPreferencesChannelsChannel) Valid() bool {
+	switch e {
+	case Digest:
+		return true
+	case Email:
+		return true
+	case Push:
+		return true
+	case Websocket:
 		return true
 	default:
 		return false
@@ -488,6 +548,42 @@ func (e AcceptLanguage) Valid() bool {
 	}
 }
 
+// Defines values for ListAlertRulesParamsAcceptLanguage.
+const (
+	ListAlertRulesParamsAcceptLanguageAr ListAlertRulesParamsAcceptLanguage = "ar"
+	ListAlertRulesParamsAcceptLanguageEn ListAlertRulesParamsAcceptLanguage = "en"
+)
+
+// Valid indicates whether the value is a known member of the ListAlertRulesParamsAcceptLanguage enum.
+func (e ListAlertRulesParamsAcceptLanguage) Valid() bool {
+	switch e {
+	case ListAlertRulesParamsAcceptLanguageAr:
+		return true
+	case ListAlertRulesParamsAcceptLanguageEn:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for CreateAlertRuleParamsAcceptLanguage.
+const (
+	CreateAlertRuleParamsAcceptLanguageAr CreateAlertRuleParamsAcceptLanguage = "ar"
+	CreateAlertRuleParamsAcceptLanguageEn CreateAlertRuleParamsAcceptLanguage = "en"
+)
+
+// Valid indicates whether the value is a known member of the CreateAlertRuleParamsAcceptLanguage enum.
+func (e CreateAlertRuleParamsAcceptLanguage) Valid() bool {
+	switch e {
+	case CreateAlertRuleParamsAcceptLanguageAr:
+		return true
+	case CreateAlertRuleParamsAcceptLanguageEn:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ListApprovalMatrixParamsAcceptLanguage.
 const (
 	ListApprovalMatrixParamsAcceptLanguageAr ListApprovalMatrixParamsAcceptLanguage = "ar"
@@ -526,19 +622,19 @@ func (e CreateApprovalMatrixRuleParamsAcceptLanguage) Valid() bool {
 
 // Defines values for ListApprovalInboxParamsState.
 const (
-	Fyi             ListApprovalInboxParamsState = "fyi"
-	NeedsMe         ListApprovalInboxParamsState = "needs_me"
-	WaitingOnOthers ListApprovalInboxParamsState = "waiting_on_others"
+	ListApprovalInboxParamsStateFyi             ListApprovalInboxParamsState = "fyi"
+	ListApprovalInboxParamsStateNeedsMe         ListApprovalInboxParamsState = "needs_me"
+	ListApprovalInboxParamsStateWaitingOnOthers ListApprovalInboxParamsState = "waiting_on_others"
 )
 
 // Valid indicates whether the value is a known member of the ListApprovalInboxParamsState enum.
 func (e ListApprovalInboxParamsState) Valid() bool {
 	switch e {
-	case Fyi:
+	case ListApprovalInboxParamsStateFyi:
 		return true
-	case NeedsMe:
+	case ListApprovalInboxParamsStateNeedsMe:
 		return true
-	case WaitingOnOthers:
+	case ListApprovalInboxParamsStateWaitingOnOthers:
 		return true
 	default:
 		return false
@@ -908,6 +1004,42 @@ func (e GetMeParamsAcceptLanguage) Valid() bool {
 	}
 }
 
+// Defines values for GetNotificationPreferencesParamsAcceptLanguage.
+const (
+	GetNotificationPreferencesParamsAcceptLanguageAr GetNotificationPreferencesParamsAcceptLanguage = "ar"
+	GetNotificationPreferencesParamsAcceptLanguageEn GetNotificationPreferencesParamsAcceptLanguage = "en"
+)
+
+// Valid indicates whether the value is a known member of the GetNotificationPreferencesParamsAcceptLanguage enum.
+func (e GetNotificationPreferencesParamsAcceptLanguage) Valid() bool {
+	switch e {
+	case GetNotificationPreferencesParamsAcceptLanguageAr:
+		return true
+	case GetNotificationPreferencesParamsAcceptLanguageEn:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PutNotificationPreferencesParamsAcceptLanguage.
+const (
+	PutNotificationPreferencesParamsAcceptLanguageAr PutNotificationPreferencesParamsAcceptLanguage = "ar"
+	PutNotificationPreferencesParamsAcceptLanguageEn PutNotificationPreferencesParamsAcceptLanguage = "en"
+)
+
+// Valid indicates whether the value is a known member of the PutNotificationPreferencesParamsAcceptLanguage enum.
+func (e PutNotificationPreferencesParamsAcceptLanguage) Valid() bool {
+	switch e {
+	case PutNotificationPreferencesParamsAcceptLanguageAr:
+		return true
+	case PutNotificationPreferencesParamsAcceptLanguageEn:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ListMySessionsParamsAcceptLanguage.
 const (
 	ListMySessionsParamsAcceptLanguageAr ListMySessionsParamsAcceptLanguage = "ar"
@@ -938,6 +1070,63 @@ func (e EndMySessionParamsAcceptLanguage) Valid() bool {
 	case EndMySessionParamsAcceptLanguageAr:
 		return true
 	case EndMySessionParamsAcceptLanguageEn:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ListNotificationsParamsGroup.
+const (
+	ListNotificationsParamsGroupFyi     ListNotificationsParamsGroup = "fyi"
+	ListNotificationsParamsGroupNeedsMe ListNotificationsParamsGroup = "needs_me"
+	ListNotificationsParamsGroupWaiting ListNotificationsParamsGroup = "waiting"
+)
+
+// Valid indicates whether the value is a known member of the ListNotificationsParamsGroup enum.
+func (e ListNotificationsParamsGroup) Valid() bool {
+	switch e {
+	case ListNotificationsParamsGroupFyi:
+		return true
+	case ListNotificationsParamsGroupNeedsMe:
+		return true
+	case ListNotificationsParamsGroupWaiting:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ListNotificationsParamsAcceptLanguage.
+const (
+	ListNotificationsParamsAcceptLanguageAr ListNotificationsParamsAcceptLanguage = "ar"
+	ListNotificationsParamsAcceptLanguageEn ListNotificationsParamsAcceptLanguage = "en"
+)
+
+// Valid indicates whether the value is a known member of the ListNotificationsParamsAcceptLanguage enum.
+func (e ListNotificationsParamsAcceptLanguage) Valid() bool {
+	switch e {
+	case ListNotificationsParamsAcceptLanguageAr:
+		return true
+	case ListNotificationsParamsAcceptLanguageEn:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AcknowledgeNotificationParamsAcceptLanguage.
+const (
+	AcknowledgeNotificationParamsAcceptLanguageAr AcknowledgeNotificationParamsAcceptLanguage = "ar"
+	AcknowledgeNotificationParamsAcceptLanguageEn AcknowledgeNotificationParamsAcceptLanguage = "en"
+)
+
+// Valid indicates whether the value is a known member of the AcknowledgeNotificationParamsAcceptLanguage enum.
+func (e AcknowledgeNotificationParamsAcceptLanguage) Valid() bool {
+	switch e {
+	case AcknowledgeNotificationParamsAcceptLanguageAr:
+		return true
+	case AcknowledgeNotificationParamsAcceptLanguageEn:
 		return true
 	default:
 		return false
@@ -1052,11 +1241,59 @@ func (e GetStatusParamsAcceptLanguage) Valid() bool {
 	}
 }
 
+// Defines values for SubscribeEventsParamsAcceptLanguage.
+const (
+	SubscribeEventsParamsAcceptLanguageAr SubscribeEventsParamsAcceptLanguage = "ar"
+	SubscribeEventsParamsAcceptLanguageEn SubscribeEventsParamsAcceptLanguage = "en"
+)
+
+// Valid indicates whether the value is a known member of the SubscribeEventsParamsAcceptLanguage enum.
+func (e SubscribeEventsParamsAcceptLanguage) Valid() bool {
+	switch e {
+	case SubscribeEventsParamsAcceptLanguageAr:
+		return true
+	case SubscribeEventsParamsAcceptLanguageEn:
+		return true
+	default:
+		return false
+	}
+}
+
 // Actor defines model for Actor.
 type Actor struct {
 	Id   string `json:"id"`
 	Name string `json:"name"`
 }
+
+// AlertRule defines model for AlertRule.
+type AlertRule struct {
+	Builtin        *bool                  `json:"builtin,omitempty"`
+	Channel        string                 `json:"channel"`
+	Condition      map[string]interface{} `json:"condition"`
+	DocumentType   string                 `json:"document_type"`
+	Enabled        bool                   `json:"enabled"`
+	Id             string                 `json:"id"`
+	Mode           AlertRuleMode          `json:"mode"`
+	RecipientRoles []string               `json:"recipient_roles"`
+	Severity       Severity               `json:"severity"`
+}
+
+// AlertRuleMode defines model for AlertRule.Mode.
+type AlertRuleMode string
+
+// AlertRuleInput defines model for AlertRuleInput.
+type AlertRuleInput struct {
+	Builtin        *bool                  `json:"builtin,omitempty"`
+	Channel        string                 `json:"channel"`
+	Condition      map[string]interface{} `json:"condition"`
+	DocumentType   string                 `json:"document_type"`
+	Mode           AlertRuleInputMode     `json:"mode"`
+	RecipientRoles []string               `json:"recipient_roles"`
+	Severity       Severity               `json:"severity"`
+}
+
+// AlertRuleInputMode defines model for AlertRuleInput.Mode.
+type AlertRuleInputMode string
 
 // AllowedAction defines model for AllowedAction.
 type AllowedAction string
@@ -1329,6 +1566,42 @@ type Money struct {
 	Currency string `json:"currency"`
 }
 
+// NotificationItem defines model for NotificationItem.
+type NotificationItem struct {
+	AllowedActions []AllowedAction `json:"allowed_actions"`
+	Amount         *Money          `json:"amount,omitempty"`
+	DeepLink       string          `json:"deep_link"`
+	DocNumber      *string         `json:"doc_number,omitempty"`
+	DocType        string          `json:"doc_type"`
+	EventId        string          `json:"event_id"`
+	Party          *string         `json:"party,omitempty"`
+	Requester      Actor           `json:"requester"`
+	Severity       Severity        `json:"severity"`
+	WaitingSince   time.Time       `json:"waiting_since"`
+}
+
+// NotificationPreferences defines model for NotificationPreferences.
+type NotificationPreferences struct {
+	Channels *[]struct {
+		Channel   NotificationPreferencesChannelsChannel `json:"channel"`
+		DeviceId  *string                                `json:"device_id,omitempty"`
+		Enabled   bool                                   `json:"enabled"`
+		EventType string                                 `json:"event_type"`
+	} `json:"channels,omitempty"`
+	QuietHours *struct {
+		End *string `json:"end,omitempty"`
+
+		// Start Local time HH:MM
+		Start *string `json:"start,omitempty"`
+
+		// Zone IANA time zone. Critical is never suppressed inside the window.
+		Zone *string `json:"zone,omitempty"`
+	} `json:"quiet_hours,omitempty"`
+}
+
+// NotificationPreferencesChannelsChannel defines model for NotificationPreferences.Channels.Channel.
+type NotificationPreferencesChannelsChannel string
+
 // PageMeta Meta for list responses. `total` is present only where cheap.
 type PageMeta struct {
 	// AsOf Server time the response was computed, UTC
@@ -1500,6 +1773,9 @@ type ApprovalId = string
 // Cursor defines model for Cursor.
 type Cursor = string
 
+// EventId defines model for EventId.
+type EventId = string
+
 // FiscalYear defines model for FiscalYear.
 type FiscalYear = int
 
@@ -1547,6 +1823,30 @@ type Unauthorized = ErrorEnvelope
 
 // Unavailable Returned on every failure path including 429 and gateway errors (A17).
 type Unavailable = ErrorEnvelope
+
+// ListAlertRulesParams defines parameters for ListAlertRules.
+type ListAlertRulesParams struct {
+	DocumentType *string `form:"document_type,omitempty" json:"document_type,omitempty"`
+
+	// AcceptLanguage `en` or `ar`. Affects messages and print formats, never data.
+	AcceptLanguage *ListAlertRulesParamsAcceptLanguage `json:"Accept-Language,omitempty"`
+}
+
+// ListAlertRulesParamsAcceptLanguage defines parameters for ListAlertRules.
+type ListAlertRulesParamsAcceptLanguage string
+
+// CreateAlertRuleParams defines parameters for CreateAlertRule.
+type CreateAlertRuleParams struct {
+	// IdempotencyKey UUID chosen by the client. The server stores the response for 24 hours and replays it for a
+	// repeated key with the same body; a different body with the same key is `409 CONFLICT`.
+	IdempotencyKey IdempotencyKey `json:"Idempotency-Key"`
+
+	// AcceptLanguage `en` or `ar`. Affects messages and print formats, never data.
+	AcceptLanguage *CreateAlertRuleParamsAcceptLanguage `json:"Accept-Language,omitempty"`
+}
+
+// CreateAlertRuleParamsAcceptLanguage defines parameters for CreateAlertRule.
+type CreateAlertRuleParamsAcceptLanguage string
 
 // ListApprovalMatrixParams defines parameters for ListApprovalMatrix.
 type ListApprovalMatrixParams struct {
@@ -1904,6 +2204,28 @@ type GetMeParams struct {
 // GetMeParamsAcceptLanguage defines parameters for GetMe.
 type GetMeParamsAcceptLanguage string
 
+// GetNotificationPreferencesParams defines parameters for GetNotificationPreferences.
+type GetNotificationPreferencesParams struct {
+	// AcceptLanguage `en` or `ar`. Affects messages and print formats, never data.
+	AcceptLanguage *GetNotificationPreferencesParamsAcceptLanguage `json:"Accept-Language,omitempty"`
+}
+
+// GetNotificationPreferencesParamsAcceptLanguage defines parameters for GetNotificationPreferences.
+type GetNotificationPreferencesParamsAcceptLanguage string
+
+// PutNotificationPreferencesParams defines parameters for PutNotificationPreferences.
+type PutNotificationPreferencesParams struct {
+	// IdempotencyKey UUID chosen by the client. The server stores the response for 24 hours and replays it for a
+	// repeated key with the same body; a different body with the same key is `409 CONFLICT`.
+	IdempotencyKey IdempotencyKey `json:"Idempotency-Key"`
+
+	// AcceptLanguage `en` or `ar`. Affects messages and print formats, never data.
+	AcceptLanguage *PutNotificationPreferencesParamsAcceptLanguage `json:"Accept-Language,omitempty"`
+}
+
+// PutNotificationPreferencesParamsAcceptLanguage defines parameters for PutNotificationPreferences.
+type PutNotificationPreferencesParamsAcceptLanguage string
+
 // ListMySessionsParams defines parameters for ListMySessions.
 type ListMySessionsParams struct {
 	// Cursor Opaque cursor from `meta.next_cursor` of the previous page.
@@ -1933,6 +2255,34 @@ type EndMySessionParams struct {
 
 // EndMySessionParamsAcceptLanguage defines parameters for EndMySession.
 type EndMySessionParamsAcceptLanguage string
+
+// ListNotificationsParams defines parameters for ListNotifications.
+type ListNotificationsParams struct {
+	Group  *ListNotificationsParamsGroup `form:"group,omitempty" json:"group,omitempty"`
+	Cursor *string                       `form:"cursor,omitempty" json:"cursor,omitempty"`
+
+	// AcceptLanguage `en` or `ar`. Affects messages and print formats, never data.
+	AcceptLanguage *ListNotificationsParamsAcceptLanguage `json:"Accept-Language,omitempty"`
+}
+
+// ListNotificationsParamsGroup defines parameters for ListNotifications.
+type ListNotificationsParamsGroup string
+
+// ListNotificationsParamsAcceptLanguage defines parameters for ListNotifications.
+type ListNotificationsParamsAcceptLanguage string
+
+// AcknowledgeNotificationParams defines parameters for AcknowledgeNotification.
+type AcknowledgeNotificationParams struct {
+	// IdempotencyKey UUID chosen by the client. The server stores the response for 24 hours and replays it for a
+	// repeated key with the same body; a different body with the same key is `409 CONFLICT`.
+	IdempotencyKey IdempotencyKey `json:"Idempotency-Key"`
+
+	// AcceptLanguage `en` or `ar`. Affects messages and print formats, never data.
+	AcceptLanguage *AcknowledgeNotificationParamsAcceptLanguage `json:"Accept-Language,omitempty"`
+}
+
+// AcknowledgeNotificationParamsAcceptLanguage defines parameters for AcknowledgeNotification.
+type AcknowledgeNotificationParamsAcceptLanguage string
 
 // HardClosePeriodParams defines parameters for HardClosePeriod.
 type HardClosePeriodParams struct {
@@ -2027,6 +2377,18 @@ type GetStatusParams struct {
 // GetStatusParamsAcceptLanguage defines parameters for GetStatus.
 type GetStatusParamsAcceptLanguage string
 
+// SubscribeEventsParams defines parameters for SubscribeEvents.
+type SubscribeEventsParams struct {
+	// AcceptLanguage `en` or `ar`. Affects messages and print formats, never data.
+	AcceptLanguage *SubscribeEventsParamsAcceptLanguage `json:"Accept-Language,omitempty"`
+}
+
+// SubscribeEventsParamsAcceptLanguage defines parameters for SubscribeEvents.
+type SubscribeEventsParamsAcceptLanguage string
+
+// CreateAlertRuleJSONRequestBody defines body for CreateAlertRule for application/json ContentType.
+type CreateAlertRuleJSONRequestBody = AlertRuleInput
+
 // CreateApprovalMatrixRuleJSONRequestBody defines body for CreateApprovalMatrixRule for application/json ContentType.
 type CreateApprovalMatrixRuleJSONRequestBody = ApprovalMatrixRuleWrite
 
@@ -2059,6 +2421,9 @@ type RegisterPushTokenJSONRequestBody RegisterPushTokenJSONBody
 
 // PutHolidayCalendarJSONRequestBody defines body for PutHolidayCalendar for application/json ContentType.
 type PutHolidayCalendarJSONRequestBody = HolidayCalendarWrite
+
+// PutNotificationPreferencesJSONRequestBody defines body for PutNotificationPreferences for application/json ContentType.
+type PutNotificationPreferencesJSONRequestBody = NotificationPreferences
 
 // HardClosePeriodJSONRequestBody defines body for HardClosePeriod for application/json ContentType.
 type HardClosePeriodJSONRequestBody = PeriodApproval

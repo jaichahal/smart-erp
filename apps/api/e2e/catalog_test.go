@@ -68,8 +68,22 @@ func TestAcceptanceCatalog(t *testing.T) {
 	}
 }
 
+// acceptanceScenarios replaces the gap probe for one acceptance ID. Track
+// helpers register from e2e/eN_*.go. The gap probe only passes when the spec
+// sentence quotes an uppercase error code, so cases without one stay red until
+// a scenario proves the sentence.
+var acceptanceScenarios = map[string]func(*testing.T, *stack){}
+
+func registerAcceptance(id string, fn func(*testing.T, *stack)) {
+	acceptanceScenarios[id] = fn
+}
+
 func probe(t *testing.T, s *stack, task, id, sentence string) {
 	t.Helper()
+	if fn, ok := acceptanceScenarios[id]; ok {
+		fn(t, s)
+		return
+	}
 	method, path, want := probeFor(id, sentence)
 	status, code, raw := s.call(t, method, path, `{}`, nil)
 	if want != "" && code == want {

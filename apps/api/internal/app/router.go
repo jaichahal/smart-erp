@@ -7,6 +7,7 @@ import (
 	"errors"
 	"log/slog"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -50,7 +51,7 @@ func Handler(deps httpx.Deps, opts ...Option) (http.Handler, error) {
 		deps.Log = slog.Default()
 	}
 	r := chi.NewRouter()
-	r.Use(apierr.RequestIDMiddleware, middleware.Recoverer, middleware.Timeout(30*time.Second))
+	r.Use(apierr.RequestIDMiddleware, middleware.Recoverer, skipTimeoutForWebSocket)
 	r.NotFound(func(w http.ResponseWriter, r *http.Request) {
 		apierr.Write(w, r, apierr.New(apierr.NotFound, "route not found"))
 	})
@@ -63,14 +64,19 @@ func Handler(deps httpx.Deps, opts ...Option) (http.Handler, error) {
 		v1.Get("/health", httpx.Health(deps))
 		v1.Get("/status", httpx.Status(deps))
 		v1.Get("/design/tokens", designTokens(deps.Pool))
-		identity.Mount(v1, deps, w.identity...)
+		id := identity.Mount(v1, deps, w.identity...)
 		authz.Mount(v1, deps)
 		clocks.Mount(v1, deps)
 		periods.Mount(v1, deps, approvalGate{pool: deps.Pool})
 		audit.Mount(v1, deps)
 		approvals.Mount(v1, deps)
-		if err := notifications.Mount(v1, deps); err != nil {
-			mountErr = err
+		v1.Group(func(authed chi.Router) {
+			authed.Use(id.Authenticate)
+			if err := notifications.Mount(authed, deps); err != nil {
+				mountErr = err
+			}
+		})
+		if mountErr != nil {
 			return
 		}
 		journeys.Mount(v1, deps)
@@ -82,6 +88,19 @@ func Handler(deps httpx.Deps, opts ...Option) (http.Handler, error) {
 		return nil, err
 	}
 	return r, nil
+}
+
+// skipTimeoutForWebSocket keeps /ws hijackable. The 30s timeout cancels the
+// request context, which would drop an acknowledgement on a connected surface.
+func skipTimeoutForWebSocket(next http.Handler) http.Handler {
+	timed := middleware.Timeout(30 * time.Second)(next)
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.EqualFold(r.Header.Get("Upgrade"), "websocket") {
+			next.ServeHTTP(w, r)
+			return
+		}
+		timed.ServeHTTP(w, r)
+	})
 }
 
 // approvalGate confirms a hard close cites an approved approval request (R4.6).

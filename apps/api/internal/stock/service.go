@@ -28,7 +28,7 @@ type Service struct {
 // New builds a service that reads the snapshot catalog.
 // Call UseCatalog with the masters reader when P2.2 is merged.
 func New(pool *pgxpool.Pool) *Service {
-	return &Service{pool: pool, catalog: SnapshotCatalog{}}
+	return &Service{pool: pool, catalog: MastersCatalog{}}
 }
 
 // UseCatalog replaces the snapshot reader. Masters owns item and warehouse facts.
@@ -57,6 +57,15 @@ func (s *Service) RegisterItem(ctx context.Context, p rls.Principal, it Item) er
 		return apierr.New(apierr.ValidationError, "item class must be raw_material, finished_goods, or both")
 	}
 	err := s.inTx(ctx, p, func(tx pgx.Tx) error {
+		if _, err := tx.Exec(ctx, `
+			INSERT INTO erp.skus (
+				id, company_id, code, name, item_class,
+				base_uom, purchase_uom, stock_uom, production_uom, sales_uom,
+				floor_price, status, state_version, created_by)
+			VALUES ($1, $2, $3, $3, $4, $5, $5, $5, $5, $5, 0, 'approved', 1, $6)`,
+			it.ID, p.CompanyID, it.SKU, it.ItemClass, it.UOM, p.UserID); err != nil {
+			return err
+		}
 		_, err := tx.Exec(ctx, `
 			INSERT INTO erp.stock_skus (company_id, sku_id, sku, item_class, uom)
 			VALUES ($1, $2, $3, $4, $5)`, p.CompanyID, it.ID, it.SKU, it.ItemClass, it.UOM)
@@ -71,6 +80,11 @@ func (s *Service) RegisterWarehouse(ctx context.Context, p rls.Principal, wh War
 		return apierr.New(apierr.ValidationError, "warehouse code is required")
 	}
 	err := s.inTx(ctx, p, func(tx pgx.Tx) error {
+		if _, err := tx.Exec(ctx, `
+			INSERT INTO erp.warehouses (id, company_id, code, name)
+			VALUES ($1, $2, $3, $3)`, wh.ID, p.CompanyID, wh.Code); err != nil {
+			return err
+		}
 		_, err := tx.Exec(ctx, `
 			INSERT INTO erp.stock_warehouses (company_id, warehouse_id, code)
 			VALUES ($1, $2, $3)`, p.CompanyID, wh.ID, wh.Code)

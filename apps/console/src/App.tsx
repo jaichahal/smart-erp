@@ -1,19 +1,20 @@
 import { FormEvent, useState } from "react";
-import { signIn } from "./session";
+import { Home } from "./Home";
+import { openSession, type Profile } from "./session";
 
 export function App() {
   const [loginName, setLoginName] = useState("");
   const [password, setPassword] = useState("");
-  const [name, setName] = useState("");
+  const [profile, setProfile] = useState<Profile | null>(null);
   const [error, setError] = useState("");
 
   async function onSubmit(event: FormEvent) {
     event.preventDefault();
     setError("");
     try {
-      setName(await signIn(loginName, password));
+      setProfile(await openSession(loginName, password));
     } catch (cause) {
-      setName("");
+      setProfile(null);
       setError(cause instanceof Error ? cause.message : "Sign-in failed");
     }
   }
@@ -21,8 +22,8 @@ export function App() {
   return (
     <main>
       <h1>Smart ERP</h1>
-      {name ? (
-        <p data-testid="signed-in-name">{name}</p>
+      {profile ? (
+        <Home profile={profile} />
       ) : (
         <form onSubmit={onSubmit}>
           <label>

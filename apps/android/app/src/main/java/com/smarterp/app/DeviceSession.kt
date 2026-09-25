@@ -13,8 +13,21 @@ import java.security.spec.ECGenParameterSpec
 import java.time.Instant
 import java.util.UUID
 
+data class Profile(
+    val name: String,
+    val roles: List<String>,
+    val personas: List<String>,
+    val accessToken: String,
+    val baseUrl: String,
+    val privateKey: ECPrivateKey,
+    val jwk: JSONObject,
+)
+
 object DeviceSession {
-    fun signIn(baseUrl: String, loginName: String, password: String): String {
+    fun signIn(baseUrl: String, loginName: String, password: String): String =
+        open(baseUrl, loginName, password).name
+
+    fun open(baseUrl: String, loginName: String, password: String): Profile {
         val base = baseUrl.trimEnd('/')
         val pair = KeyPairGenerator.getInstance("EC").apply {
             initialize(ECGenParameterSpec("secp256r1"))
@@ -43,11 +56,33 @@ object DeviceSession {
         val access = tokens.getJSONObject("data").getString("access_token")
         val meUrl = "$base/api/v1/me"
         val me = get(meUrl, access, dpop(privateKey, jwk, "GET", meUrl, access))
-        val name = me.getJSONObject("data").getString("name")
+        val data = me.getJSONObject("data")
+        val name = data.getString("name")
         if (name.isBlank()) {
             throw IllegalStateException("Current user name was empty")
         }
-        return name
+        return Profile(
+            name = name,
+            roles = strings(data.optJSONArray("roles")),
+            personas = strings(data.optJSONArray("personas")),
+            accessToken = access,
+            baseUrl = base,
+            privateKey = privateKey,
+            jwk = jwk,
+        )
+    }
+
+    fun authorized(profile: Profile, method: String, path: String, body: JSONObject? = null): JSONObject {
+        val url = profile.baseUrl.trimEnd('/') + path
+        val proof = dpop(profile.privateKey, profile.jwk, method, url, profile.accessToken)
+        return call(url, method, body?.toString(), profile.accessToken, proof)
+    }
+
+    private fun strings(array: org.json.JSONArray?): List<String> {
+        if (array == null) {
+            return emptyList()
+        }
+        return List(array.length()) { array.getString(it) }
     }
 
     private fun publicJwk(key: ECPublicKey): JSONObject {

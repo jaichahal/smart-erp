@@ -25,7 +25,14 @@ async function consolePublicKey(): Promise<Record<string, string>> {
   return { kty: jwk.kty, crv: jwk.crv, x: jwk.x, y: jwk.y };
 }
 
-export async function signIn(loginName: string, password: string): Promise<string> {
+export type Profile = {
+  name: string;
+  roles: string[];
+  personas: string[];
+  accessToken: string;
+};
+
+export async function openSession(loginName: string, password: string): Promise<Profile> {
   const publicKey = await consolePublicKey();
   const enrolled = await post<{ device_id: string }>("/api/v1/auth/device/enroll", {
     public_key: publicKey,
@@ -45,9 +52,18 @@ export async function signIn(loginName: string, password: string): Promise<strin
   const me = await fetch("/api/v1/me", {
     headers: { Authorization: `Bearer ${tokens.data.access_token}` },
   });
-  const profile = (await me.json()) as Envelope<{ name: string }>;
+  const profile = (await me.json()) as Envelope<{ name?: string; roles?: string[]; personas?: string[] }>;
   if (!me.ok || !profile.data?.name) {
     throw new Error(profile.error?.message || "Current user was not returned");
   }
-  return profile.data.name;
+  return {
+    name: profile.data.name,
+    roles: profile.data.roles ?? [],
+    personas: profile.data.personas ?? [],
+    accessToken: tokens.data.access_token,
+  };
+}
+
+export async function signIn(loginName: string, password: string): Promise<string> {
+  return (await openSession(loginName, password)).name;
 }

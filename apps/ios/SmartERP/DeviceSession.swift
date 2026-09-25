@@ -1,8 +1,22 @@
 import CryptoKit
 import Foundation
 
+struct Account {
+    let name: String
+    let roles: [String]
+    let personas: [String]
+    let accessToken: String
+    let baseURL: String
+    let key: P256.Signing.PrivateKey
+    let jwk: [String: String]
+}
+
 enum DeviceSession {
     static func signIn(loginName: String, password: String) async throws -> String {
+        try await open(loginName: loginName, password: password).name
+    }
+
+    static func open(loginName: String, password: String) async throws -> Account {
         let base = HealthClient.baseURL().absoluteString.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
         let key = P256.Signing.PrivateKey()
         let raw = key.publicKey.x963Representation
@@ -38,7 +52,25 @@ enum DeviceSession {
         let me = try await get(meURL, access: access, dpop: try proof(key: key, jwk: jwk, method: "GET", url: meURL, access: access))
         let name = try string(me, "name")
         guard !name.isEmpty else { throw SessionError.message("Current user name was empty") }
-        return name
+        return Account(
+            name: name,
+            roles: strings(me, "roles"),
+            personas: strings(me, "personas"),
+            accessToken: access,
+            baseURL: base,
+            key: key,
+            jwk: jwk
+        )
+    }
+
+    static func authorized(_ account: Account, method: String, path: String, body: [String: Any]? = nil) async throws -> Any {
+        let url = account.baseURL + path
+        let proof = try proof(key: account.key, jwk: account.jwk, method: method, url: url, access: account.accessToken)
+        return try await envelope(url, method: method, body: body, access: account.accessToken, dpop: proof)
+    }
+
+    private static func strings(_ data: [String: Any], _ key: String) -> [String] {
+        data[key] as? [String] ?? []
     }
 
     private static func proof(key: P256.Signing.PrivateKey, jwk: [String: String], method: String, url: String, access: String?) throws -> String {
@@ -66,6 +98,32 @@ enum DeviceSession {
 
     private static func get(_ url: String, access: String, dpop: String) async throws -> [String: Any] {
         try await call(url, method: "GET", body: nil, access: access, dpop: dpop)
+    }
+
+    private static func envelope(_ url: String, method: String, body: [String: Any]?, access: String?, dpop: String?) async throws -> Any {
+        var request = URLRequest(url: URL(string: url)!)
+        request.httpMethod = method
+        request.timeoutInterval = 8
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+        if let body {
+            request.httpBody = try JSONSerialization.data(withJSONObject: body)
+            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            request.setValue(UUID().uuidString, forHTTPHeaderField: "Idempotency-Key")
+        }
+        if let access {
+            request.setValue("Bearer \(access)", forHTTPHeaderField: "Authorization")
+        }
+        if let dpop {
+            request.setValue(dpop, forHTTPHeaderField: "DPoP")
+        }
+        let (data, response) = try await URLSession.shared.data(for: request)
+        let http = response as? HTTPURLResponse
+        let object = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any]
+        guard let status = http?.statusCode, (200..<300).contains(status), let payload = object?["data"] else {
+            let text = String(data: data, encoding: .utf8) ?? ""
+            throw SessionError.message("HTTP \(http?.statusCode ?? 0) \(text)")
+        }
+        return payload
     }
 
     private static func call(_ url: String, method: String, body: [String: Any]?, access: String?, dpop: String?) async throws -> [String: Any] {

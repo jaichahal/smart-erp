@@ -19,6 +19,10 @@ var coveredByDedicated = map[string]bool{
 	"B1":  true,
 }
 
+// acceptanceScenarios replaces the gap probe for one 08 id. Tracks register
+// from e2e/<track>_*.go in init. A registered scenario is the acceptance test.
+var acceptanceScenarios = map[string]func(*testing.T, *stack){}
+
 func TestAcceptanceCatalog(t *testing.T) {
 	root := repoRoot()
 	tasks := loadTasks(t, filepath.Join(root, "docs/spec/07-tracks-and-tasks.md"))
@@ -70,6 +74,10 @@ func TestAcceptanceCatalog(t *testing.T) {
 
 func probe(t *testing.T, s *stack, task, id, sentence string) {
 	t.Helper()
+	if run, ok := acceptanceScenarios[id]; ok {
+		run(t, s)
+		return
+	}
 	method, path, want := probeFor(id, sentence)
 	status, code, raw := s.call(t, method, path, `{}`, nil)
 	if want != "" && code == want {

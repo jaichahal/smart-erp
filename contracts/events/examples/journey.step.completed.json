@@ -1,0 +1,27 @@
+{
+  "event_id": "01J9E2STEP0000000000000001",
+  "type": "journey.step.completed",
+  "severity": "LOW",
+  "company_id": "01J8Q5WZ0A0000000000000001",
+  "occurred_at": "2026-09-25T10:00:00Z",
+  "actor": {
+    "id": "01J8Q5X0USER00000000000001",
+    "name": "Layla Hassan"
+  },
+  "subject": {
+    "doc_type": "journey_instance",
+    "doc_id": "01J9E2INST0000000000000001",
+    "doc_number": "go-live",
+    "party": null
+  },
+  "amount": null,
+  "deep_link": "smarterp://journey/01J9E2INST0000000000000001",
+  "allowed_actions": ["open"],
+  "state_version": 2,
+  "context": {
+    "slug": "go-live",
+    "step_id": "chart_of_accounts",
+    "outcome": "completed",
+    "instance_status": "running"
+  }
+}

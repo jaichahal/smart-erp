@@ -1,58 +1,60 @@
-Team Lead Status - 2026-09-25 19:35 UTC+4 sweep
+Team Lead Status - 2026-09-25 19:55 UTC+4 sweep
 
-Integration (integration/e2e worktree): HEAD c9b2a46. Worktree DIRTY (uncommitted):
-modified router.go (approvals mount moved inside authed group), rls.go (allow
-spaces in role names), console/android/ios UI files, plus untracked migration
-10042_phase0_usability.sql, home/shell client files. Owner of that dirty work
-must commit or stash it before any merge. No merges done this sweep.
+Integration (integration/e2e worktree): HEAD 977b045. New commits this round:
+- 249e0e5 "Client UI work in progress: persona home and journey screens."
+  (17 files: Android Home/Shell + journey test, iOS SignedInHome + UI updates,
+  console home/shell modules + journeys spec, router approvals-inside-auth,
+  rls spaces-in-roles). Verified before commit: go vet clean on changed Go
+  pkgs, e2e test binary compiles. login.spec not run (needs Playwright stack).
+  Migration 10042 left untracked as instructed.
+- 977b045 "Merge task/build-stock into integration/e2e." Router conflict
+  resolved keeping both: approvals.Mount(authed) + stock.Mount(authed).
+  Resolution builds clean.
+
+E2E-WAVE1 RESULT: FAIL. 14 subtests fail, all P1.7 D1-D14:
+POST /api/v1/approvals/actors as initiator -> 401 AUTH_REQUIRED.
+Everything else in the wave-1 filter passes.
+Root cause: the approvals mount now sits behind id.Authenticate, which rejects
+requests without a bearer token. The P1.7 harness (e2e/b1_world.go) authenticates
+via X-User/X-Company/X-Roles headers through approvals.RequestPrincipal and sends
+no bearer token, so every D-case 401s.
+Causality proof: P1.7 subset passes on pristine c9b2a46 (temp worktree, since
+removed) and fails on 977b045. Stock merge is not the cause (it only adds a mount).
+Jai confirmed the auth move is intentional, so the lead did NOT revert it.
+Fix owner: approvals track (task/P1.7-approval-engine) or notifications track to
+reconcile RequestPrincipal header auth with bearer Authenticate on approvals
+routes (options: dual principal resolution inside approvals handlers, or bearer
+tokens in the P1.7 harness). Needs Jai decision; auth semantics reserved for Jai.
 
 Tracks (branch tip / worktree / tests / blocked-on):
-- ledger (task/build-ledger): tip c9b2a46, worktree has uncommitted
-  internal/ledger/*.go + migrations 30100-30130. go test ./internal/ledger
-  is compile-RED (c11_test expects TaxCodes, Dimensions, PostSalesInvoice,
-  etc. not yet implemented). TDD red phase, files touched 19:21-19:32 today,
-  active. Not stuck. Blocked-on: nothing.
-- masters (task/build-masters): tip c9b2a46, worktree has uncommitted
-  internal/masters/{accept_test.go,doc.go,http.go}. http.go is a NotFound stub;
-  accept_test covers C15-C22, vendor gates, blacklist, moving average. TDD red
-  phase by design. Not stuck. Blocked-on: nothing (it is the blocker for others).
-- stock (task/build-stock): tip 7ab160a "Post stock at moving average per SKU
-  per warehouse." Worktree clean. Re-verified: go test ./internal/stock ok
-  (throwaway DB from erp_template, 4.8s). READY TO MERGE. Not merged because
-  integration worktree is dirty and router.go overlaps semantically (stock adds
-  stock.Mount inside authed group on base with approvals outside; dirty tree
-  moves approvals inside). Needs Jai: confirm owner of dirty integration work,
-  commit it, then merge stock. Also noted: stock uses SnapshotCatalog
-  placeholder (erp.stock_skus / erp.stock_warehouses) until masters P2.2 lands;
-  Catalog interface in internal/stock/masters.go is the seam masters must replace.
-- sales (task/build-sales): tip c9b2a46, worktree has uncommitted
-  internal/sales/*.go + migration 33100_sales.sql. Early, active (dir 19:18).
-  Tests not run this sweep. Blocked-on: probably masters SKUs/customers (confirm
-  with track, no action taken).
-- receivables (task/build-receivables): tip c9b2a46, worktree has uncommitted
-  internal/receivables/accept_test.go (726 lines). Early, active. Tests not run.
-  Blocked-on: nothing confirmed.
-- purchase (task/build-purchase): tip c9b2a46, worktree has uncommitted
-  internal/purchase/*.go + migration 35100_purchase.sql. Early, active (19:21).
-  Tests not run. Blocked-on: masters vendor/SKU approval seam (C22/P2.2).
-- clients (task/build-clients): tip c9b2a46, worktree has modified
-  DeviceSession/MainActivity/App/session/ContentView files plus new e2e specs
-  (collection-receipt, persona-home, purchase-list, sales-order, vendor-dashboard)
-  and ClientUi/Documents/Home/PurchaseList/VendorDashboard sources. Active.
-  Tests not run (mobile e2e needs device harness). Blocked-on: nothing confirmed.
+- ledger (task/build-ledger): tip c9b2a46, uncommitted ledger pkg + migrations
+  30100-30130, and NOW also a modified router.go (watch for conflicts with
+  integration router). Still compile-RED c11 (TDD). Active. Blocked-on: nothing.
+- masters (task/build-masters): tip c9b2a46, uncommitted masters pkg + NEW
+  migration 31100_masters.sql (progress). Stub RED phase. Blocked-on: nothing
+  (it blocks stock placeholder removal + purchase/sales seams).
+- stock (task/build-stock): tip 7ab160a, MERGED into integration/e2e as 977b045.
+  Placeholder SnapshotCatalog stays until masters P2.2 lands via UseCatalog
+  (Jai confirmed). Done from lead view.
+- sales (task/build-sales): tip c9b2a46, uncommitted sales pkg + 33100. Active.
+  Blocked-on: masters seams (unconfirmed).
+- receivables (task/build-receivables): tip c9b2a46, NEW internal/bank/ dir +
+  migration now 34100_receivables_and_bank.sql (progress). Active.
+- purchase (task/build-purchase): tip c9b2a46, uncommitted purchase pkg +
+  35100, and NOW also a modified router.go (watch for conflicts). Active.
+- clients (task/build-clients): NEW commit f55adfd "Add vendor, order, receipt,
+  and purchase screens on the console and both phones." Worktree clean. Active.
+  Note: agent 2e4bf2a2 still also works directly on integration/e2e; remind it to
+  use its branch going forward.
 
-Plan source (task/plan-index): tip ce8cb65, includes 14-crm, 15-hr, 16-payroll,
-17-vendor-control merges. No action.
+Plan source (task/plan-index): tip ce8cb65, unchanged.
 
-Merges done: none (stock held for dirty-tree reason above).
-Unblocks made: none (no track stuck; all touched within last ~30 min; gaps
-already documented via Catalog interface).
-E2E run: none (no Go files merged into integration/e2e).
+Merges done: task/build-stock 7ab160a -> integration/e2e 977b045.
+Unblocks made: none (no track stuck).
+E2E: e2e-wave1 FAIL (P1.7 D1-D14 401s, see above).
 
 Needs Jai:
-1. Who owns the dirty integration-e2e work (approvals-auth move, rls spaces,
-   client UI, 10042 migration)? Commit or revert before stock merge.
-2. Confirm masters P2.2 seam: stock SnapshotCatalog -> real masters facts
-   (item class, warehouse). No code changed by lead.
-3. Auth semantics if the approvals-mount move is intentional (it changes which
-   routes require bearer auth).
+1. P1.7 401s: keep approvals-behind-auth (breaks P1.7 harness) or restore
+   header-auth compatibility? Owner: approvals track once decided.
+2. Remind client agent to work on task/build-clients, not integration/e2e.
+3. Masters P2.2 seam confirmed already; no action.

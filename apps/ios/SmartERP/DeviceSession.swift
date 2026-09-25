@@ -3,6 +3,10 @@ import Foundation
 
 enum DeviceSession {
     static func signIn(loginName: String, password: String) async throws -> String {
+        try await open(loginName: loginName, password: password).name
+    }
+
+    static func open(loginName: String, password: String) async throws -> APISession {
         let base = HealthClient.baseURL().absoluteString.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
         let key = P256.Signing.PrivateKey()
         let raw = key.publicKey.x963Representation
@@ -38,10 +42,19 @@ enum DeviceSession {
         let me = try await get(meURL, access: access, dpop: try proof(key: key, jwk: jwk, method: "GET", url: meURL, access: access))
         let name = try string(me, "name")
         guard !name.isEmpty else { throw SessionError.message("Current user name was empty") }
-        return name
+        return APISession(
+            name: name,
+            userId: try string(me, "id"),
+            roles: strings(me["roles"]),
+            personas: strings(me["personas"]),
+            base: base,
+            access: access,
+            key: key,
+            jwk: jwk
+        )
     }
 
-    private static func proof(key: P256.Signing.PrivateKey, jwk: [String: String], method: String, url: String, access: String?) throws -> String {
+    fileprivate static func proof(key: P256.Signing.PrivateKey, jwk: [String: String], method: String, url: String, access: String?) throws -> String {
         let header: [String: Any] = ["typ": "dpop+jwt", "alg": "ES256", "jwk": jwk]
         var payload: [String: Any] = [
             "htm": method,
@@ -68,7 +81,7 @@ enum DeviceSession {
         try await call(url, method: "GET", body: nil, access: access, dpop: dpop)
     }
 
-    private static func call(_ url: String, method: String, body: [String: Any]?, access: String?, dpop: String?) async throws -> [String: Any] {
+    fileprivate static func call(_ url: String, method: String, body: [String: Any]?, access: String?, dpop: String?) async throws -> [String: Any] {
         var request = URLRequest(url: URL(string: url)!)
         request.httpMethod = method
         request.timeoutInterval = 8
@@ -94,6 +107,28 @@ enum DeviceSession {
         return dataObject
     }
 
+    fileprivate static func exchange(_ url: String, method: String, body: [String: Any]?, access: String, dpop: String) async throws -> (Int, [String: Any]) {
+        var request = URLRequest(url: URL(string: url)!)
+        request.httpMethod = method
+        request.timeoutInterval = 8
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+        request.setValue("Bearer \(access)", forHTTPHeaderField: "Authorization")
+        request.setValue(dpop, forHTTPHeaderField: "DPoP")
+        if let body {
+            request.httpBody = try JSONSerialization.data(withJSONObject: body)
+            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            request.setValue(UUID().uuidString, forHTTPHeaderField: "Idempotency-Key")
+        }
+        let (data, response) = try await URLSession.shared.data(for: request)
+        let status = (response as? HTTPURLResponse)?.statusCode ?? 0
+        let object = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any] ?? [:]
+        return (status, object)
+    }
+
+    private static func strings(_ value: Any?) -> [String] {
+        value as? [String] ?? []
+    }
+
     private static func string(_ data: [String: Any], _ key: String) throws -> String {
         guard let value = data[key] as? String else { throw SessionError.message("missing \(key)") }
         return value
@@ -110,4 +145,50 @@ enum DeviceSession {
 enum SessionError: Error {
     case badKey
     case message(String)
+}
+
+final class APISession {
+    let name: String
+    let userId: String
+    let roles: [String]
+    let personas: [String]
+    private let base: String
+    private let access: String
+    private let key: P256.Signing.PrivateKey
+    private let jwk: [String: String]
+
+    init(name: String, userId: String, roles: [String], personas: [String], base: String, access: String, key: P256.Signing.PrivateKey, jwk: [String: String]) {
+        self.name = name
+        self.userId = userId
+        self.roles = roles
+        self.personas = personas
+        self.base = base
+        self.access = access
+        self.key = key
+        self.jwk = jwk
+    }
+
+    func exchange(_ method: String, path: String, body: [String: Any]?) async throws -> (Int, [String: Any]) {
+        let url = base + path
+        let htu = url.split(separator: "?", maxSplits: 1).first.map(String.init) ?? url
+        let proof = try DeviceSession.proof(key: key, jwk: jwk, method: method, url: htu, access: access)
+        return try await DeviceSession.exchange(url, method: method, body: body, access: access, dpop: proof)
+    }
+}
+
+func homeKind(roles: [String], personas: [String]) -> String {
+    let labels = (roles + personas).map { $0.trimmingCharacters(in: .whitespaces).lowercased() }.filter { !$0.isEmpty }
+    func has(_ needle: String) -> Bool { labels.contains { $0.contains(needle) } }
+    if has("cfo") || has("partner") { return "cfo" }
+    if has("finance manager") || has("finance_manager") { return "finance-manager" }
+    if has("accountant") { return "accountant" }
+    if has("sales") || has("collection") { return "sales" }
+    return "default"
+}
+
+func sheetForDrag(dx: CGFloat, dy: CGFloat) -> String? {
+    if dy > 72 && abs(dy) > abs(dx) { return "flag" }
+    if dx > 72 { return "approve" }
+    if dx < -72 { return "reject" }
+    return nil
 }

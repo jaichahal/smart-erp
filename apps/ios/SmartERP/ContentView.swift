@@ -5,7 +5,8 @@ struct ContentView: View {
     @State private var statusLine = "API status unavailable"
     @State private var loginName = ""
     @State private var password = ""
-    @State private var signedInName = ""
+    @State private var showPassword = false
+    @State private var session: APISession?
     @State private var errorLine = ""
 
     var body: some View {
@@ -15,31 +16,46 @@ struct ContentView: View {
                 .accessibilityIdentifier("app-title")
             Text(statusLine)
                 .accessibilityIdentifier("api-status")
-            TextField("Login name", text: $loginName)
-                .textInputAutocapitalization(.never)
-                .autocorrectionDisabled()
-                .accessibilityIdentifier("login-name")
-            SecureField("Password", text: $password)
-                .accessibilityIdentifier("password")
-            Button("Sign in") {
-                Task {
-                    errorLine = ""
-                    do {
-                        signedInName = try await DeviceSession.signIn(loginName: loginName, password: password)
-                    } catch {
-                        signedInName = ""
-                        errorLine = String(describing: error)
+            if let session {
+                SignedInHome(session: session)
+            } else {
+                TextField("Login name", text: $loginName)
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled()
+                    .accessibilityIdentifier("login-name")
+                    .frame(minHeight: 44)
+                if showPassword {
+                    TextField("Password", text: $password)
+                        .textInputAutocapitalization(.never)
+                        .autocorrectionDisabled()
+                        .accessibilityIdentifier("password")
+                        .frame(minHeight: 44)
+                } else {
+                    SecureField("Password", text: $password)
+                        .accessibilityIdentifier("password")
+                        .frame(minHeight: 44)
+                }
+                Button(showPassword ? "Hide password" : "Show password") {
+                    showPassword.toggle()
+                }
+                .frame(minHeight: 44)
+                Button("Sign in") {
+                    Task {
+                        errorLine = ""
+                        do {
+                            session = try await DeviceSession.open(loginName: loginName, password: password)
+                        } catch {
+                            session = nil
+                            errorLine = String(describing: error)
+                        }
                     }
                 }
-            }
-            .accessibilityIdentifier("sign-in")
-            if !signedInName.isEmpty {
-                Text(signedInName)
-                    .accessibilityIdentifier("signed-in-name")
-            }
-            if !errorLine.isEmpty {
-                Text(errorLine)
-                    .accessibilityIdentifier("sign-in-error")
+                .accessibilityIdentifier("sign-in")
+                .frame(minHeight: 44)
+                if !errorLine.isEmpty {
+                    Text(errorLine)
+                        .accessibilityIdentifier("sign-in-error")
+                }
             }
         }
         .padding()

@@ -73,9 +73,9 @@ func Handler(deps httpx.Deps, opts ...Option) (http.Handler, error) {
 		// token authz verifies; period exceptions stay on the periods server.
 		authz.Mount(v1, deps)
 		audit.Mount(v1, deps)
-		approvals.Mount(v1, deps)
 		v1.Group(func(authed chi.Router) {
 			authed.Use(id.Authenticate)
+			approvals.Mount(authed, deps)
 			if err := notifications.Mount(authed, deps); err != nil {
 				mountErr = err
 			}

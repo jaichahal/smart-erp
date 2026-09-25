@@ -4,9 +4,12 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -18,6 +21,9 @@ import androidx.compose.runtime.setValue
 import kotlinx.coroutines.launch
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
+import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
@@ -65,40 +71,51 @@ fun BaselineHealthStatus(baseUrl: String) {
 fun SignInScreen(baseUrl: String) {
     var loginName by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
-    var signedInName by remember { mutableStateOf<String?>(null) }
+    var showPassword by remember { mutableStateOf(false) }
+    var session by remember { mutableStateOf<DeviceSession.Session?>(null) }
     var error by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
+    session?.let {
+        SignedInHome(it)
+        return
+    }
     Column {
         TextField(
             value = loginName,
             onValueChange = { loginName = it },
             label = { Text("Login name") },
-            modifier = Modifier.testTag("login-name"),
+            modifier = Modifier.fillMaxWidth().heightIn(min = 44.dp).testTag("login-name"),
         )
         TextField(
             value = password,
             onValueChange = { password = it },
             label = { Text("Password") },
-            modifier = Modifier.testTag("password"),
+            visualTransformation = if (showPassword) VisualTransformation.None else PasswordVisualTransformation(),
+            modifier = Modifier.fillMaxWidth().heightIn(min = 44.dp).testTag("password"),
         )
+        TextButton(
+            onClick = { showPassword = !showPassword },
+            modifier = Modifier.heightIn(min = 44.dp).testTag("toggle-password"),
+        ) {
+            Text(if (showPassword) "Hide password" else "Show password")
+        }
         Button(
             onClick = {
                 error = null
                 scope.launch {
                     try {
-                        signedInName = withContext(Dispatchers.IO) {
-                            DeviceSession.signIn(baseUrl, loginName, password)
+                        session = withContext(Dispatchers.IO) {
+                            DeviceSession.open(baseUrl, loginName, password)
                         }
                     } catch (failure: Exception) {
                         error = failure.message
                     }
                 }
             },
-            modifier = Modifier.testTag("sign-in"),
+            modifier = Modifier.heightIn(min = 44.dp).testTag("sign-in"),
         ) {
             Text("Sign in")
         }
-        signedInName?.let { Text(it, modifier = Modifier.testTag("signed-in-name")) }
         error?.let { Text(it, modifier = Modifier.testTag("sign-in-error")) }
     }
 }

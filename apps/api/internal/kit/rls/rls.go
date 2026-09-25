@@ -61,7 +61,9 @@ func Begin(ctx context.Context, pool *pgxpool.Pool, p Principal) (pgx.Tx, error)
 // Apply sets the session variables on an existing transaction (SET LOCAL).
 func Apply(ctx context.Context, tx pgx.Tx, p Principal) error {
 	for _, r := range p.Roles {
-		if strings.ContainsAny(r, ", '\"") {
+		// Spaces are allowed: persona names such as "Sales Agent" are real roles.
+		// Commas and quotes would break the comma-separated session value.
+		if strings.ContainsAny(r, ",'\"") {
 			return fmt.Errorf("rls: invalid role name %q", r)
 		}
 	}

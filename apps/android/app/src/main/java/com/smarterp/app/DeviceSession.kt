@@ -14,7 +14,37 @@ import java.time.Instant
 import java.util.UUID
 
 object DeviceSession {
-    fun signIn(baseUrl: String, loginName: String, password: String): String {
+    class Session internal constructor(
+        val name: String,
+        val userId: String,
+        val roles: List<String>,
+        val personas: List<String>,
+        private val base: String,
+        private val access: String,
+        private val privateKey: ECPrivateKey,
+        private val jwk: JSONObject,
+    ) {
+        fun get(path: String): JSONObject = authed("GET", path, null)
+        fun post(path: String, body: JSONObject): JSONObject = authed("POST", path, body)
+
+        fun exchange(method: String, path: String, body: JSONObject?): Pair<Int, JSONObject> {
+            val url = base + path
+            val proof = dpop(privateKey, jwk, method, url.substringBefore('?'), access)
+            return callResult(url, method, body?.toString(), access, proof)
+        }
+
+        private fun authed(method: String, path: String, body: JSONObject?): JSONObject {
+            val (code, json) = exchange(method, path, body)
+            if (code !in 200..299) {
+                throw IllegalStateException("HTTP $code $json")
+            }
+            return json
+        }
+    }
+
+    fun signIn(baseUrl: String, loginName: String, password: String): String = open(baseUrl, loginName, password).name
+
+    fun open(baseUrl: String, loginName: String, password: String): Session {
         val base = baseUrl.trimEnd('/')
         val pair = KeyPairGenerator.getInstance("EC").apply {
             initialize(ECGenParameterSpec("secp256r1"))
@@ -43,11 +73,26 @@ object DeviceSession {
         val access = tokens.getJSONObject("data").getString("access_token")
         val meUrl = "$base/api/v1/me"
         val me = get(meUrl, access, dpop(privateKey, jwk, "GET", meUrl, access))
-        val name = me.getJSONObject("data").getString("name")
+        val data = me.getJSONObject("data")
+        val name = data.getString("name")
         if (name.isBlank()) {
             throw IllegalStateException("Current user name was empty")
         }
-        return name
+        return Session(
+            name = name,
+            userId = data.getString("id"),
+            roles = strings(data.optJSONArray("roles")),
+            personas = strings(data.optJSONArray("personas")),
+            base = base,
+            access = access,
+            privateKey = privateKey,
+            jwk = jwk,
+        )
+    }
+
+    private fun strings(array: org.json.JSONArray?): List<String> {
+        if (array == null) return emptyList()
+        return List(array.length()) { index -> array.getString(index) }
     }
 
     private fun publicJwk(key: ECPublicKey): JSONObject {
@@ -86,6 +131,14 @@ object DeviceSession {
     }
 
     private fun call(url: String, method: String, body: String?, access: String?, dpop: String?): JSONObject {
+        val (code, json) = callResult(url, method, body, access, dpop)
+        if (code !in 200..299) {
+            throw IllegalStateException("HTTP $code $json")
+        }
+        return json
+    }
+
+    private fun callResult(url: String, method: String, body: String?, access: String?, dpop: String?): Pair<Int, JSONObject> {
         val conn = (URL(url).openConnection() as HttpURLConnection).apply {
             requestMethod = method
             connectTimeout = 8_000
@@ -110,10 +163,8 @@ object DeviceSession {
             val code = conn.responseCode
             val stream = if (code in 200..299) conn.inputStream else conn.errorStream
             val text = stream?.bufferedReader()?.use { it.readText() }.orEmpty()
-            if (code !in 200..299) {
-                throw IllegalStateException("HTTP $code $text")
-            }
-            JSONObject(text)
+            val json = if (text.isBlank()) JSONObject() else JSONObject(text)
+            Pair(code, json)
         } finally {
             conn.disconnect()
         }

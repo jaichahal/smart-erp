@@ -18,6 +18,7 @@ import (
 	"github.com/jaichahal/smart-erp/apps/api/internal/approvals"
 	"github.com/jaichahal/smart-erp/apps/api/internal/audit"
 	"github.com/jaichahal/smart-erp/apps/api/internal/authz"
+	"github.com/jaichahal/smart-erp/apps/api/internal/bank"
 	"github.com/jaichahal/smart-erp/apps/api/internal/clocks"
 	"github.com/jaichahal/smart-erp/apps/api/internal/identity"
 	"github.com/jaichahal/smart-erp/apps/api/internal/journeys"
@@ -29,6 +30,7 @@ import (
 	"github.com/jaichahal/smart-erp/apps/api/internal/stock"
 	"github.com/jaichahal/smart-erp/apps/api/internal/purchase"
 	"github.com/jaichahal/smart-erp/apps/api/internal/sales"
+	"github.com/jaichahal/smart-erp/apps/api/internal/receivables"
 )
 
 // Option tunes composition. Production uses none; tests inject the Zitadel broker port.
@@ -87,6 +89,8 @@ func Handler(deps httpx.Deps, opts ...Option) (http.Handler, error) {
 				mountErr = err
 			}
 			sales.Mount(authed, deps)
+			receivables.Mount(authed, deps)
+			bank.Mount(authed, deps)
 		})
 		if mountErr != nil {
 			return

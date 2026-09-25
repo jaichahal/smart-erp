@@ -18,6 +18,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/pressly/goose/v3"
 
@@ -702,13 +703,43 @@ func TestThreeWayAndDuplicateAndPostingGap(t *testing.T) {
 	if confirmed.Status != "posted" || confirmed.LedgerPosted {
 		t.Fatalf("confirmed %+v", confirmed)
 	}
-	var journal *string
-	err = rls.Tx(w.ctx, w.db.App, w.as("accountant"), func(tx pgx.Tx) error {
-		return tx.QueryRow(w.ctx, `SELECT to_regclass('erp.journal_lines')::text`).Scan(&journal)
+	assertNoJournalForInvoice(t, w, posted.ID)
+	assertNoJournalForInvoice(t, w, confirmed.ID)
+}
+
+// assertNoJournalForInvoice checks this supplier invoice has no journal header
+// or line. A database without the ledger tables has nothing to count.
+func assertNoJournalForInvoice(t *testing.T, w *world, invoiceID uuid.UUID) {
+	t.Helper()
+	var n int
+	err := rls.Tx(w.ctx, w.db.App, w.as("accountant"), func(tx pgx.Tx) error {
+		if _, err := tx.Exec(w.ctx, `SAVEPOINT purchase_journal_probe`); err != nil {
+			return err
+		}
+		err := tx.QueryRow(w.ctx, `
+			SELECT
+				(SELECT count(*) FROM erp.journals WHERE company_id = $1 AND doc_id = $2)
+				+ (SELECT count(*) FROM erp.journal_lines l
+					JOIN erp.journals j ON j.id = l.journal_id
+					WHERE j.company_id = $1 AND j.doc_id = $2)`,
+			w.company, invoiceID.String()).Scan(&n)
+		if err != nil {
+			if _, rbErr := tx.Exec(w.ctx, `ROLLBACK TO SAVEPOINT purchase_journal_probe`); rbErr != nil {
+				return rbErr
+			}
+			var pgErr *pgconn.PgError
+			if errors.As(err, &pgErr) && pgErr.Code == "42P01" {
+				n = 0
+				return nil
+			}
+			return err
+		}
+		_, err = tx.Exec(w.ctx, `RELEASE SAVEPOINT purchase_journal_probe`)
+		return err
 	})
 	w.must(err)
-	if journal != nil {
-		t.Fatalf("ledger journal exists: %s", *journal)
+	if n != 0 {
+		t.Fatalf("supplier invoice %s has %d journal rows", invoiceID, n)
 	}
 }
 

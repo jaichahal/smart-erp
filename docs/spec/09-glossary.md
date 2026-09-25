@@ -1,0 +1,61 @@
+# 09 Glossary
+
+- Accredited Service Provider (ASP): a provider on the UAE Ministry of Finance register that transmits e-invoices over Peppol and reports to the FTA.
+- Advance: money received from a customer or paid to a supplier before an invoice exists; held as a credit until applied.
+- Aging: classification of open receivables or payables by days past due date.
+- Anchor: an externally stored, signed record of the audit chain head used to detect tampering inside the database.
+- Annotation: an append-only note or attachment added to a registered document without changing its content.
+- Approval matrix: configuration per document type of thresholds, approver roles, first and final gates, and voting rules.
+- Article 59: the UAE VAT Executive Regulation article listing mandatory tax invoice fields.
+- Available: on-hand quantity minus active reservations.
+- Backorder: the undelivered remainder of an order after a partial delivery.
+- Bill of Entry (BOE): the UAE customs declaration for imported goods; required for import VAT treatment.
+- Bill of materials (BOM): the raw-material quantities needed to produce one unit of a finished SKU.
+- Break-glass: an emergency elevated action by a System Manager that is loud, logged, and reported.
+- Business hours: working hours per the company holiday calendar, used for all clocks.
+- Chain head: the latest hash and sequence in a company's audit chain.
+- Clock: a business-hours deadline attached to a document (delivery note, supplier invoice, production draft) that escalates on miss.
+- Contra: a transfer between cash and bank accounts.
+- Correction request: the only mechanism for changing the effect of a registered document; produces annotations, adjustment notes, or reversal plus replacement.
+- COGS: cost of goods sold, posted on delivery at moving-average cost.
+- DPoP: proof of possession; a request-bound signature proving the caller holds the device's private key.
+- Debit note: a document reducing a supplier's payable (short delivery, price difference) or increasing a customer's receivable (interest).
+- Delivery note: the document that moves goods out of stock and posts COGS; the signed copy is proof of delivery.
+- Dimension: an accounting classification beyond account, such as cost centre, branch, or product line.
+- DSO, DPO, DIO: days sales outstanding, days payables outstanding, days inventory outstanding; the cash conversion cycle is DSO plus DIO minus DPO.
+- Exceptions report: the monthly list of every control event: overrides, corrections, manual journals, back-dating, bypass attempts, missed clocks, bounced cheques, break-glass, chain results.
+- FAF: FTA Audit File, the CSV the FTA may request from any taxable person; the system must generate it without vendor assistance.
+- FTA: Federal Tax Authority of the UAE.
+- Gate pass: the authorisation to release goods from the warehouse; creates the delivery note.
+- GRNI: goods received not invoiced; the clearing account between receipt and supplier invoice.
+- Hard close: a Stakeholder action after which nothing can post to a period.
+- Immutable table: a table whose rows can be inserted and read but never updated or deleted, enforced by grants and triggers.
+- Journey: a guided multi-step flow in the console with typed steps and a resumable instance.
+- Landed cost: freight, duty, and clearing charges added to the cost of received goods.
+- LPO: local purchase order.
+- Management pack: the set of close reports generated as files with hashes and pushed to Stakeholders.
+- Moving average: inventory valuation where the unit cost is total value over total quantity per SKU per warehouse, recomputed on receipts.
+- Outbox: a table written in the same transaction as a business change, consumed by workers to produce side effects at least once.
+- PDC: post-dated cheque; an asset (received) or liability (issued) that is not cash until cleared.
+- Peppol: the network and document standards used for e-invoicing; PINT AE is the UAE profile.
+- Period: a fiscal month with open, soft-closed, or hard-closed status; plus an audit adjustment period per year.
+- Persona: the experience a user gets, derived from roles; a user with several roles picks one at login.
+- Posting rule: configuration that maps a document, tax code, item class, and dimension to ledger accounts.
+- Posting token: a single-use, short-lived credential issued at final approval and consumed by registration.
+- Price agreement: an approved price per customer, SKU, period, and quantity that suppresses floor holds.
+- Price floor: the minimum price per SKU below which an order needs approval.
+- Registered: the terminal, immutable state of a document with a number allocated and ledger effects posted.
+- Reservation: stock held for an order line from order until delivery.
+- Reverse charge: VAT self-assessed by the buyer, used on imports and certain supplies.
+- RLS: PostgreSQL row-level security.
+- Runway: months of cash at the trailing three-month net burn; not applicable when cash-positive.
+- Segregation of duties (SoD): incompatible role and action pairs enforced by the engine.
+- Snapshot: a versioned, precomputed set of stakeholder figures with as-of and computed-at timestamps.
+- Soft close: an Accountant action blocking sub-ledger postings pending hard close.
+- Stakeholder: a user holding the management role (partners, CFO, CTO, or as configured).
+- State version: an integer on mutable resources that increments per change; clients send it back to detect races.
+- Step-up: a fresh second-factor or biometric assertion required for sensitive actions.
+- Three-way match: LPO, goods receipt, and supplier invoice agree on quantity and price within tolerance.
+- TRN: tax registration number.
+- Voucher template (voucher class): a preconfigured document shape for fast entry.
+- Write-off: a stock issue for samples, marketing, damage, or expiry, distinct from count variances.

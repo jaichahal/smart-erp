@@ -1,0 +1,58 @@
+# https://editorconfig.org
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+indent_style = space
+indent_size = 2
+
+# Go: gofmt owns formatting; tabs.
+[*.go]
+indent_style = tab
+indent_size = 4
+
+[go.mod]
+indent_style = tab
+
+[go.sum]
+indent_style = tab
+
+# Justfile and Makefiles need tabs for recipes.
+[{Justfile,justfile,*.just}]
+indent_style = tab
+
+[Makefile]
+indent_style = tab
+
+# SQL migrations (goose)
+[*.sql]
+indent_size = 4
+
+# Markdown: trailing double-space line breaks are meaningful.
+[*.md]
+trim_trailing_whitespace = false
+max_line_length = 100
+
+[*.{yml,yaml}]
+indent_size = 2
+
+[*.{json,jsonc}]
+indent_size = 2
+
+[*.{ts,tsx,js,jsx,css,scss}]
+indent_size = 2
+
+[*.{kt,kts}]
+indent_size = 4
+
+[*.swift]
+indent_size = 4
+
+[*.sh]
+indent_size = 2
+
+[*.{proto,graphql}]
+indent_size = 2

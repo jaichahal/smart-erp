@@ -26,6 +26,7 @@ import (
 	"github.com/jaichahal/smart-erp/apps/api/internal/kit/httpx"
 	periods "github.com/jaichahal/smart-erp/apps/api/internal/ledger/periods"
 	"github.com/jaichahal/smart-erp/apps/api/internal/notifications"
+	"github.com/jaichahal/smart-erp/apps/api/internal/sales"
 	"github.com/jaichahal/smart-erp/apps/api/internal/receivables"
 )
 
@@ -81,6 +82,7 @@ func Handler(deps httpx.Deps, opts ...Option) (http.Handler, error) {
 			if err := notifications.Mount(authed, deps); err != nil {
 				mountErr = err
 			}
+			sales.Mount(authed, deps)
 		})
 		if mountErr != nil {
 			return

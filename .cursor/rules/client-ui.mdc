@@ -10,6 +10,10 @@ Android stays Kotlin Jetpack Compose. iOS stays SwiftUI. The admin console stays
 
 Touch targets are at least 44 points on every client. A swipe only opens a sheet. Approve, reject, and flag for review commit only from an explicit button on that sheet. Reject needs a reason.
 
+First run is progressive and phone-first. One question occupies each screen. Do not collect sign-up on one flat form.
+
+Black and white themes follow the system until Settings overrides them. Every settings toggle persists. Skeletons stand in while data loads, empty states teach the next action, and decision buttons use haptic feedback.
+
 ```text
 # wrong
 onSwipeRight { postApprove(request) }

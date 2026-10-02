@@ -3,11 +3,20 @@ package com.smarterp.app
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
+import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -16,8 +25,12 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import kotlinx.coroutines.launch
+import androidx.compose.foundation.background
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
+import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
@@ -28,12 +41,24 @@ import java.net.URL
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        val baseUrl = BuildConfig.API_BASE_URL
+        val prefs = getSharedPreferences("smarterp-settings", MODE_PRIVATE)
         setContent {
-            MaterialTheme {
-                Column {
-                    BaselineHealthStatus(baseUrl)
-                    SignInScreen(baseUrl)
+            var settings by remember { mutableStateOf(loadSettings(prefs)) }
+            val dark = prefersDark(settings.theme, isSystemInDarkTheme())
+            val baseUrl = activeBaseUrl(settings.serverUrl, currentApiBaseUrl())
+            fun update(next: AppSettings) {
+                saveSettings(prefs, next)
+                settings = next
+            }
+            MaterialTheme(colorScheme = if (dark) darkScheme() else lightScheme()) {
+                CompositionLocalProvider(
+                    LocalLayoutDirection provides if (settings.direction == "rtl") LayoutDirection.Rtl else LayoutDirection.Ltr,
+                ) {
+                    Column {
+                        Text(if (dark) "dark" else "light", modifier = Modifier.testTag("theme-applied"))
+                        BaselineHealthStatus(baseUrl)
+                        SignInScreen(baseUrl, settings, ::update)
+                    }
                 }
             }
         }
@@ -56,49 +81,71 @@ fun BaselineHealthStatus(baseUrl: String) {
         when {
             status != null -> Text(status!!, modifier = Modifier.testTag("health-status"))
             error != null -> Text(error!!, modifier = Modifier.testTag("health-error"))
-            else -> Text("Checking the baseline API")
+            else -> Box(
+                Modifier
+                    .fillMaxWidth()
+                    .height(44.dp)
+                    .background(MaterialTheme.colorScheme.surface)
+                    .testTag("skeleton"),
+            )
         }
     }
 }
 
 @Composable
-fun SignInScreen(baseUrl: String) {
+fun SignInScreen(baseUrl: String, settings: AppSettings, onSettings: (AppSettings) -> Unit) {
     var loginName by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
-    var signedInName by remember { mutableStateOf<String?>(null) }
+    var showPassword by remember { mutableStateOf(false) }
+    var session by remember { mutableStateOf<DeviceSession.Session?>(null) }
     var error by remember { mutableStateOf<String?>(null) }
+    var mode by remember { mutableStateOf("phone") }
     val scope = rememberCoroutineScope()
+    session?.let {
+        SignedInHome(it, settings, onSettings)
+        return
+    }
+    if (mode == "phone") {
+        PhoneOnboarding(baseUrl) { mode = "email" }
+        return
+    }
     Column {
         TextField(
             value = loginName,
             onValueChange = { loginName = it },
             label = { Text("Login name") },
-            modifier = Modifier.testTag("login-name"),
+            modifier = Modifier.fillMaxWidth().heightIn(min = 44.dp).testTag("login-name"),
         )
         TextField(
             value = password,
             onValueChange = { password = it },
             label = { Text("Password") },
-            modifier = Modifier.testTag("password"),
+            visualTransformation = if (showPassword) VisualTransformation.None else PasswordVisualTransformation(),
+            modifier = Modifier.fillMaxWidth().heightIn(min = 44.dp).testTag("password"),
         )
+        TextButton(
+            onClick = { showPassword = !showPassword },
+            modifier = Modifier.heightIn(min = 44.dp).testTag("toggle-password"),
+        ) {
+            Text(if (showPassword) "Hide password" else "Show password")
+        }
         Button(
             onClick = {
                 error = null
                 scope.launch {
                     try {
-                        signedInName = withContext(Dispatchers.IO) {
-                            DeviceSession.signIn(baseUrl, loginName, password)
+                        session = withContext(Dispatchers.IO) {
+                            DeviceSession.open(baseUrl, loginName, password)
                         }
                     } catch (failure: Exception) {
                         error = failure.message
                     }
                 }
             },
-            modifier = Modifier.testTag("sign-in"),
+            modifier = Modifier.heightIn(min = 44.dp).testTag("sign-in"),
         ) {
             Text("Sign in")
         }
-        signedInName?.let { Text(it, modifier = Modifier.testTag("signed-in-name")) }
         error?.let { Text(it, modifier = Modifier.testTag("sign-in-error")) }
     }
 }

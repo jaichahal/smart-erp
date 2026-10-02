@@ -26,7 +26,9 @@ import (
 	"github.com/jaichahal/smart-erp/apps/api/internal/kit/httpx"
 	"github.com/jaichahal/smart-erp/apps/api/internal/ledger"
 	periods "github.com/jaichahal/smart-erp/apps/api/internal/ledger/periods"
+	"github.com/jaichahal/smart-erp/apps/api/internal/masters"
 	"github.com/jaichahal/smart-erp/apps/api/internal/notifications"
+	"github.com/jaichahal/smart-erp/apps/api/internal/stock"
 	"github.com/jaichahal/smart-erp/apps/api/internal/purchase"
 	"github.com/jaichahal/smart-erp/apps/api/internal/sales"
 	"github.com/jaichahal/smart-erp/apps/api/internal/receivables"
@@ -79,14 +81,18 @@ func Handler(deps httpx.Deps, opts ...Option) (http.Handler, error) {
 		// token authz verifies; period exceptions stay on the periods server.
 		authz.Mount(v1, deps)
 		audit.Mount(v1, deps)
-		approvals.Mount(v1, deps)
 		v1.Group(func(authed chi.Router) {
 			authed.Use(id.Authenticate)
+			approvals.Mount(authed, deps)
+			stock.Mount(authed, deps)
 			purchase.Mount(authed, deps)
 			if err := notifications.Mount(authed, deps); err != nil {
 				mountErr = err
 			}
 			sales.Mount(authed, deps)
+			receivables.Mount(authed, deps)
+			bank.Mount(authed, deps)
+			masters.Mount(authed, deps)
 		})
 		if mountErr != nil {
 			return

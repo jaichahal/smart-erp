@@ -30,7 +30,7 @@ class BaselineHealthUiTest {
 
     @Test
     fun showsLiveBaselineHealthStatus() {
-        val base = BuildConfig.API_BASE_URL.trimEnd('/')
+        val base = currentApiBaseUrl()
         val status = baselineHealthStatus(base)
         try {
             compose.waitUntil(timeoutMillis = 20_000) {

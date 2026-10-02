@@ -9,10 +9,16 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
+	"github.com/lestrrat-go/jwx/v2/jwk"
 
 	"github.com/jaichahal/smart-erp/apps/api/internal/approvals"
+	"github.com/jaichahal/smart-erp/apps/api/internal/identity"
+	"github.com/jaichahal/smart-erp/apps/api/internal/kit/oapi"
 	"github.com/jaichahal/smart-erp/apps/api/internal/kit/rls"
 )
+
+// b1AuthNow matches the identity clock installed by newStack. DPoP iat is checked against it.
+var b1AuthNow = time.Date(2026, 9, 25, 8, 0, 0, 0, time.UTC)
 
 // approvalClock is the clock the composed API uses while these cases run.
 // Mount reads it once, so the pointer is installed before the first test.
@@ -20,18 +26,6 @@ var approvalClock = approvals.NewFakeClock(time.Date(2026, 9, 25, 10, 0, 0, 0, t
 
 func init() {
 	approvals.UseClock(approvalClock)
-	approvals.RequestPrincipal = func(r *http.Request) (rls.Principal, bool) {
-		user := r.Header.Get("X-User")
-		company, err := uuid.Parse(r.Header.Get("X-Company"))
-		if user == "" || err != nil {
-			return rls.Principal{}, false
-		}
-		var roles []string
-		if raw := r.Header.Get("X-Roles"); raw != "" {
-			roles = strings.Split(raw, ",")
-		}
-		return rls.Principal{UserID: user, CompanyID: company, Roles: roles}, true
-	}
 	for id, run := range map[string]func(*testing.T, *stack){
 		"D1":  scenarioD1,
 		"D2":  scenarioD2,
@@ -52,25 +46,100 @@ func init() {
 	}
 }
 
+type b1Session struct {
+	id     string
+	access string
+	key    jwk.Key
+}
+
 type b1 struct {
 	t       *testing.T
 	s       *stack
 	company uuid.UUID
+	users   map[string]b1Session
 }
 
 func newB1(t *testing.T, s *stack) *b1 {
 	t.Helper()
 	approvalClock.Set(time.Date(2026, 9, 25, 10, 0, 0, 0, time.UTC))
-	return &b1{t: t, s: s, company: uuid.New()}
+	return &b1{t: t, s: s, company: uuid.New(), users: map[string]b1Session{}}
 }
 
-func (b *b1) hdr(user string) map[string]string {
-	return map[string]string{"X-User": user, "X-Company": b.company.String(), "X-Roles": "approver"}
+func (b *b1) proof(key jwk.Key, method, path, access string) string {
+	b.t.Helper()
+	raw, err := a1SignDPoP(key, method, b.s.srv.URL+path, access, b1AuthNow)
+	if err != nil {
+		b.t.Fatal(err)
+	}
+	return raw
+}
+
+func (b *b1) login(name, display string, roles []string) b1Session {
+	b.t.Helper()
+	if s, ok := b.users[name]; ok {
+		return s
+	}
+	login := name + "-" + strings.ReplaceAll(b.company.String(), "-", "")
+	acct := identity.Account{
+		ID: uuid.NewString(), LoginName: login, Name: display, CompanyID: b.company,
+		Roles: roles, Personas: []string{"staff"}, StepUpMethods: []string{"totp"},
+	}
+	b.s.dir.put(acct)
+	b.s.broker.add(login, acct.ID, "secret", "654321")
+	key, pub := a1DeviceKey(b.t)
+	status, _, raw := b.s.call(b.t, http.MethodPost, "/api/v1/auth/device/enroll", mustJSONString(b.t, map[string]any{
+		"public_key": pub, "platform": string(oapi.Android), "app_version": "1.0.0", "device_name": name,
+	}), nil)
+	if status != http.StatusCreated {
+		b.t.Fatalf("enroll %s: %d %s", name, status, raw)
+	}
+	dev := a1Data[struct {
+		DeviceID string `json:"device_id"`
+	}](b.t, raw).DeviceID
+	status, _, raw = b.s.call(b.t, http.MethodPost, "/api/v1/auth/session", mustJSONString(b.t, map[string]string{"login_name": login}), nil)
+	if status != http.StatusOK {
+		b.t.Fatalf("session %s: %d %s", name, status, raw)
+	}
+	sid := a1Data[oapi.AuthSession](b.t, raw).SessionId
+	status, _, raw = b.s.call(b.t, http.MethodPost, "/api/v1/auth/session/"+sid+"/check", mustJSONString(b.t, map[string]string{"password": "secret"}), nil)
+	if status != http.StatusOK {
+		b.t.Fatalf("check %s: %d %s", name, status, raw)
+	}
+	tokenPath := "/api/v1/auth/token"
+	status, _, raw = b.s.call(b.t, http.MethodPost, tokenPath, mustJSONString(b.t, map[string]string{"session_id": sid, "device_id": dev}), map[string]string{
+		"DPoP": b.proof(key, http.MethodPost, tokenPath, ""),
+	})
+	if status != http.StatusOK {
+		b.t.Fatalf("token %s: %d %s", name, status, raw)
+	}
+	sess := b1Session{id: acct.ID, access: a1Data[oapi.TokenResponse](b.t, raw).AccessToken, key: key}
+	b.users[name] = sess
+	return sess
+}
+
+func (b *b1) id(name string) string {
+	b.t.Helper()
+	s, ok := b.users[name]
+	if !ok {
+		b.t.Fatalf("no session for %s", name)
+	}
+	return s.id
 }
 
 func (b *b1) call(method, path, body, user string) (int, string, []byte) {
 	b.t.Helper()
-	return b.s.call(b.t, method, path, body, b.hdr(user))
+	sess, ok := b.users[user]
+	if !ok {
+		b.t.Fatalf("no bearer for %s", user)
+	}
+	htu := path
+	if i := strings.IndexByte(path, '?'); i >= 0 {
+		htu = path[:i]
+	}
+	return b.s.call(b.t, method, path, body, map[string]string{
+		"Authorization": "Bearer " + sess.access,
+		"DPoP":          b.proof(sess.key, method, htu, sess.access),
+	})
 }
 
 func (b *b1) ok(method, path string, body any, user string) []byte {
@@ -114,11 +183,12 @@ func decodeEnv(t *testing.T, raw []byte) decisionEnv {
 	return env
 }
 
-func (b *b1) actor(id, name, dept string, roles ...string) {
+func (b *b1) actor(name, display, dept string, roles ...string) {
 	b.t.Helper()
+	b.login(name, display, roles)
 	b.ok(http.MethodPost, "/api/v1/approvals/actors", map[string]any{
-		"id": id, "name": name, "department": dept, "roles": roles,
-	}, id)
+		"id": b.id(name), "name": display, "department": dept, "roles": roles,
+	}, name)
 }
 
 func (b *b1) matrix(doc, threshold string, stepUp bool) {
@@ -180,7 +250,7 @@ func (b *b1) count(q string, args ...any) int {
 func (b *b1) versions(requestID string) int {
 	b.t.Helper()
 	var n int
-	p := rls.Principal{UserID: "initiator", CompanyID: b.company, Roles: []string{"approver"}}
+	p := rls.Principal{UserID: b.id("initiator"), CompanyID: b.company, Roles: []string{"approver"}}
 	err := rls.Tx(b.t.Context(), b.s.db.App, p, func(tx pgx.Tx) error {
 		return tx.QueryRow(b.t.Context(), `SELECT count(*) FROM erp.approval_requests WHERE request_id=$1`, requestID).Scan(&n)
 	})

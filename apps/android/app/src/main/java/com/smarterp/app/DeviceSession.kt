@@ -13,8 +13,81 @@ import java.security.spec.ECGenParameterSpec
 import java.time.Instant
 import java.util.UUID
 
+data class PhoneCheck(val verified: Boolean, val detail: String)
+
 object DeviceSession {
-    fun signIn(baseUrl: String, loginName: String, password: String): String {
+    class Session internal constructor(
+        val name: String,
+        val userId: String,
+        val roles: List<String>,
+        val personas: List<String>,
+        private val base: String,
+        private val access: String,
+        private val privateKey: ECPrivateKey,
+        private val jwk: JSONObject,
+    ) {
+        fun get(path: String): JSONObject = authed("GET", path, null)
+        fun post(path: String, body: JSONObject): JSONObject = authed("POST", path, body)
+
+        fun exchange(method: String, path: String, body: JSONObject?, match: String? = null): Pair<Int, JSONObject> {
+            val url = base + path
+            val proof = dpop(privateKey, jwk, method, url.substringBefore('?'), access)
+            return callResult(url, method, body?.toString(), access, proof, match)
+        }
+
+        private fun authed(method: String, path: String, body: JSONObject?): JSONObject {
+            val (code, json) = exchange(method, path, body)
+            if (code !in 200..299) {
+                throw IllegalStateException("HTTP $code $json")
+            }
+            return json
+        }
+    }
+
+    fun signIn(baseUrl: String, loginName: String, password: String): String = open(baseUrl, loginName, password).name
+
+    /**
+     * Checks a phone one-time code with the real session routes.
+     * Verified is true only when POST /auth/session/{id}/check returns verified.
+     * There is no SMS OTP route, so totp on that check is the closest challenge.
+     */
+    fun verifyPhoneCode(baseUrl: String, phone: String, code: String): PhoneCheck {
+        val base = baseUrl.trimEnd('/')
+        val started = callResult(
+            "$base/api/v1/auth/session",
+            "POST",
+            JSONObject().put("login_name", phone).toString(),
+            null,
+            null,
+        )
+        if (started.first !in 200..299) {
+            return PhoneCheck(verified = false, detail = apiDetail(started.first, started.second))
+        }
+        val sessionId = started.second.optJSONObject("data")?.optString("session_id").orEmpty()
+        if (sessionId.isBlank()) {
+            return PhoneCheck(verified = false, detail = "HTTP ${started.first} session id missing")
+        }
+        val checked = callResult(
+            "$base/api/v1/auth/session/$sessionId/check",
+            "POST",
+            JSONObject().put("totp", code).toString(),
+            null,
+            null,
+        )
+        val verified = checked.first in 200..299 &&
+            checked.second.optJSONObject("data")?.optBoolean("verified") == true
+        if (!verified) {
+            val detail = if (checked.first !in 200..299) {
+                apiDetail(checked.first, checked.second)
+            } else {
+                "HTTP ${checked.first} session was not verified"
+            }
+            return PhoneCheck(verified = false, detail = detail)
+        }
+        return PhoneCheck(verified = true, detail = "")
+    }
+
+    fun open(baseUrl: String, loginName: String, password: String): Session {
         val base = baseUrl.trimEnd('/')
         val pair = KeyPairGenerator.getInstance("EC").apply {
             initialize(ECGenParameterSpec("secp256r1"))
@@ -43,11 +116,26 @@ object DeviceSession {
         val access = tokens.getJSONObject("data").getString("access_token")
         val meUrl = "$base/api/v1/me"
         val me = get(meUrl, access, dpop(privateKey, jwk, "GET", meUrl, access))
-        val name = me.getJSONObject("data").getString("name")
+        val data = me.getJSONObject("data")
+        val name = data.getString("name")
         if (name.isBlank()) {
             throw IllegalStateException("Current user name was empty")
         }
-        return name
+        return Session(
+            name = name,
+            userId = data.getString("id"),
+            roles = strings(data.optJSONArray("roles")),
+            personas = strings(data.optJSONArray("personas")),
+            base = base,
+            access = access,
+            privateKey = privateKey,
+            jwk = jwk,
+        )
+    }
+
+    private fun strings(array: org.json.JSONArray?): List<String> {
+        if (array == null) return emptyList()
+        return List(array.length()) { index -> array.getString(index) }
     }
 
     private fun publicJwk(key: ECPublicKey): JSONObject {
@@ -77,6 +165,11 @@ object DeviceSession {
         return signingInput + "." + b64(derToRaw(signer.sign()))
     }
 
+    private fun apiDetail(code: Int, json: JSONObject): String {
+        val message = json.optJSONObject("error")?.optString("message").orEmpty()
+        return if (message.isBlank()) "HTTP $code" else "HTTP $code $message"
+    }
+
     private fun post(url: String, body: JSONObject, dpop: String? = null): JSONObject {
         return call(url, "POST", body.toString(), null, dpop)
     }
@@ -86,6 +179,14 @@ object DeviceSession {
     }
 
     private fun call(url: String, method: String, body: String?, access: String?, dpop: String?): JSONObject {
+        val (code, json) = callResult(url, method, body, access, dpop)
+        if (code !in 200..299) {
+            throw IllegalStateException("HTTP $code $json")
+        }
+        return json
+    }
+
+    private fun callResult(url: String, method: String, body: String?, access: String?, dpop: String?, match: String? = null): Pair<Int, JSONObject> {
         val conn = (URL(url).openConnection() as HttpURLConnection).apply {
             requestMethod = method
             connectTimeout = 8_000
@@ -95,6 +196,9 @@ object DeviceSession {
                 doOutput = true
                 setRequestProperty("Content-Type", "application/json")
                 setRequestProperty("Idempotency-Key", UUID.randomUUID().toString())
+            }
+            if (match != null) {
+                setRequestProperty("If-Match", match)
             }
             if (access != null) {
                 setRequestProperty("Authorization", "Bearer $access")
@@ -110,10 +214,8 @@ object DeviceSession {
             val code = conn.responseCode
             val stream = if (code in 200..299) conn.inputStream else conn.errorStream
             val text = stream?.bufferedReader()?.use { it.readText() }.orEmpty()
-            if (code !in 200..299) {
-                throw IllegalStateException("HTTP $code $text")
-            }
-            JSONObject(text)
+            val json = if (text.isBlank()) JSONObject() else JSONObject(text)
+            Pair(code, json)
         } finally {
             conn.disconnect()
         }

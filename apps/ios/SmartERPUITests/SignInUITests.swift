@@ -18,10 +18,13 @@ final class SignInUITests: XCTestCase {
         app.launchArguments = ["-apiBaseURL", apiBaseURL.absoluteString]
         app.launch()
 
-        let login = app.textFields["login-name"]
-        XCTAssertTrue(login.waitForExistence(timeout: 10), "login field was not shown")
+        let login = app.buttons["use-work-email"]
+        XCTAssertTrue(login.waitForExistence(timeout: 10), "phone onboarding was not shown")
         login.tap()
-        login.typeText("admin@dev.localhost")
+        let email = app.textFields["login-name"]
+        XCTAssertTrue(email.waitForExistence(timeout: 10), "login field was not shown")
+        email.tap()
+        email.typeText("admin@dev.localhost")
 
         let password = app.secureTextFields["password"]
         XCTAssertTrue(password.waitForExistence(timeout: 5))

@@ -38,7 +38,7 @@ class JourneyUiTest {
     @Test fun purchaseLpoThroughPayment() = expect("LPO payment released")
     @Test fun stockCount() = expect("Stock count posted")
     @Test fun approvalInbox() {
-        val api = DeviceSession.open(BuildConfig.API_BASE_URL, "admin@dev.localhost", "Admin1234!")
+        val api = DeviceSession.open(currentApiBaseUrl(), "admin@dev.localhost", "Admin1234!")
         val doc = "UI-AND-INBOX-${System.currentTimeMillis()}"
         val id = seedWaiting(api, doc)
         val before = approvalState(api, id)
@@ -58,7 +58,7 @@ class JourneyUiTest {
 
     @Test
     fun swipeDoesNotChangeApprovalState() {
-        val api = DeviceSession.open(BuildConfig.API_BASE_URL, "admin@dev.localhost", "Admin1234!")
+        val api = DeviceSession.open(currentApiBaseUrl(), "admin@dev.localhost", "Admin1234!")
         val doc = "UI-AND-${System.currentTimeMillis()}"
         val id = seedWaiting(api, doc)
         val before = approvalState(api, id)
@@ -102,6 +102,7 @@ class JourneyUiTest {
     }
 
     private fun signIn() {
+        compose.onNodeWithTag("use-work-email").performClick()
         compose.onNodeWithTag("login-name").performTextInput("admin@dev.localhost")
         compose.onNodeWithTag("password").performTextInput("Admin1234!")
         compose.onNodeWithTag("sign-in").performClick()

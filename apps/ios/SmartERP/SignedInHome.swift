@@ -7,6 +7,7 @@ struct SignedInHome: View {
     @State private var errorLine = ""
     @State private var sheet: SheetRequest?
     @State private var flags: Set<String> = []
+    @State private var showSettings = false
 
     private var kind: String { homeKind(roles: session.roles, personas: session.personas) }
 
@@ -19,14 +20,31 @@ struct SignedInHome: View {
                     Text(session.roles.joined(separator: ", ")).accessibilityIdentifier("profile-roles")
                     Text(kind).accessibilityIdentifier("home-kind")
                     PersonaHome(kind: kind)
+                    Button("Settings") { showSettings = true }
+                        .frame(minHeight: 44)
+                        .accessibilityIdentifier("Settings")
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
             .frame(maxHeight: 300)
             Text("Approval inbox").font(.title2)
-            if !loaded { Text("Loading the approval inbox") }
+            if !loaded {
+                RoundedRectangle(cornerRadius: 8)
+                    .fill(Color.primary.opacity(0.12))
+                    .frame(height: 44)
+                    .accessibilityIdentifier("skeleton")
+            }
             if !errorLine.isEmpty { Text(errorLine).foregroundStyle(.red).accessibilityIdentifier("inbox-error") }
-            if loaded && cards.isEmpty && errorLine.isEmpty { Text("Nothing is waiting on you.") }
+            if loaded && cards.isEmpty && errorLine.isEmpty {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Nothing needs you yet.")
+                    Text("New requests land in this inbox when someone submits one.")
+                    Button("Check again") { Task { await load() } }
+                        .frame(minHeight: 44)
+                        .accessibilityIdentifier("empty-inbox-action")
+                }
+                .accessibilityIdentifier("empty-inbox")
+            }
             ForEach(cards) { card in
                 ApprovalCardView(card: card, flagged: flags.contains(card.id)) { opened in
                     sheet = SheetRequest(kind: opened, card: card)
@@ -40,6 +58,9 @@ struct SignedInHome: View {
             DecisionSheet(session: session, request: request) {
                 flags.insert(request.card.id)
             }
+        }
+        .sheet(isPresented: $showSettings) {
+            SettingsPanel(session: session).padding()
         }
     }
 
@@ -221,12 +242,18 @@ private struct DecisionSheet: View {
             }
             if !message.isEmpty { Text(message).foregroundStyle(.red) }
             if request.kind == "approve" {
-                Button("Approve") { Task { await approve() } }
+                Button("Approve") {
+                    decisionHaptic()
+                    Task { await approve() }
+                }
                     .frame(minHeight: 44)
                     .accessibilityIdentifier("approve-submit")
             }
             if request.kind == "reject" {
-                Button("Reject") { Task { await reject() } }
+                Button("Reject") {
+                    decisionHaptic()
+                    Task { await reject() }
+                }
                     .disabled(reason.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                     .frame(minHeight: 44)
             }

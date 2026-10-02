@@ -12,7 +12,12 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.height
 import androidx.compose.material3.Button
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -38,7 +43,7 @@ import kotlin.math.hypot
 private val Alert = Color(0xFFB91C1C)
 
 @Composable
-fun SignedInHome(session: DeviceSession.Session) {
+fun SignedInHome(session: DeviceSession.Session, settings: AppSettings, onSettings: (AppSettings) -> Unit) {
     val kind = homeKind(session.roles, session.personas)
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Text(session.name, modifier = Modifier.testTag("signed-in-name"))
@@ -47,6 +52,7 @@ fun SignedInHome(session: DeviceSession.Session) {
         Text(kind, modifier = Modifier.testTag("home-kind"))
         PersonaBlock(kind)
         ApprovalInbox(session)
+        PhoneHome(session, settings, onSettings)
     }
 }
 
@@ -93,19 +99,35 @@ private fun ApprovalInbox(session: DeviceSession.Session) {
     var error by remember { mutableStateOf<String?>(null) }
     var sheet by remember { mutableStateOf<Pair<String, Card>?>(null) }
     var flags by remember { mutableStateOf(setOf<String>()) }
-    LaunchedEffect(session) {
-        try {
-            cards = withContext(Dispatchers.IO) { loadCards(session) }
-        } catch (failure: Exception) {
-            cards = emptyList()
-            error = failure.message
+    val scope = rememberCoroutineScope()
+    fun reload() {
+        cards = null
+        error = null
+        scope.launch {
+            try {
+                cards = withContext(Dispatchers.IO) { loadCards(session) }
+            } catch (failure: Exception) {
+                cards = emptyList()
+                error = failure.message
+            }
         }
     }
+    LaunchedEffect(session) { reload() }
     Text("Approval inbox")
     when {
-        cards == null -> Text("Loading the approval inbox")
-        error != null -> Text(error!!, color = Alert, modifier = Modifier.testTag("inbox-error"))
-        cards!!.isEmpty() -> Text("Nothing is waiting on you.")
+        cards == null -> Box(
+            Modifier.fillMaxWidth().height(44.dp).background(MaterialTheme.colorScheme.surface).testTag("skeleton"),
+        )
+        error != null -> Column {
+            Text(error!!, color = Alert, modifier = Modifier.testTag("inbox-error"))
+            Text("The live inbox could not be read. Check it again.")
+            Button(onClick = { reload() }, modifier = Modifier.heightIn(min = 44.dp).testTag("empty-inbox-action")) { Text("Check again") }
+        }
+        cards!!.isEmpty() -> Column(Modifier.testTag("empty-inbox")) {
+            Text("Nothing needs you yet.")
+            Text("New requests land in this inbox when someone submits one.")
+            Button(onClick = { reload() }, modifier = Modifier.heightIn(min = 44.dp).testTag("empty-inbox-action")) { Text("Check again") }
+        }
     }
     cards.orEmpty().forEach { card ->
         ApprovalCard(card, flags.contains(card.id)) { kind -> sheet = kind to card }
@@ -211,7 +233,8 @@ private fun DecisionSheet(
             actions = readActions(dashboard.second)
         }
     }
-    Column(Modifier.fillMaxWidth().background(Color.White).padding(16.dp).testTag("approval-sheet")) {
+    val haptic = LocalHapticFeedback.current
+    Column(Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surface).padding(16.dp).testTag("approval-sheet")) {
         val title = when (kind) {
             "approve" -> "Approve request"
             "reject" -> "Reject request"
@@ -238,7 +261,7 @@ private fun DecisionSheet(
             )
         }
         if (message.isNotBlank()) Text(message, color = Alert)
-        CommitButtons(session, kind, card, version, reason, stepCode, needStepUp, actions, onFlag) { next, stepped ->
+        CommitButtons(session, kind, card, version, reason, stepCode, needStepUp, actions, { haptic.performHapticFeedback(HapticFeedbackType.LongPress) }, onFlag) { next, stepped ->
             message = next
             if (stepped) needStepUp = true
         }
@@ -256,6 +279,7 @@ private fun CommitButtons(
     stepCode: String,
     needStepUp: Boolean,
     actions: Set<String>,
+    onDecision: () -> Unit,
     onFlag: () -> Unit,
     report: (String, Boolean) -> Unit,
 ) {
@@ -264,6 +288,7 @@ private fun CommitButtons(
         if (kind == "approve" && actions.contains("approve")) {
             Button(
                 onClick = {
+                    onDecision()
                     scope.launch {
                         val result = withContext(Dispatchers.IO) { submitApprove(session, card.id, version, stepCode, needStepUp) }
                         report(result.message, result.needStepUp)
@@ -275,6 +300,7 @@ private fun CommitButtons(
         if (kind == "reject") {
             Button(
                 onClick = {
+                    onDecision()
                     scope.launch {
                         val result = withContext(Dispatchers.IO) {
                             val (code, json) = session.exchange(
@@ -294,6 +320,7 @@ private fun CommitButtons(
         if (actions.contains("blacklist")) {
             Button(
                 onClick = {
+                    onDecision()
                     scope.launch {
                         val result = withContext(Dispatchers.IO) { submitBlacklist(session, card) }
                         report(result, false)
@@ -304,6 +331,7 @@ private fun CommitButtons(
         }
         if (kind == "flag") {
             Button(onClick = {
+                onDecision()
                 onFlag()
                 report("Flagged for review", false)
             }, modifier = Modifier.heightIn(min = 44.dp)) { Text("Flag for review") }

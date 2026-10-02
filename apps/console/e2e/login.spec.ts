@@ -51,6 +51,7 @@ test("console signs in and shows the directory user from the Docker API", async 
   seedDirectoryUser();
 
   await page.goto("/");
+  await page.getByRole("button", { name: "Use work email" }).click();
   await page.getByLabel("Login name").fill("admin@dev.localhost");
   await page.getByLabel("Password").fill(devPassword());
   await page.getByRole("button", { name: "Sign in" }).click();

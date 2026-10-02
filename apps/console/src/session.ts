@@ -43,6 +43,17 @@ async function consolePublicKey(): Promise<Record<string, string>> {
   return { kty: jwk.kty, crv: jwk.crv, x: jwk.x, y: jwk.y };
 }
 
+export async function verifyPhoneCode(phone: string, code: string): Promise<string> {
+  try {
+    const session = await post<{ session_id: string }>("/api/v1/auth/session", { login_name: phone });
+    const checked = await post<{ verified?: boolean }>(`/api/v1/auth/session/${session.data.session_id}/check`, { totp: code });
+    return checked.data.verified === true ? "verified" : "HTTP session was not verified";
+  } catch (cause) {
+    const message = cause instanceof Error ? cause.message : "request failed";
+    return message.startsWith("HTTP") ? message : `HTTP ${message}`;
+  }
+}
+
 export async function signIn(loginName: string, password: string): Promise<Profile> {
   const publicKey = await consolePublicKey();
   const enrolled = await post<{ device_id: string }>("/api/v1/auth/device/enroll", {

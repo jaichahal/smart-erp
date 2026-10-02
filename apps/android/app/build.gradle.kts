@@ -5,6 +5,10 @@ plugins {
 
 // Host port published by the api service in deploy/compose/docker-compose.yml.
 // The emulator reaches the Mac through 10.0.2.2.
+// A USB phone does not. Reverse the port, then pass the phone host:
+//   adb reverse tcp:8080 tcp:8080
+//   ./gradlew :app:installDebug -PapiBaseUrl=http://127.0.0.1:8080
+// Omit apiBaseUrl and the committed emulator host stays in place.
 val baselineApiHostPort: String = run {
     val compose = rootProject.file("../../deploy/compose/docker-compose.yml")
     val text = compose.readText()
@@ -29,11 +33,10 @@ android {
         versionCode = 1
         versionName = "0.1.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-        buildConfigField(
-            "String",
-            "API_BASE_URL",
-            "\"http://10.0.2.2:$baselineApiHostPort\"",
-        )
+        val emulatorApi = "http://10.0.2.2:$baselineApiHostPort"
+        val apiBaseOverride = (findProperty("apiBaseUrl") as String?)?.trim()?.trimEnd('/').orEmpty()
+        buildConfigField("String", "API_BASE_URL", "\"$emulatorApi\"")
+        buildConfigField("String", "API_BASE_OVERRIDE", "\"$apiBaseOverride\"")
     }
 
     buildFeatures {

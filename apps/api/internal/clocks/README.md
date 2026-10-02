@@ -1,3 +1,3 @@
-# clocks
+# Clocks
 
-Owned by the Wave 1 task listed in WAVE1.md. Empty until that agent starts.
+Company holiday calendar and business-hours deadlines (P1.4).

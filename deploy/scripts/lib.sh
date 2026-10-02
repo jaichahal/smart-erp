@@ -36,12 +36,27 @@ compose() {
   (cd "${COMPOSE_DIR}" && docker compose "$@")
 }
 
-# Run a one-off Go binary command inside the api image, sharing the stack's
-# network and env. Usage: erp_run <subcommand and args...>
-#   e.g. erp_run backup create --target offsite
-# The Go side owns the actual work; these scripts only orchestrate.
+# Run a one-off command inside the api image. Prefer auditctl for anchor,
+# backup, restore, and chain verification; it runs the Go package directly.
 erp_run() {
   compose run --rm --no-deps -T api "$@"
+}
+
+# Run a Go subcommand from the audit module. Usage: auditctl <args...>
+# The scripts only orchestrate; the audit package owns the behaviour.
+auditctl() {
+  local api="${ERP_API_DIR:-$(cd "${DEPLOY_DIR}/../apps/api" && pwd)}"
+  local envfile="${ERP_HOST_ENV:-${COMPOSE_DIR}/.env.dev.host}"
+  (
+    if [[ -f "${envfile}" ]]; then
+      set -a
+      # shellcheck disable=SC1090
+      source "${envfile}"
+      set +a
+    fi
+    cd "${api}"
+    go run ./internal/audit/cmd/auditctl "$@"
+  )
 }
 
 # Read a scalar from the drive allow-list without a YAML parser:

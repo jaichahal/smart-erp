@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/hex"
+	"log/slog"
 	"net/http"
 )
 
@@ -19,7 +20,9 @@ func RequestIDMiddleware(next http.Handler) http.Handler {
 			rid = hex.EncodeToString(b[:])
 		}
 		w.Header().Set("X-Request-ID", rid)
-		next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), ctxKey{}, rid)))
+		ctx := context.WithValue(r.Context(), ctxKey{}, rid)
+		next.ServeHTTP(w, r.WithContext(ctx))
+		slog.InfoContext(ctx, "request", "request_id", rid)
 	})
 }
 

@@ -155,6 +155,13 @@ func (c *FakeClock) Now() time.Time {
 	return c.t
 }
 
+// Set moves the clock to t.
+func (c *FakeClock) Set(t time.Time) {
+	c.mu.Lock()
+	c.t = t.UTC()
+	c.mu.Unlock()
+}
+
 // Advance moves the clock forward.
 func (c *FakeClock) Advance(d time.Duration) {
 	c.mu.Lock()

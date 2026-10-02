@@ -9,6 +9,8 @@ info:
     breaking changes bump the major version and carry a migration note.
 
     1.1.0 (additive): `GET /me/sessions` and `DELETE /me/sessions/{id}` plus schema `UserSession`
+    (R1.15, A9). Period soft-close, hard-close, audit-adjustment open, and the holiday calendar.
+    No breaking change from 1.0.0.
     (R1.15, A9). No breaking change from 1.0.0.
     1.1.0 adds the Journeys paths, the step result shape, and no change to existing operations.
     1.1.0 is additive: period soft-close, hard-close, audit-adjustment open, and the holiday
@@ -62,6 +64,8 @@ tags:
     description: Fiscal period soft close, hard close, and the audit-adjustment period
   - name: masters
     description: Company masters, including the holiday calendar
+  - name: journeys
+    description: Persona-filtered journey definitions, instances, and the step protocol
 
 paths:
   /health:
@@ -1690,37 +1694,172 @@ paths:
         "503":
           $ref: "#/components/responses/Unavailable"
 
-components:
-  securitySchemes:
-    bearer:
-      type: http
-      scheme: bearer
-      bearerFormat: JWT
-      description: ERP access token issued by POST /auth/token. Expires in 15 minutes or less.
-    dpop:
-      type: apiKey
-      in: header
-      name: DPoP
+  /sod-matrix:
+    get:
+      operationId: listSodMatrix
+      tags: [authz]
+      summary: List the segregation-of-duties matrix
       description: |
-        DPoP proof JWT signed by the enrolled device key (RFC 9449). Required on every mobile
-        request alongside the bearer token; the console uses a session cookie with a CSRF token.
+        Incompatible role pairs and incompatible actions on one document (R1.13). Includes
+        pending rows created by a mutation that is waiting on an approval request (04 Masters).
+      parameters:
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/AcceptLanguage"
+      responses:
+        "200":
+          description: Matrix rows visible to the caller
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, meta]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/SodRule"
+                  meta:
+                    $ref: "#/components/schemas/PageMeta"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+        "500":
+          $ref: "#/components/responses/InternalError"
+        "503":
+          $ref: "#/components/responses/Unavailable"
+    post:
+      operationId: createSodRule
+      tags: [authz]
+      summary: Propose a segregation-of-duties rule
+      description: |
+        Sensitive master mutation (04 Masters). The row is stored as `pending_approval` and is
+        not enforced until the approval request is decided. `If-Match` carries `state_version`
+        (`0` when creating). An incompatible role assignment is refused with `SOD_VIOLATION`
+        unless an override approval is cited (A14); that enforcement is on role assignment, and
+        this route is the matrix itself (A23 when the approval engine consumes the request).
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+        - $ref: "#/components/parameters/IfMatch"
+        - $ref: "#/components/parameters/AcceptLanguage"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SodRuleWrite"
+      responses:
+        "200":
+          description: Rule stored, pending approval or already decided with the current row
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, meta]
+                properties:
+                  data:
+                    $ref: "#/components/schemas/SodRule"
+                  meta:
+                    $ref: "#/components/schemas/Meta"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+        "500":
+          $ref: "#/components/responses/InternalError"
+        "503":
+          $ref: "#/components/responses/Unavailable"
 
-  parameters:
-    IdempotencyKey:
-      name: Idempotency-Key
-      in: header
-      required: true
+  /approval-matrix:
+    get:
+      operationId: listApprovalMatrix
+      tags: [authz]
+      summary: List approval matrix rules
       description: |
-        UUID chosen by the client. The server stores the response for 24 hours and replays it for a
-        repeated key with the same body; a different body with the same key is `409 CONFLICT`.
-      schema:
-        type: string
-        format: uuid
-    IfMatch:
-      name: If-Match
-      in: header
-      required: false
+        Per document type: amount threshold, below-threshold role, independent first approver
+        and final gate (R2.2). Pending mutations are included.
+      parameters:
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/AcceptLanguage"
+      responses:
+        "200":
+          description: Matrix rows visible to the caller
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, meta]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/ApprovalMatrixRule"
+                  meta:
+                    $ref: "#/components/schemas/PageMeta"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+        "500":
+          $ref: "#/components/responses/InternalError"
+        "503":
+          $ref: "#/components/responses/Unavailable"
+    post:
+      operationId: createApprovalMatrixRule
+      tags: [authz]
+      summary: Propose an approval matrix rule
       description: |
+        Sensitive master mutation (04 Masters). Stored as `pending_approval` until the approval
+        engine decides the request. `If-Match` carries `state_version` (`0` when creating).
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+        - $ref: "#/components/parameters/IfMatch"
+        - $ref: "#/components/parameters/AcceptLanguage"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ApprovalMatrixRuleWrite"
+      responses:
+        "200":
+          description: Rule stored pending approval
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, meta]
+                properties:
+                  data:
+                    $ref: "#/components/schemas/ApprovalMatrixRule"
+                  meta:
+                    $ref: "#/components/schemas/Meta"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+        "500":
+          $ref: "#/components/responses/InternalError"
+        "503":
+          $ref: "#/components/responses/Unavailable"
         The `state_version` the client last saw. A mismatch is `409 CONFLICT` with the current
         state in `error.details.current`.
       schema:
@@ -1813,6 +1952,545 @@ components:
         The first holiday-calendar write sends `0`.
       schema:
         type: string
+
+  /periods/{id}/soft-close:
+    post:
+      operationId: softClosePeriod
+      tags: [periods]
+      summary: Soft-close a fiscal period
+      description: |
+        Accountant only (R4.6, C3, C33). Blocks further postings into the period. Idempotent
+        when the period is already soft-closed and `If-Match` is the current `state_version`.
+      parameters:
+        - $ref: "#/components/parameters/PeriodId"
+        - $ref: "#/components/parameters/IdempotencyKey"
+        - $ref: "#/components/parameters/IfMatchRequired"
+        - $ref: "#/components/parameters/AcceptLanguage"
+      responses:
+        "200":
+          description: Period soft-closed
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, meta]
+                properties:
+                  data:
+                    $ref: "#/components/schemas/Period"
+                  meta:
+                    $ref: "#/components/schemas/Meta"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+        "500":
+          $ref: "#/components/responses/InternalError"
+        "503":
+          $ref: "#/components/responses/Unavailable"
+
+  /periods/{id}/hard-close:
+    post:
+      operationId: hardClosePeriod
+      tags: [periods]
+      summary: Hard-close a fiscal period
+      description: |
+        Stakeholder only, and only with an approval id that the approvals module has granted
+        (R4.6, C3). Nothing posts to a hard-closed period; the posting guard returns
+        `PERIOD_CLOSED`.
+      parameters:
+        - $ref: "#/components/parameters/PeriodId"
+        - $ref: "#/components/parameters/IdempotencyKey"
+        - $ref: "#/components/parameters/IfMatchRequired"
+        - $ref: "#/components/parameters/AcceptLanguage"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PeriodApproval"
+      responses:
+        "200":
+          description: Period hard-closed
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, meta]
+                properties:
+                  data:
+                    $ref: "#/components/schemas/Period"
+                  meta:
+                    $ref: "#/components/schemas/Meta"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+        "500":
+          $ref: "#/components/responses/InternalError"
+        "503":
+          $ref: "#/components/responses/Unavailable"
+
+  /periods/{year}/audit-adjustment/open:
+    post:
+      operationId: openAuditAdjustmentPeriod
+      tags: [periods]
+      summary: Open the audit-adjustment period for a fiscal year
+      description: |
+        Stakeholder only, with approval (R4.8). One audit-adjustment period per fiscal year.
+        Opening an already-open period with the same `If-Match` replays the current period.
+      parameters:
+        - $ref: "#/components/parameters/FiscalYear"
+        - $ref: "#/components/parameters/IdempotencyKey"
+        - $ref: "#/components/parameters/IfMatchRequired"
+        - $ref: "#/components/parameters/AcceptLanguage"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PeriodApproval"
+      responses:
+        "200":
+          description: Audit-adjustment period opened
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, meta]
+                properties:
+                  data:
+                    $ref: "#/components/schemas/Period"
+                  meta:
+                    $ref: "#/components/schemas/Meta"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+        "500":
+          $ref: "#/components/responses/InternalError"
+        "503":
+          $ref: "#/components/responses/Unavailable"
+
+  /holiday-calendar:
+    get:
+      operationId: getHolidayCalendar
+      tags: [masters]
+      summary: Read the company holiday calendar
+      description: |
+        Weekend definition, business-hours window, and holidays used by every business-hours
+        clock (R13.8, C5, ADR-12).
+      parameters:
+        - $ref: "#/components/parameters/AcceptLanguage"
+      responses:
+        "200":
+          description: Calendar
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, meta]
+                properties:
+                  data:
+                    $ref: "#/components/schemas/HolidayCalendar"
+                  meta:
+                    $ref: "#/components/schemas/Meta"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+        "500":
+          $ref: "#/components/responses/InternalError"
+        "503":
+          $ref: "#/components/responses/Unavailable"
+    post:
+      operationId: putHolidayCalendar
+      tags: [masters]
+      summary: Create or replace the company holiday calendar
+      description: |
+        Replaces weekend days, the business-hours window, and the holiday list in one write.
+        `If-Match` carries the current `state_version`; the first write sends `0` (R13.8, A19).
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+        - $ref: "#/components/parameters/IfMatchRequired"
+        - $ref: "#/components/parameters/AcceptLanguage"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/HolidayCalendarWrite"
+      responses:
+        "200":
+          description: Calendar saved
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, meta]
+                properties:
+                  data:
+                    $ref: "#/components/schemas/HolidayCalendar"
+                  meta:
+                    $ref: "#/components/schemas/Meta"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+        "500":
+          $ref: "#/components/responses/InternalError"
+        "503":
+          $ref: "#/components/responses/Unavailable"
+  /journeys:
+    get:
+      operationId: listJourneys
+      tags: [journeys]
+      summary: List journey definitions grouped by persona
+      description: |
+        Server-enforced persona filter (R15.5). `persona` is intersected with the personas the
+        server has evaluated for the caller. Requesting a persona the caller does not hold is
+        `403 PERMISSION_DENIED`. Omitting `persona` returns every group the caller holds.
+        Client-supplied roles or personas never widen this list.
+      parameters:
+        - name: persona
+          in: query
+          required: false
+          description: Persona group to return. Ignored as a grant; used only as a filter.
+          schema:
+            type: string
+            minLength: 1
+        - $ref: "#/components/parameters/AcceptLanguage"
+      responses:
+        "200":
+          description: Definitions grouped by persona
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, meta]
+                properties:
+                  data:
+                    $ref: "#/components/schemas/JourneyList"
+                  meta:
+                    $ref: "#/components/schemas/Meta"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+        "500":
+          $ref: "#/components/responses/InternalError"
+        "503":
+          $ref: "#/components/responses/Unavailable"
+
+  /journeys/{slug}/instances:
+    post:
+      operationId: createJourneyInstance
+      tags: [journeys]
+      summary: Start a journey instance
+      description: |
+        Creates a persisted instance at the definition's first step and returns
+        `{ instance_id, step, state_version }`. `state_version` is 1. The caller must hold a
+        persona the definition allows; that check uses server-evaluated personas.
+      parameters:
+        - $ref: "#/components/parameters/JourneySlug"
+        - $ref: "#/components/parameters/IdempotencyKey"
+        - $ref: "#/components/parameters/AcceptLanguage"
+      responses:
+        "201":
+          description: Instance created
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, meta]
+                properties:
+                  data:
+                    $ref: "#/components/schemas/JourneyInstanceCreated"
+                  meta:
+                    $ref: "#/components/schemas/Meta"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+        "500":
+          $ref: "#/components/responses/InternalError"
+        "503":
+          $ref: "#/components/responses/Unavailable"
+
+  /journeys/instances/{id}:
+    get:
+      operationId: getJourneyInstance
+      tags: [journeys]
+      summary: Read resumable journey instance state
+      description: |
+        Returns the persisted instance. This is the resume point after a process restart or after
+        days. There is no in-memory journey state.
+      parameters:
+        - $ref: "#/components/parameters/JourneyInstanceId"
+        - $ref: "#/components/parameters/AcceptLanguage"
+      responses:
+        "200":
+          description: Instance
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, meta]
+                properties:
+                  data:
+                    $ref: "#/components/schemas/JourneyInstance"
+                  meta:
+                    $ref: "#/components/schemas/Meta"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+        "500":
+          $ref: "#/components/responses/InternalError"
+        "503":
+          $ref: "#/components/responses/Unavailable"
+
+  /journeys/instances/{id}/step:
+    post:
+      operationId: submitJourneyStep
+      tags: [journeys]
+      summary: Submit the current journey step
+      description: |
+        Body `{ step_id, input }`. Requires `Idempotency-Key` and `If-Match` carrying the instance
+        `state_version`. A mismatch is `409 CONFLICT` with the current instance in
+        `error.details.current`.
+
+        HTTP 200 returns the step result inside the success envelope even when the step did not
+        complete: `{ ok, code?, message?, data?, problems[], next_step? }`. `PENDING` means an
+        await step is still waiting and the run has not advanced. `REJECTED` means the awaited
+        decision went against the run and the run has stopped; later steps do not execute.
+
+        `input` may contain business fields declared by `input_schema`. Claims about permissions,
+        roles, personas, or workflow state are ignored and cannot change server-evaluated access
+        or workflow state (E13). Permissions are re-evaluated on every step.
+      parameters:
+        - $ref: "#/components/parameters/JourneyInstanceId"
+        - $ref: "#/components/parameters/IdempotencyKey"
+        - name: If-Match
+          in: header
+          required: true
+          description: Current `state_version` of the instance.
+          schema:
+            type: string
+        - $ref: "#/components/parameters/AcceptLanguage"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/JourneyStepSubmission"
+      responses:
+        "200":
+          description: Step result (completion, pending, or a business refusal)
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, meta]
+                properties:
+                  data:
+                    $ref: "#/components/schemas/JourneyStepResult"
+                  meta:
+                    $ref: "#/components/schemas/Meta"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+        "500":
+          $ref: "#/components/responses/InternalError"
+        "503":
+          $ref: "#/components/responses/Unavailable"
+
+components:
+  securitySchemes:
+    bearer:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: ERP access token issued by POST /auth/token. Expires in 15 minutes or less.
+    dpop:
+      type: apiKey
+      in: header
+      name: DPoP
+      description: |
+        DPoP proof JWT signed by the enrolled device key (RFC 9449). Required on every mobile
+        request alongside the bearer token; the console uses a session cookie with a CSRF token.
+
+  parameters:
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      description: |
+        UUID chosen by the client. The server stores the response for 24 hours and replays it for a
+        repeated key with the same body; a different body with the same key is `409 CONFLICT`.
+      schema:
+        type: string
+        format: uuid
+    IfMatch:
+      name: If-Match
+      in: header
+      required: false
+      description: |
+        The `state_version` the client last saw. A mismatch is `409 CONFLICT` with the current
+        state in `error.details.current`.
+      schema:
+        type: string
+    AcceptLanguage:
+      name: Accept-Language
+      in: header
+      required: false
+      description: "`en` or `ar`. Affects messages and print formats, never data."
+      schema:
+        type: string
+        enum: [en, ar]
+    Cursor:
+      name: cursor
+      in: query
+      required: false
+      description: Opaque cursor from `meta.next_cursor` of the previous page.
+      schema:
+        type: string
+    Limit:
+      name: limit
+      in: query
+      required: false
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 200
+        default: 50
+    SessionId:
+      name: id
+      in: path
+      required: true
+      description: Login session id returned by POST /auth/session
+      schema:
+        type: string
+    UserSessionId:
+      name: id
+      in: path
+      required: true
+      description: Authenticated session id returned by GET /me/sessions
+      schema:
+        type: string
+    ApprovalId:
+      name: id
+      in: path
+      required: true
+      description: Approval request id
+      schema:
+        type: string
+    EventId:
+      name: event_id
+      in: path
+      required: true
+      description: ULID of the notification event
+      schema:
+        type: string
+
+    PeriodId:
+      name: id
+      in: path
+      required: true
+      description: Fiscal period id
+      schema:
+        type: string
+        format: uuid
+    FiscalYear:
+      name: year
+      in: path
+      required: true
+      description: Fiscal year, four digits
+      schema:
+        type: integer
+        minimum: 2000
+        maximum: 2200
+    IfMatchRequired:
+      name: If-Match
+      in: header
+      required: true
+      description: |
+        The `state_version` the client last saw. Required on period and holiday-calendar
+        writes. A mismatch is `409 CONFLICT` with the current state in `error.details.current`.
+        The first holiday-calendar write sends `0`.
+      schema:
+        type: string
+
+    JourneySlug:
+      name: slug
+      in: path
+      required: true
+      description: Journey definition slug
+      schema:
+        type: string
+        pattern: "^[a-z][a-z0-9-]*$"
+    JourneyInstanceId:
+      name: id
+      in: path
+      required: true
+      description: Journey instance id
+      schema:
+        type: string
+        format: uuid
 
   responses:
     BadRequest:
@@ -2410,6 +3088,541 @@ components:
           type: object
           additionalProperties: true
         after:
+          type: object
+          additionalProperties: true
+        chain_seq:
+          type: integer
+        prev_hash:
+          type: string
+        hash:
+          type: string
+
+    SodRule:
+      type: object
+      description: One row of the segregation-of-duties matrix (R1.13).
+      required: [id, kind, left_code, right_code, state_version, status]
+      properties:
+        id:
+          type: string
+          format: uuid
+        kind:
+          type: string
+          enum: [role_pair, action_pair]
+          description: |
+            `role_pair` is two roles one person must not hold together. `action_pair` is two
+            actions one person must not both perform on a document (enter and approve, receive
+            and count, create vendor and pay vendor, request correction and approve correction).
+        left_code:
+          type: string
+          description: Role name or permission code
+        right_code:
+          type: string
+          description: Role name or permission code
+        state_version:
+          $ref: "#/components/schemas/StateVersion"
+        status:
+          type: string
+          enum: [active, pending_approval]
+        approval_request_id:
+          type: [string, "null"]
+          description: Set when the mutation is waiting on the approval engine
+
+    SodRuleWrite:
+      type: object
+      required: [kind, left_code, right_code]
+      properties:
+        kind:
+          type: string
+          enum: [role_pair, action_pair]
+        left_code:
+          type: string
+          minLength: 1
+        right_code:
+          type: string
+          minLength: 1
+
+    ApprovalMatrixRule:
+      type: object
+      description: Approval routing for one document type (R2.2). The engine that consumes it is the approvals module.
+      required:
+        - id
+        - document_type
+        - threshold
+        - below_threshold_role
+        - first_approver_role
+        - final_gate_role
+        - state_version
+        - status
+      properties:
+        id:
+          type: string
+          format: uuid
+        document_type:
+          type: string
+        threshold:
+          $ref: "#/components/schemas/Money"
+          description: At or above this amount the first approver and the final gate both apply
+        below_threshold_role:
+          type: string
+          description: Any one holder of this role may register the document below the threshold
+        first_approver_role:
+          type: string
+          description: Independent first approver at or above the threshold
+        final_gate_role:
+          type: string
+          description: Named final gate; not delegable
+        voting_any:
+          type: [integer, "null"]
+          minimum: 1
+          description: When set with `voting_of`, the company requires any N of M
+        voting_of:
+          type: [integer, "null"]
+          minimum: 1
+        state_version:
+          $ref: "#/components/schemas/StateVersion"
+        status:
+          type: string
+          enum: [active, pending_approval]
+        approval_request_id:
+          type: [string, "null"]
+
+    ApprovalMatrixRuleWrite:
+      type: object
+      required: [document_type, threshold, below_threshold_role, first_approver_role, final_gate_role]
+      properties:
+        document_type:
+          type: string
+          minLength: 1
+        threshold:
+          $ref: "#/components/schemas/Money"
+        below_threshold_role:
+          type: string
+          minLength: 1
+        first_approver_role:
+          type: string
+          minLength: 1
+        final_gate_role:
+          type: string
+          minLength: 1
+        voting_any:
+          type: [integer, "null"]
+          minimum: 1
+        voting_of:
+          type: [integer, "null"]
+          minimum: 1
+
+
+    PeriodStatus:
+      type: string
+      enum: [open, soft_closed, hard_closed]
+
+    PeriodKind:
+      type: string
+      enum: [month, audit_adjustment]
+
+    PeriodApproval:
+      type: object
+      description: Approval id granted by the approvals module before a Stakeholder close or open.
+      required: [approval_id]
+      additionalProperties: false
+      properties:
+        approval_id:
+          type: string
+          minLength: 1
+
+    Period:
+      type: object
+      required: [id, fiscal_year, kind, status, start_date, end_date, state_version]
+      properties:
+        id:
+          type: string
+          format: uuid
+        fiscal_year:
+          type: integer
+        month:
+          type: [integer, "null"]
+          minimum: 1
+          maximum: 12
+          description: Null on the audit-adjustment period
+        kind:
+          $ref: "#/components/schemas/PeriodKind"
+        status:
+          $ref: "#/components/schemas/PeriodStatus"
+        start_date:
+          type: string
+          format: date
+        end_date:
+          type: string
+          format: date
+        state_version:
+          $ref: "#/components/schemas/StateVersion"
+
+    Weekday:
+      type: string
+      enum: [sunday, monday, tuesday, wednesday, thursday, friday, saturday]
+
+    Holiday:
+      type: object
+      required: [date, name]
+      additionalProperties: false
+      properties:
+        date:
+          type: string
+          format: date
+        name:
+          type: string
+          minLength: 1
+
+    HolidayCalendar:
+      type: object
+      description: |
+        Company business-hours calendar (ADR-12). Clocks count only time inside
+        `business_open`–`business_close` on days that are neither weekend nor holiday.
+      required: [state_version, timezone, business_open, business_close, weekend, holidays]
+      properties:
+        state_version:
+          $ref: "#/components/schemas/StateVersion"
+        timezone:
+          type: string
+          minLength: 1
+          examples: ["Asia/Dubai"]
+        business_open:
+          type: string
+          description: Local start of the working day, HH:MM (24-hour)
+          pattern: "^([01][0-9]|2[0-3]):[0-5][0-9]$"
+          examples: ["08:00"]
+        business_close:
+          type: string
+          description: Local end of the working day, HH:MM (24-hour), after `business_open`
+          pattern: "^([01][0-9]|2[0-3]):[0-5][0-9]$"
+          examples: ["20:00"]
+        weekend:
+          type: array
+          minItems: 1
+          uniqueItems: true
+          items:
+            $ref: "#/components/schemas/Weekday"
+        holidays:
+          type: array
+          items:
+            $ref: "#/components/schemas/Holiday"
+
+    HolidayCalendarWrite:
+      type: object
+      description: Body of POST /holiday-calendar. `state_version` is not accepted from the client.
+      required: [timezone, business_open, business_close, weekend, holidays]
+      additionalProperties: false
+      properties:
+        timezone:
+          type: string
+          minLength: 1
+        business_open:
+          type: string
+          pattern: "^([01][0-9]|2[0-3]):[0-5][0-9]$"
+        business_close:
+          type: string
+          pattern: "^([01][0-9]|2[0-3]):[0-5][0-9]$"
+        weekend:
+          type: array
+          minItems: 1
+          uniqueItems: true
+          items:
+            $ref: "#/components/schemas/Weekday"
+        holidays:
+          type: array
+          items:
+            $ref: "#/components/schemas/Holiday"
+
+    JourneyList:
+      type: object
+      required: [groups]
+      properties:
+        groups:
+          type: array
+          items:
+            $ref: "#/components/schemas/JourneyGroup"
+
+    JourneyGroup:
+      type: object
+      required: [persona, definitions]
+      properties:
+        persona:
+          type: string
+        definitions:
+          type: array
+          items:
+            $ref: "#/components/schemas/JourneyDefinition"
+
+    JourneyDefinition:
+      type: object
+      required: [slug, title, group, personas, steps]
+      properties:
+        slug:
+          type: string
+          pattern: "^[a-z][a-z0-9-]*$"
+        title:
+          type: string
+          description: Localised by Accept-Language. The stored title is a message key.
+        group:
+          type: string
+        personas:
+          type: array
+          items:
+            type: string
+        steps:
+          type: array
+          items:
+            $ref: "#/components/schemas/JourneyStep"
+
+    JourneyKind:
+      type: string
+      enum: [form, validate, write_draft, route, await, post, read]
+
+    JourneyStep:
+      type: object
+      required: [step_id, kind, title, input_schema]
+      properties:
+        step_id:
+          type: string
+        kind:
+          $ref: "#/components/schemas/JourneyKind"
+        title:
+          type: string
+        input_schema:
+          type: object
+          description: JSON Schema for the step input. The client does not execute guards.
+          additionalProperties: true
+        guard:
+          type: object
+          description: Server-evaluated guard data. Not an expression the client can supply.
+          additionalProperties: true
+
+    JourneyInstanceCreated:
+      type: object
+      required: [instance_id, step, state_version]
+      properties:
+        instance_id:
+          type: string
+          format: uuid
+        step:
+          $ref: "#/components/schemas/JourneyStep"
+        state_version:
+          $ref: "#/components/schemas/StateVersion"
+
+    JourneyInstanceStatus:
+      type: string
+      enum: [running, awaiting, rejected, completed]
+
+    JourneyInstance:
+      type: object
+      required:
+        - instance_id
+        - slug
+        - persona
+        - status
+        - current_step
+        - state_version
+        - server_state
+        - updated_at
+      properties:
+        instance_id:
+          type: string
+          format: uuid
+        slug:
+          type: string
+        persona:
+          type: string
+        status:
+          $ref: "#/components/schemas/JourneyInstanceStatus"
+        current_step:
+          $ref: "#/components/schemas/JourneyStep"
+        state_version:
+          $ref: "#/components/schemas/StateVersion"
+        server_state:
+          type: object
+          description: |
+            Written only by the engine. Client input is not copied here until forbidden keys
+            (permissions, roles, personas, workflow state) are removed.
+          additionalProperties: true
+        updated_at:
+          type: string
+          format: date-time
+
+    JourneyStepSubmission:
+    Severity:
+      type: string
+      enum: [LOW, MEDIUM, HIGH, CRITICAL]
+
+    AllowedAction:
+      type: string
+      enum: [approve, reject, acknowledge, snooze, delegate, open]
+
+    NotificationItem:
+      type: object
+      required:
+        - event_id
+        - severity
+        - doc_type
+        - requester
+        - waiting_since
+        - deep_link
+        - allowed_actions
+      properties:
+        event_id:
+          type: string
+        severity:
+          $ref: "#/components/schemas/Severity"
+        doc_type:
+          type: string
+        doc_number:
+          type: [string, "null"]
+        party:
+          type: [string, "null"]
+        amount:
+          oneOf:
+            - $ref: "#/components/schemas/Money"
+            - type: "null"
+        requester:
+          $ref: "#/components/schemas/Actor"
+        waiting_since:
+          type: string
+          format: date-time
+        deep_link:
+          type: string
+          pattern: "^smarterp://"
+        allowed_actions:
+          type: array
+          items:
+            $ref: "#/components/schemas/AllowedAction"
+
+    NotificationPreferences:
+      type: object
+      properties:
+        quiet_hours:
+          type: [object, "null"]
+          properties:
+            start:
+              type: string
+              description: Local time HH:MM
+            end:
+              type: string
+            zone:
+              type: string
+              description: IANA time zone. Critical is never suppressed inside the window.
+        channels:
+          type: array
+          items:
+            type: object
+            required: [event_type, channel, enabled]
+            properties:
+              event_type:
+                type: string
+              channel:
+                type: string
+                enum: [push, email, websocket, digest]
+              device_id:
+                type: string
+              enabled:
+                type: boolean
+
+    AlertRule:
+      type: object
+      required: [id, document_type, condition, recipient_roles, channel, severity, mode, enabled]
+      properties:
+        id:
+          type: string
+        document_type:
+          type: string
+        condition:
+          type: object
+          additionalProperties: true
+        recipient_roles:
+          type: array
+          items:
+            type: string
+        channel:
+          type: string
+        severity:
+          $ref: "#/components/schemas/Severity"
+        mode:
+          type: string
+          enum: [blocking, advisory]
+        enabled:
+          type: boolean
+        builtin:
+          type: boolean
+
+    AlertRuleInput:
+      type: object
+      required: [document_type, condition, recipient_roles, channel, severity, mode]
+      properties:
+        document_type:
+          type: string
+        condition:
+          type: object
+          additionalProperties: true
+        recipient_roles:
+          type: array
+          items:
+            type: string
+        channel:
+          type: string
+        severity:
+          $ref: "#/components/schemas/Severity"
+        mode:
+          type: string
+          enum: [blocking, advisory]
+        builtin:
+          type: boolean
+
+    ChainVerification:
+      type: object
+      required: [step_id, input]
+      additionalProperties: false
+      properties:
+        step_id:
+          type: string
+        input:
+          type: object
+          description: |
+            Business fields for this step. Keys permissions, roles, personas, workflow_state,
+            granted, and status are ignored.
+          additionalProperties: true
+
+    JourneyStepCode:
+      type: string
+      description: |
+        Outcome code on a step result. Distinct from the error-envelope ErrorCode set so that
+        PENDING and REJECTED stay journey outcomes rather than transport failures.
+      enum: [PERMISSION_DENIED, VALIDATION_ERROR, PENDING, REJECTED, CONFLICT]
+
+    JourneyProblem:
+      type: object
+      required: [code, message]
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+          description: Localised by Accept-Language
+        field:
+          type: string
+
+    JourneyStepResult:
+      type: object
+      description: |
+        Step protocol result. `ok` is false while an await is pending and when the run stops on
+        rejection. `problems` is always present and empty when there are none. `next_step` is
+        omitted when the run has stopped.
+      required: [ok, problems]
+      properties:
+        ok:
+          type: boolean
+        code:
+          $ref: "#/components/schemas/JourneyStepCode"
+        message:
+          type: string
+        data:
           type: object
           additionalProperties: true
         chain_seq:

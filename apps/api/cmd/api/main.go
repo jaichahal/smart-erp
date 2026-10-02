@@ -13,11 +13,9 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/go-chi/chi/v5"
-	"github.com/go-chi/chi/v5/middleware"
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"github.com/jaichahal/smart-erp/apps/api/internal/kit/apierr"
+	"github.com/jaichahal/smart-erp/apps/api/internal/app"
 	"github.com/jaichahal/smart-erp/apps/api/internal/kit/config"
 	"github.com/jaichahal/smart-erp/apps/api/internal/kit/httpx"
 	"github.com/jaichahal/smart-erp/apps/api/internal/kit/obs"
@@ -63,26 +61,13 @@ func run() error {
 		return fmt.Errorf("river: %w", err)
 	}
 
-	r := chi.NewRouter()
-	// Client IP is taken from the reverse proxy's headers only when the identity
-	// module (A1) installs its trusted-proxy middleware; never from RealIP blindly.
-	r.Use(apierr.RequestIDMiddleware, middleware.Recoverer, middleware.Timeout(30*time.Second))
-	r.NotFound(func(w http.ResponseWriter, r *http.Request) {
-		apierr.Write(w, r, apierr.New(apierr.NotFound, "route not found"))
-	})
-	r.MethodNotAllowed(func(w http.ResponseWriter, r *http.Request) {
-		apierr.Write(w, r, apierr.New(apierr.ValidationError, "method not allowed"))
-	})
-
 	deps := httpx.Deps{Pool: pool, River: river, Config: cfg, Log: log, StartedAt: time.Now()}
-	r.Get("/health", httpx.Health(deps))
-	r.Route("/api/v1", func(v1 chi.Router) {
-		v1.Get("/health", httpx.Health(deps))
-		v1.Get("/status", httpx.Status(deps))
-		registerModules(v1, deps)
-	})
+	handler, err := app.Handler(deps)
+	if err != nil {
+		return fmt.Errorf("routes: %w", err)
+	}
 
-	srv := &http.Server{Addr: cfg.HTTPAddr, Handler: r, ReadHeaderTimeout: 10 * time.Second}
+	srv := &http.Server{Addr: cfg.HTTPAddr, Handler: handler, ReadHeaderTimeout: 10 * time.Second}
 	errCh := make(chan error, 1)
 	go func() {
 		log.Info("api listening", "addr", cfg.HTTPAddr, "env", cfg.Env)
@@ -104,16 +89,3 @@ func run() error {
 	return nil
 }
 
-// registerModules is the single place Wave 1 agents add their routers, one line each,
-// in their own PR. Keep alphabetical to avoid merge conflicts.
-func registerModules(r chi.Router, deps httpx.Deps) {
-	_ = r
-	_ = deps
-	// approvals.Mount(r, deps)
-	// audit.Mount(r, deps)
-	// authz.Mount(r, deps)
-	// identity.Mount(r, deps)
-	// journeys.Mount(r, deps)
-	// notifications.Mount(r, deps)
-	// periods.Mount(r, deps)
-}

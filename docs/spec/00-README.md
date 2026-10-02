@@ -15,6 +15,7 @@ This folder is the hand-off to the delivery team. The rationale behind every dec
 - `07-tracks-and-tasks.md`: workstreams, phases, tasks with acceptance criteria and dependencies, team shape.
 - `08-acceptance-tests.md`: invariants that must hold, as one-line assertions grouped by area, to be automated first.
 - `09-glossary.md`: terms, roles, abbreviations.
+- `10-execution-playbook.md`: how agents turn this spec into software. Test-driven development, Working baseline, and Mobile UI automation in that file are the execution rules.
 
 ## How to use this spec
 
@@ -22,6 +23,7 @@ This folder is the hand-off to the delivery team. The rationale behind every dec
 2. Contracts in `04` are the only cross-team dependency. A team that needs a shape another team owns writes the change into `04` first and notifies the owner.
 3. Every pull request names the R-IDs it satisfies and the tests in `08` it makes pass.
 4. Anything not in this spec is out of scope until it is added here with an R-ID.
+5. Follow `10-execution-playbook.md` for execution: Test-driven development, Working baseline, and Mobile UI automation.
 
 ## Conventions
 

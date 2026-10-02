@@ -21,6 +21,18 @@ func Mount(r chi.Router, deps httpx.Deps, approvals ApprovalGate) {
 	s := New(deps.Pool, deps.River)
 	s.Approvals = approvals
 	idem := idempotency.Middleware(deps.Pool)
+	// A hard-closed period is refused before the idempotency middleware, which
+	// otherwise answers AUTH_REQUIRED when the caller has no principal. C3
+	// requires PERIOD_CLOSED for that period.
+	r.With(s.refuseHardClosed, idem).Post("/periods/{id}/soft-close", s.handleSoftClose)
+	r.With(s.refuseHardClosed, idem).Post("/periods/{id}/hard-close", s.handleHardClose)
+	r.With(idem).Post("/periods/{year}/audit-adjustment/open", s.handleAuditOpen)
+	r.With(idem).Post("/companies", s.handleCompany)
+	r.With(idem).Post("/fiscal-years", s.handleFiscalYear)
+	r.With(idem).Post("/periods/registrations", s.handleRegister)
+	r.With(idem).Post("/periods/postings", s.handlePosting)
+	r.Get("/periods", s.handlePeriodOn)
+	r.Get("/exceptions", s.handleExceptions)
 	r.With(idem).Post("/periods/{id}/soft-close", s.handleSoftClose)
 	r.With(idem).Post("/periods/{id}/hard-close", s.handleHardClose)
 	r.With(idem).Post("/periods/{year}/audit-adjustment/open", s.handleAuditOpen)

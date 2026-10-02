@@ -1,0 +1,20 @@
+---
+description: Client UI stack lock, 44pt targets, and no swipe-to-commit
+globs: apps/console/**/*,apps/android/**/*,apps/ios/**/*
+alwaysApply: false
+---
+
+# Client UI
+
+Android stays Kotlin Jetpack Compose. iOS stays SwiftUI. The admin console stays the React and Vite app in apps/console. Do not add a React Native app. Do not call the backend SAP or Oracle. The API is the Go service in this repo.
+
+Touch targets are at least 44 points on every client. A swipe only opens a sheet. Approve, reject, and flag for review commit only from an explicit button on that sheet. Reject needs a reason.
+
+```text
+# wrong
+onSwipeRight { postApprove(request) }
+
+# right
+onSwipeRight { openSheet(request, "approve") }
+ApproveButton { postApprove(request) }
+```

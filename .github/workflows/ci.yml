@@ -83,6 +83,10 @@ jobs:
           cache: true
           cache-dependency-path: apps/api/go.sum
 
+      - name: goose migration versions are unique
+        working-directory: apps/api
+        run: go test ./migrations -count=1 -timeout 2m
+
       - name: Install PostgreSQL client
         run: |
           sudo apt-get update -qq

@@ -1,5 +1,7 @@
 # 04 API Contracts
 
+Version 1.1.0. This file changes before code does. Additive changes bump the minor version; breaking changes bump the major version and carry a migration note. Server and clients generate types from the OpenAPI document that this file governs; the OpenAPI file is the machine form, this file is the human form and wins on conflict until the OpenAPI is regenerated.
+
 Version 1.1.0. Additive notification endpoints. No client migration: previous clients ignore the new paths. This file changes before code does. Additive changes bump the minor version; breaking changes bump the major version and carry a migration note. Server and clients generate types from the OpenAPI document that this file governs; the OpenAPI file is the machine form, this file is the human form and wins on conflict until the OpenAPI is regenerated.
 Version 1.1.0. Frozen. This file changes before code does. Additive changes bump the minor version; breaking changes bump the major version and carry a migration note. Server and clients generate types from the OpenAPI document that this file governs; the OpenAPI file is the machine form, this file is the human form and wins on conflict until the OpenAPI is regenerated.
 
@@ -10,6 +12,14 @@ Version 1.1.0. This file changes before code does. Additive changes bump the min
 
 ### 1.1.0
 
+Additive. No path or field removed. No data migration for clients of 1.0.0.
+
+- `GET /me/sessions` and `DELETE /me/sessions/{id}` with schema `UserSession`. Session listing and remote revocation (R1.15, A9).
+- `/sod-matrix` and `/approval-matrix`. Writes send `If-Match` with `state_version` (`0` on create) and are stored as `pending_approval` until an approval request is decided.
+- `POST /periods/{id}/soft-close`, `POST /periods/{id}/hard-close`, and `POST /periods/{year}/audit-adjustment/open`, with `Period`, `PeriodStatus`, `PeriodKind`, and `PeriodApproval`.
+- `GET|POST /holiday-calendar`, with `HolidayCalendar` and `HolidayCalendarWrite`.
+- Notification endpoints `POST /devices/push-token`, `GET /notifications`, and `POST /notifications/{event_id}/acknowledge`. Previous clients ignore the new paths.
+- Journey routes, including the step result `{ ok, code?, message?, data?, problems[], next_step? }`. Event type `journey.step.completed` added. Deep link route `journey` added.
 Additive. `/sod-matrix` and `/approval-matrix` were named under Masters and had no operation or schema in `contracts/openapi/openapi.yaml`. This version specifies both. Writes send `If-Match` with `state_version` (`0` on create) and are stored as `pending_approval` until an approval request is decided, because mutations on sensitive masters create an approval request. No existing schema changes shape. Migration note: none.
 - 1.1.0 (additive). Journey routes from 1.0.0 are specified fully enough to generate types, including the step result `{ ok, code?, message?, data?, problems[], next_step? }`. Event type `journey.step.completed` added. Deep link route `journey` added. No existing route, field, or error code changed.
 Version 1.1.0. Frozen. This file changes before code does. Additive changes bump the minor version; breaking changes bump the major version and carry a migration note. Server and clients generate types from the OpenAPI document that this file governs; the OpenAPI file is the machine form, this file is the human form and wins on conflict until the OpenAPI is regenerated.
@@ -174,6 +184,9 @@ Persona filtering is server-enforced (R15.5). The `persona` query selects a grou
 
 Push messages are data-only and carry exactly this object flattened to string values with `context` JSON-encoded. Severity in {LOW, MEDIUM, HIGH, CRITICAL}; unknown severity is treated as HIGH by clients.
 
+Event types (initial): `approval.requested|decided|delegated|snoozed`, `document.registered`, `delivery.confirmed`, `clock.expired`, `period.closed`, `receipt.posted`, `pdc.bounced`, `stock.received`, `stock.count.approved`, `production.posted`, `correction.posted`, `payment.released`, `chain.verified|broken`, `backup.completed|failed`, `bank.feed.completed|failed`, `forecast.below_floor`, `exception.raised`, `config.changed`, `break_glass.used`, `journey.step.completed`.
+
+`journey.step.completed` is emitted when a step reaches a terminal outcome (`completed` or `rejected`), in the same transaction as the instance transition. `context` carries `{ slug, step_id, outcome, instance_status }`. An await step that is still pending does not emit it. `subject.doc_type` is `journey_instance`. `amount` is null. `deep_link` is `smarterp://journey/{instance_id}`.
 Event types (initial): `approval.requested|decided|delegated|snoozed`, `document.registered`, `delivery.confirmed`, `clock.expired`, `receipt.posted`, `pdc.bounced`, `stock.received`, `stock.count.approved`, `production.posted`, `correction.posted`, `payment.released`, `chain.verified|broken`, `backup.completed|failed`, `bank.feed.completed|failed`, `forecast.below_floor`, `exception.raised`, `config.changed`, `break_glass.used`, `journey.step.completed`.
 
 `journey.step.completed` is emitted when a step reaches a terminal outcome (`completed` or `rejected`), in the same transaction as the instance transition. `context` carries `{ slug, step_id, outcome, instance_status }`. An await step that is still pending does not emit it. `subject.doc_type` is `journey_instance`. `amount` is null. `deep_link` is `smarterp://journey/{instance_id}`.

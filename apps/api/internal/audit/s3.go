@@ -90,6 +90,17 @@ func (c *S3Client) Get(ctx context.Context, key string) ([]byte, error) {
 	return resp, nil
 }
 
+// Delete removes an object. On a versioned compliance bucket the writer must
+// delete the current version; a delete marker would hide the object without
+// removing it. Compliance retention turns that version delete into ErrImmutableObject.
+func (c *S3Client) Delete(ctx context.Context, key string) error {
+	version, err := c.currentVersion(ctx, key)
+	if err != nil {
+		return err
+	}
+	if version != "" {
+		return c.DeleteVersion(ctx, key, version)
+	}
 // Delete removes an object. Compliance retention turns this into ErrImmutableObject.
 func (c *S3Client) Delete(ctx context.Context, key string) error {
 	status, _, resp, err := c.do(ctx, http.MethodDelete, key, nil, nil, nil)
@@ -106,6 +117,20 @@ func (c *S3Client) Delete(ctx context.Context, key string) error {
 		return fmt.Errorf("s3 delete %s: status %d: %s", key, status, snippet(resp))
 	}
 	return nil
+}
+
+func (c *S3Client) currentVersion(ctx context.Context, key string) (string, error) {
+	status, hdr, resp, err := c.do(ctx, http.MethodHead, key, nil, nil, nil)
+	if err != nil {
+		return "", err
+	}
+	if status == http.StatusNotFound {
+		return "", osNotExist()
+	}
+	if status < 200 || status >= 300 {
+		return "", fmt.Errorf("s3 head %s: status %d: %s", key, status, snippet(resp))
+	}
+	return hdr.Get("X-Amz-Version-Id"), nil
 }
 
 // Exists reports whether the key is present.

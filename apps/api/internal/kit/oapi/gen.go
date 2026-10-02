@@ -11,30 +11,66 @@ import (
 	openapi_types "github.com/oapi-codegen/runtime/types"
 )
 
+// Defines values for AlertRuleMode.
+const (
+	AlertRuleModeAdvisory AlertRuleMode = "advisory"
+	AlertRuleModeBlocking AlertRuleMode = "blocking"
+)
+
+// Valid indicates whether the value is a known member of the AlertRuleMode enum.
+func (e AlertRuleMode) Valid() bool {
+	switch e {
+	case AlertRuleModeAdvisory:
+		return true
+	case AlertRuleModeBlocking:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AlertRuleInputMode.
+const (
+	AlertRuleInputModeAdvisory AlertRuleInputMode = "advisory"
+	AlertRuleInputModeBlocking AlertRuleInputMode = "blocking"
+)
+
+// Valid indicates whether the value is a known member of the AlertRuleInputMode enum.
+func (e AlertRuleInputMode) Valid() bool {
+	switch e {
+	case AlertRuleInputModeAdvisory:
+		return true
+	case AlertRuleInputModeBlocking:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for AllowedAction.
 const (
-	Acknowledge AllowedAction = "acknowledge"
-	Approve     AllowedAction = "approve"
-	Delegate    AllowedAction = "delegate"
-	Open        AllowedAction = "open"
-	Reject      AllowedAction = "reject"
-	Snooze      AllowedAction = "snooze"
+	AllowedActionAcknowledge AllowedAction = "acknowledge"
+	AllowedActionApprove     AllowedAction = "approve"
+	AllowedActionDelegate    AllowedAction = "delegate"
+	AllowedActionOpen        AllowedAction = "open"
+	AllowedActionReject      AllowedAction = "reject"
+	AllowedActionSnooze      AllowedAction = "snooze"
 )
 
 // Valid indicates whether the value is a known member of the AllowedAction enum.
 func (e AllowedAction) Valid() bool {
 	switch e {
-	case Acknowledge:
+	case AllowedActionAcknowledge:
 		return true
-	case Approve:
+	case AllowedActionApprove:
 		return true
-	case Delegate:
+	case AllowedActionDelegate:
 		return true
-	case Open:
+	case AllowedActionOpen:
 		return true
-	case Reject:
+	case AllowedActionReject:
 		return true
-	case Snooze:
+	case AllowedActionSnooze:
 		return true
 	default:
 		return false
@@ -56,6 +92,24 @@ func (e ApprovalDetailDecisionsDecision) Valid() bool {
 	case ApprovalDetailDecisionsDecisionDelegated:
 		return true
 	case ApprovalDetailDecisionsDecisionRejected:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ApprovalMatrixRuleStatus.
+const (
+	ApprovalMatrixRuleStatusActive          ApprovalMatrixRuleStatus = "active"
+	ApprovalMatrixRuleStatusPendingApproval ApprovalMatrixRuleStatus = "pending_approval"
+)
+
+// Valid indicates whether the value is a known member of the ApprovalMatrixRuleStatus enum.
+func (e ApprovalMatrixRuleStatus) Valid() bool {
+	switch e {
+	case ApprovalMatrixRuleStatusActive:
+		return true
+	case ApprovalMatrixRuleStatusPendingApproval:
 		return true
 	default:
 		return false
@@ -200,6 +254,153 @@ func (e HealthResponseStatus) Valid() bool {
 	}
 }
 
+// Defines values for JourneyInstanceStatus.
+const (
+	JourneyInstanceStatusAwaiting  JourneyInstanceStatus = "awaiting"
+	JourneyInstanceStatusCompleted JourneyInstanceStatus = "completed"
+	JourneyInstanceStatusRejected  JourneyInstanceStatus = "rejected"
+	JourneyInstanceStatusRunning   JourneyInstanceStatus = "running"
+)
+
+// Valid indicates whether the value is a known member of the JourneyInstanceStatus enum.
+func (e JourneyInstanceStatus) Valid() bool {
+	switch e {
+	case JourneyInstanceStatusAwaiting:
+		return true
+	case JourneyInstanceStatusCompleted:
+		return true
+	case JourneyInstanceStatusRejected:
+		return true
+	case JourneyInstanceStatusRunning:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for JourneyKind.
+const (
+	Await      JourneyKind = "await"
+	Form       JourneyKind = "form"
+	Post       JourneyKind = "post"
+	Read       JourneyKind = "read"
+	Route      JourneyKind = "route"
+	Validate   JourneyKind = "validate"
+	WriteDraft JourneyKind = "write_draft"
+)
+
+// Valid indicates whether the value is a known member of the JourneyKind enum.
+func (e JourneyKind) Valid() bool {
+	switch e {
+	case Await:
+		return true
+	case Form:
+		return true
+	case Post:
+		return true
+	case Read:
+		return true
+	case Route:
+		return true
+	case Validate:
+		return true
+	case WriteDraft:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for JourneyStepCode.
+const (
+	JourneyStepCodeCONFLICT         JourneyStepCode = "CONFLICT"
+	JourneyStepCodePENDING          JourneyStepCode = "PENDING"
+	JourneyStepCodePERMISSIONDENIED JourneyStepCode = "PERMISSION_DENIED"
+	JourneyStepCodeREJECTED         JourneyStepCode = "REJECTED"
+	JourneyStepCodeVALIDATIONERROR  JourneyStepCode = "VALIDATION_ERROR"
+)
+
+// Valid indicates whether the value is a known member of the JourneyStepCode enum.
+func (e JourneyStepCode) Valid() bool {
+	switch e {
+	case JourneyStepCodeCONFLICT:
+		return true
+	case JourneyStepCodePENDING:
+		return true
+	case JourneyStepCodePERMISSIONDENIED:
+		return true
+	case JourneyStepCodeREJECTED:
+		return true
+	case JourneyStepCodeVALIDATIONERROR:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for NotificationPreferencesChannelsChannel.
+const (
+	Digest    NotificationPreferencesChannelsChannel = "digest"
+	Email     NotificationPreferencesChannelsChannel = "email"
+	Push      NotificationPreferencesChannelsChannel = "push"
+	Websocket NotificationPreferencesChannelsChannel = "websocket"
+)
+
+// Valid indicates whether the value is a known member of the NotificationPreferencesChannelsChannel enum.
+func (e NotificationPreferencesChannelsChannel) Valid() bool {
+	switch e {
+	case Digest:
+		return true
+	case Email:
+		return true
+	case Push:
+		return true
+	case Websocket:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PeriodKind.
+const (
+	AuditAdjustment PeriodKind = "audit_adjustment"
+	Month           PeriodKind = "month"
+)
+
+// Valid indicates whether the value is a known member of the PeriodKind enum.
+func (e PeriodKind) Valid() bool {
+	switch e {
+	case AuditAdjustment:
+		return true
+	case Month:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PeriodStatus.
+const (
+	PeriodStatusHardClosed PeriodStatus = "hard_closed"
+	PeriodStatusOpen       PeriodStatus = "open"
+	PeriodStatusSoftClosed PeriodStatus = "soft_closed"
+)
+
+// Valid indicates whether the value is a known member of the PeriodStatus enum.
+func (e PeriodStatus) Valid() bool {
+	switch e {
+	case PeriodStatusHardClosed:
+		return true
+	case PeriodStatusOpen:
+		return true
+	case PeriodStatusSoftClosed:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for Platform.
 const (
 	Android Platform = "android"
@@ -239,6 +440,60 @@ func (e Severity) Valid() bool {
 	case LOW:
 		return true
 	case MEDIUM:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for SodRuleKind.
+const (
+	SodRuleKindActionPair SodRuleKind = "action_pair"
+	SodRuleKindRolePair   SodRuleKind = "role_pair"
+)
+
+// Valid indicates whether the value is a known member of the SodRuleKind enum.
+func (e SodRuleKind) Valid() bool {
+	switch e {
+	case SodRuleKindActionPair:
+		return true
+	case SodRuleKindRolePair:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for SodRuleStatus.
+const (
+	SodRuleStatusActive          SodRuleStatus = "active"
+	SodRuleStatusPendingApproval SodRuleStatus = "pending_approval"
+)
+
+// Valid indicates whether the value is a known member of the SodRuleStatus enum.
+func (e SodRuleStatus) Valid() bool {
+	switch e {
+	case SodRuleStatusActive:
+		return true
+	case SodRuleStatusPendingApproval:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for SodRuleWriteKind.
+const (
+	SodRuleWriteKindActionPair SodRuleWriteKind = "action_pair"
+	SodRuleWriteKindRolePair   SodRuleWriteKind = "role_pair"
+)
+
+// Valid indicates whether the value is a known member of the SodRuleWriteKind enum.
+func (e SodRuleWriteKind) Valid() bool {
+	switch e {
+	case SodRuleWriteKindActionPair:
+		return true
+	case SodRuleWriteKindRolePair:
 		return true
 	default:
 		return false
@@ -326,6 +581,39 @@ func (e TokenResponseStepUpMethods) Valid() bool {
 	}
 }
 
+// Defines values for Weekday.
+const (
+	Friday    Weekday = "friday"
+	Monday    Weekday = "monday"
+	Saturday  Weekday = "saturday"
+	Sunday    Weekday = "sunday"
+	Thursday  Weekday = "thursday"
+	Tuesday   Weekday = "tuesday"
+	Wednesday Weekday = "wednesday"
+)
+
+// Valid indicates whether the value is a known member of the Weekday enum.
+func (e Weekday) Valid() bool {
+	switch e {
+	case Friday:
+		return true
+	case Monday:
+		return true
+	case Saturday:
+		return true
+	case Sunday:
+		return true
+	case Thursday:
+		return true
+	case Tuesday:
+		return true
+	case Wednesday:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for AcceptLanguage.
 const (
 	AcceptLanguageAr AcceptLanguage = "ar"
@@ -344,21 +632,93 @@ func (e AcceptLanguage) Valid() bool {
 	}
 }
 
+// Defines values for ListAlertRulesParamsAcceptLanguage.
+const (
+	ListAlertRulesParamsAcceptLanguageAr ListAlertRulesParamsAcceptLanguage = "ar"
+	ListAlertRulesParamsAcceptLanguageEn ListAlertRulesParamsAcceptLanguage = "en"
+)
+
+// Valid indicates whether the value is a known member of the ListAlertRulesParamsAcceptLanguage enum.
+func (e ListAlertRulesParamsAcceptLanguage) Valid() bool {
+	switch e {
+	case ListAlertRulesParamsAcceptLanguageAr:
+		return true
+	case ListAlertRulesParamsAcceptLanguageEn:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for CreateAlertRuleParamsAcceptLanguage.
+const (
+	CreateAlertRuleParamsAcceptLanguageAr CreateAlertRuleParamsAcceptLanguage = "ar"
+	CreateAlertRuleParamsAcceptLanguageEn CreateAlertRuleParamsAcceptLanguage = "en"
+)
+
+// Valid indicates whether the value is a known member of the CreateAlertRuleParamsAcceptLanguage enum.
+func (e CreateAlertRuleParamsAcceptLanguage) Valid() bool {
+	switch e {
+	case CreateAlertRuleParamsAcceptLanguageAr:
+		return true
+	case CreateAlertRuleParamsAcceptLanguageEn:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ListApprovalMatrixParamsAcceptLanguage.
+const (
+	ListApprovalMatrixParamsAcceptLanguageAr ListApprovalMatrixParamsAcceptLanguage = "ar"
+	ListApprovalMatrixParamsAcceptLanguageEn ListApprovalMatrixParamsAcceptLanguage = "en"
+)
+
+// Valid indicates whether the value is a known member of the ListApprovalMatrixParamsAcceptLanguage enum.
+func (e ListApprovalMatrixParamsAcceptLanguage) Valid() bool {
+	switch e {
+	case ListApprovalMatrixParamsAcceptLanguageAr:
+		return true
+	case ListApprovalMatrixParamsAcceptLanguageEn:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for CreateApprovalMatrixRuleParamsAcceptLanguage.
+const (
+	CreateApprovalMatrixRuleParamsAcceptLanguageAr CreateApprovalMatrixRuleParamsAcceptLanguage = "ar"
+	CreateApprovalMatrixRuleParamsAcceptLanguageEn CreateApprovalMatrixRuleParamsAcceptLanguage = "en"
+)
+
+// Valid indicates whether the value is a known member of the CreateApprovalMatrixRuleParamsAcceptLanguage enum.
+func (e CreateApprovalMatrixRuleParamsAcceptLanguage) Valid() bool {
+	switch e {
+	case CreateApprovalMatrixRuleParamsAcceptLanguageAr:
+		return true
+	case CreateApprovalMatrixRuleParamsAcceptLanguageEn:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ListApprovalInboxParamsState.
 const (
-	Fyi             ListApprovalInboxParamsState = "fyi"
-	NeedsMe         ListApprovalInboxParamsState = "needs_me"
-	WaitingOnOthers ListApprovalInboxParamsState = "waiting_on_others"
+	ListApprovalInboxParamsStateFyi             ListApprovalInboxParamsState = "fyi"
+	ListApprovalInboxParamsStateNeedsMe         ListApprovalInboxParamsState = "needs_me"
+	ListApprovalInboxParamsStateWaitingOnOthers ListApprovalInboxParamsState = "waiting_on_others"
 )
 
 // Valid indicates whether the value is a known member of the ListApprovalInboxParamsState enum.
 func (e ListApprovalInboxParamsState) Valid() bool {
 	switch e {
-	case Fyi:
+	case ListApprovalInboxParamsStateFyi:
 		return true
-	case NeedsMe:
+	case ListApprovalInboxParamsStateNeedsMe:
 		return true
-	case WaitingOnOthers:
+	case ListApprovalInboxParamsStateWaitingOnOthers:
 		return true
 	default:
 		return false
@@ -674,6 +1034,114 @@ func (e GetHealthParamsAcceptLanguage) Valid() bool {
 	}
 }
 
+// Defines values for GetHolidayCalendarParamsAcceptLanguage.
+const (
+	GetHolidayCalendarParamsAcceptLanguageAr GetHolidayCalendarParamsAcceptLanguage = "ar"
+	GetHolidayCalendarParamsAcceptLanguageEn GetHolidayCalendarParamsAcceptLanguage = "en"
+)
+
+// Valid indicates whether the value is a known member of the GetHolidayCalendarParamsAcceptLanguage enum.
+func (e GetHolidayCalendarParamsAcceptLanguage) Valid() bool {
+	switch e {
+	case GetHolidayCalendarParamsAcceptLanguageAr:
+		return true
+	case GetHolidayCalendarParamsAcceptLanguageEn:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PutHolidayCalendarParamsAcceptLanguage.
+const (
+	PutHolidayCalendarParamsAcceptLanguageAr PutHolidayCalendarParamsAcceptLanguage = "ar"
+	PutHolidayCalendarParamsAcceptLanguageEn PutHolidayCalendarParamsAcceptLanguage = "en"
+)
+
+// Valid indicates whether the value is a known member of the PutHolidayCalendarParamsAcceptLanguage enum.
+func (e PutHolidayCalendarParamsAcceptLanguage) Valid() bool {
+	switch e {
+	case PutHolidayCalendarParamsAcceptLanguageAr:
+		return true
+	case PutHolidayCalendarParamsAcceptLanguageEn:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ListJourneysParamsAcceptLanguage.
+const (
+	ListJourneysParamsAcceptLanguageAr ListJourneysParamsAcceptLanguage = "ar"
+	ListJourneysParamsAcceptLanguageEn ListJourneysParamsAcceptLanguage = "en"
+)
+
+// Valid indicates whether the value is a known member of the ListJourneysParamsAcceptLanguage enum.
+func (e ListJourneysParamsAcceptLanguage) Valid() bool {
+	switch e {
+	case ListJourneysParamsAcceptLanguageAr:
+		return true
+	case ListJourneysParamsAcceptLanguageEn:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetJourneyInstanceParamsAcceptLanguage.
+const (
+	GetJourneyInstanceParamsAcceptLanguageAr GetJourneyInstanceParamsAcceptLanguage = "ar"
+	GetJourneyInstanceParamsAcceptLanguageEn GetJourneyInstanceParamsAcceptLanguage = "en"
+)
+
+// Valid indicates whether the value is a known member of the GetJourneyInstanceParamsAcceptLanguage enum.
+func (e GetJourneyInstanceParamsAcceptLanguage) Valid() bool {
+	switch e {
+	case GetJourneyInstanceParamsAcceptLanguageAr:
+		return true
+	case GetJourneyInstanceParamsAcceptLanguageEn:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for SubmitJourneyStepParamsAcceptLanguage.
+const (
+	SubmitJourneyStepParamsAcceptLanguageAr SubmitJourneyStepParamsAcceptLanguage = "ar"
+	SubmitJourneyStepParamsAcceptLanguageEn SubmitJourneyStepParamsAcceptLanguage = "en"
+)
+
+// Valid indicates whether the value is a known member of the SubmitJourneyStepParamsAcceptLanguage enum.
+func (e SubmitJourneyStepParamsAcceptLanguage) Valid() bool {
+	switch e {
+	case SubmitJourneyStepParamsAcceptLanguageAr:
+		return true
+	case SubmitJourneyStepParamsAcceptLanguageEn:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for CreateJourneyInstanceParamsAcceptLanguage.
+const (
+	CreateJourneyInstanceParamsAcceptLanguageAr CreateJourneyInstanceParamsAcceptLanguage = "ar"
+	CreateJourneyInstanceParamsAcceptLanguageEn CreateJourneyInstanceParamsAcceptLanguage = "en"
+)
+
+// Valid indicates whether the value is a known member of the CreateJourneyInstanceParamsAcceptLanguage enum.
+func (e CreateJourneyInstanceParamsAcceptLanguage) Valid() bool {
+	switch e {
+	case CreateJourneyInstanceParamsAcceptLanguageAr:
+		return true
+	case CreateJourneyInstanceParamsAcceptLanguageEn:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for GetMeParamsAcceptLanguage.
 const (
 	GetMeParamsAcceptLanguageAr GetMeParamsAcceptLanguage = "ar"
@@ -686,6 +1154,42 @@ func (e GetMeParamsAcceptLanguage) Valid() bool {
 	case GetMeParamsAcceptLanguageAr:
 		return true
 	case GetMeParamsAcceptLanguageEn:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetNotificationPreferencesParamsAcceptLanguage.
+const (
+	GetNotificationPreferencesParamsAcceptLanguageAr GetNotificationPreferencesParamsAcceptLanguage = "ar"
+	GetNotificationPreferencesParamsAcceptLanguageEn GetNotificationPreferencesParamsAcceptLanguage = "en"
+)
+
+// Valid indicates whether the value is a known member of the GetNotificationPreferencesParamsAcceptLanguage enum.
+func (e GetNotificationPreferencesParamsAcceptLanguage) Valid() bool {
+	switch e {
+	case GetNotificationPreferencesParamsAcceptLanguageAr:
+		return true
+	case GetNotificationPreferencesParamsAcceptLanguageEn:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PutNotificationPreferencesParamsAcceptLanguage.
+const (
+	PutNotificationPreferencesParamsAcceptLanguageAr PutNotificationPreferencesParamsAcceptLanguage = "ar"
+	PutNotificationPreferencesParamsAcceptLanguageEn PutNotificationPreferencesParamsAcceptLanguage = "en"
+)
+
+// Valid indicates whether the value is a known member of the PutNotificationPreferencesParamsAcceptLanguage enum.
+func (e PutNotificationPreferencesParamsAcceptLanguage) Valid() bool {
+	switch e {
+	case PutNotificationPreferencesParamsAcceptLanguageAr:
+		return true
+	case PutNotificationPreferencesParamsAcceptLanguageEn:
 		return true
 	default:
 		return false
@@ -728,6 +1232,153 @@ func (e EndMySessionParamsAcceptLanguage) Valid() bool {
 	}
 }
 
+// Defines values for ListNotificationsParamsGroup.
+const (
+	ListNotificationsParamsGroupFyi     ListNotificationsParamsGroup = "fyi"
+	ListNotificationsParamsGroupNeedsMe ListNotificationsParamsGroup = "needs_me"
+	ListNotificationsParamsGroupWaiting ListNotificationsParamsGroup = "waiting"
+)
+
+// Valid indicates whether the value is a known member of the ListNotificationsParamsGroup enum.
+func (e ListNotificationsParamsGroup) Valid() bool {
+	switch e {
+	case ListNotificationsParamsGroupFyi:
+		return true
+	case ListNotificationsParamsGroupNeedsMe:
+		return true
+	case ListNotificationsParamsGroupWaiting:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ListNotificationsParamsAcceptLanguage.
+const (
+	ListNotificationsParamsAcceptLanguageAr ListNotificationsParamsAcceptLanguage = "ar"
+	ListNotificationsParamsAcceptLanguageEn ListNotificationsParamsAcceptLanguage = "en"
+)
+
+// Valid indicates whether the value is a known member of the ListNotificationsParamsAcceptLanguage enum.
+func (e ListNotificationsParamsAcceptLanguage) Valid() bool {
+	switch e {
+	case ListNotificationsParamsAcceptLanguageAr:
+		return true
+	case ListNotificationsParamsAcceptLanguageEn:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AcknowledgeNotificationParamsAcceptLanguage.
+const (
+	AcknowledgeNotificationParamsAcceptLanguageAr AcknowledgeNotificationParamsAcceptLanguage = "ar"
+	AcknowledgeNotificationParamsAcceptLanguageEn AcknowledgeNotificationParamsAcceptLanguage = "en"
+)
+
+// Valid indicates whether the value is a known member of the AcknowledgeNotificationParamsAcceptLanguage enum.
+func (e AcknowledgeNotificationParamsAcceptLanguage) Valid() bool {
+	switch e {
+	case AcknowledgeNotificationParamsAcceptLanguageAr:
+		return true
+	case AcknowledgeNotificationParamsAcceptLanguageEn:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for HardClosePeriodParamsAcceptLanguage.
+const (
+	HardClosePeriodParamsAcceptLanguageAr HardClosePeriodParamsAcceptLanguage = "ar"
+	HardClosePeriodParamsAcceptLanguageEn HardClosePeriodParamsAcceptLanguage = "en"
+)
+
+// Valid indicates whether the value is a known member of the HardClosePeriodParamsAcceptLanguage enum.
+func (e HardClosePeriodParamsAcceptLanguage) Valid() bool {
+	switch e {
+	case HardClosePeriodParamsAcceptLanguageAr:
+		return true
+	case HardClosePeriodParamsAcceptLanguageEn:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for SoftClosePeriodParamsAcceptLanguage.
+const (
+	SoftClosePeriodParamsAcceptLanguageAr SoftClosePeriodParamsAcceptLanguage = "ar"
+	SoftClosePeriodParamsAcceptLanguageEn SoftClosePeriodParamsAcceptLanguage = "en"
+)
+
+// Valid indicates whether the value is a known member of the SoftClosePeriodParamsAcceptLanguage enum.
+func (e SoftClosePeriodParamsAcceptLanguage) Valid() bool {
+	switch e {
+	case SoftClosePeriodParamsAcceptLanguageAr:
+		return true
+	case SoftClosePeriodParamsAcceptLanguageEn:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for OpenAuditAdjustmentPeriodParamsAcceptLanguage.
+const (
+	OpenAuditAdjustmentPeriodParamsAcceptLanguageAr OpenAuditAdjustmentPeriodParamsAcceptLanguage = "ar"
+	OpenAuditAdjustmentPeriodParamsAcceptLanguageEn OpenAuditAdjustmentPeriodParamsAcceptLanguage = "en"
+)
+
+// Valid indicates whether the value is a known member of the OpenAuditAdjustmentPeriodParamsAcceptLanguage enum.
+func (e OpenAuditAdjustmentPeriodParamsAcceptLanguage) Valid() bool {
+	switch e {
+	case OpenAuditAdjustmentPeriodParamsAcceptLanguageAr:
+		return true
+	case OpenAuditAdjustmentPeriodParamsAcceptLanguageEn:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ListSodMatrixParamsAcceptLanguage.
+const (
+	ListSodMatrixParamsAcceptLanguageAr ListSodMatrixParamsAcceptLanguage = "ar"
+	ListSodMatrixParamsAcceptLanguageEn ListSodMatrixParamsAcceptLanguage = "en"
+)
+
+// Valid indicates whether the value is a known member of the ListSodMatrixParamsAcceptLanguage enum.
+func (e ListSodMatrixParamsAcceptLanguage) Valid() bool {
+	switch e {
+	case ListSodMatrixParamsAcceptLanguageAr:
+		return true
+	case ListSodMatrixParamsAcceptLanguageEn:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for CreateSodRuleParamsAcceptLanguage.
+const (
+	CreateSodRuleParamsAcceptLanguageAr CreateSodRuleParamsAcceptLanguage = "ar"
+	CreateSodRuleParamsAcceptLanguageEn CreateSodRuleParamsAcceptLanguage = "en"
+)
+
+// Valid indicates whether the value is a known member of the CreateSodRuleParamsAcceptLanguage enum.
+func (e CreateSodRuleParamsAcceptLanguage) Valid() bool {
+	switch e {
+	case CreateSodRuleParamsAcceptLanguageAr:
+		return true
+	case CreateSodRuleParamsAcceptLanguageEn:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for GetStatusParamsAcceptLanguage.
 const (
 	GetStatusParamsAcceptLanguageAr GetStatusParamsAcceptLanguage = "ar"
@@ -746,11 +1397,59 @@ func (e GetStatusParamsAcceptLanguage) Valid() bool {
 	}
 }
 
+// Defines values for SubscribeEventsParamsAcceptLanguage.
+const (
+	SubscribeEventsParamsAcceptLanguageAr SubscribeEventsParamsAcceptLanguage = "ar"
+	SubscribeEventsParamsAcceptLanguageEn SubscribeEventsParamsAcceptLanguage = "en"
+)
+
+// Valid indicates whether the value is a known member of the SubscribeEventsParamsAcceptLanguage enum.
+func (e SubscribeEventsParamsAcceptLanguage) Valid() bool {
+	switch e {
+	case SubscribeEventsParamsAcceptLanguageAr:
+		return true
+	case SubscribeEventsParamsAcceptLanguageEn:
+		return true
+	default:
+		return false
+	}
+}
+
 // Actor defines model for Actor.
 type Actor struct {
 	Id   string `json:"id"`
 	Name string `json:"name"`
 }
+
+// AlertRule defines model for AlertRule.
+type AlertRule struct {
+	Builtin        *bool                  `json:"builtin,omitempty"`
+	Channel        string                 `json:"channel"`
+	Condition      map[string]interface{} `json:"condition"`
+	DocumentType   string                 `json:"document_type"`
+	Enabled        bool                   `json:"enabled"`
+	Id             string                 `json:"id"`
+	Mode           AlertRuleMode          `json:"mode"`
+	RecipientRoles []string               `json:"recipient_roles"`
+	Severity       Severity               `json:"severity"`
+}
+
+// AlertRuleMode defines model for AlertRule.Mode.
+type AlertRuleMode string
+
+// AlertRuleInput defines model for AlertRuleInput.
+type AlertRuleInput struct {
+	Builtin        *bool                  `json:"builtin,omitempty"`
+	Channel        string                 `json:"channel"`
+	Condition      map[string]interface{} `json:"condition"`
+	DocumentType   string                 `json:"document_type"`
+	Mode           AlertRuleInputMode     `json:"mode"`
+	RecipientRoles []string               `json:"recipient_roles"`
+	Severity       Severity               `json:"severity"`
+}
+
+// AlertRuleInputMode defines model for AlertRuleInput.Mode.
+type AlertRuleInputMode string
 
 // AllowedAction defines model for AllowedAction.
 type AllowedAction string
@@ -822,6 +1521,49 @@ type ApprovalDetail struct {
 
 // ApprovalDetailDecisionsDecision defines model for ApprovalDetail.Decisions.Decision.
 type ApprovalDetailDecisionsDecision string
+
+// ApprovalMatrixRule Approval routing for one document type (R2.2). The engine that consumes it is the approvals module.
+type ApprovalMatrixRule struct {
+	ApprovalRequestId *string `json:"approval_request_id,omitempty"`
+
+	// BelowThresholdRole Any one holder of this role may register the document below the threshold
+	BelowThresholdRole string `json:"below_threshold_role"`
+	DocumentType       string `json:"document_type"`
+
+	// FinalGateRole Named final gate; not delegable
+	FinalGateRole string `json:"final_gate_role"`
+
+	// FirstApproverRole Independent first approver at or above the threshold
+	FirstApproverRole string             `json:"first_approver_role"`
+	Id                openapi_types.UUID `json:"id"`
+
+	// StateVersion Optimistic concurrency version; bumped on every transition
+	StateVersion StateVersion             `json:"state_version"`
+	Status       ApprovalMatrixRuleStatus `json:"status"`
+
+	// Threshold At or above this amount the first approver and the final gate both apply
+	Threshold Money `json:"threshold"`
+
+	// VotingAny When set with `voting_of`, the company requires any N of M
+	VotingAny *int `json:"voting_any,omitempty"`
+	VotingOf  *int `json:"voting_of,omitempty"`
+}
+
+// ApprovalMatrixRuleStatus defines model for ApprovalMatrixRule.Status.
+type ApprovalMatrixRuleStatus string
+
+// ApprovalMatrixRuleWrite defines model for ApprovalMatrixRuleWrite.
+type ApprovalMatrixRuleWrite struct {
+	BelowThresholdRole string `json:"below_threshold_role"`
+	DocumentType       string `json:"document_type"`
+	FinalGateRole      string `json:"final_gate_role"`
+	FirstApproverRole  string `json:"first_approver_role"`
+
+	// Threshold Decimal amount as a string plus an ISO 4217 currency code. Never a float.
+	Threshold Money `json:"threshold"`
+	VotingAny *int  `json:"voting_any,omitempty"`
+	VotingOf  *int  `json:"voting_of,omitempty"`
+}
 
 // ApprovalState defines model for ApprovalState.
 type ApprovalState string
@@ -924,6 +1666,144 @@ type HealthResponse struct {
 // HealthResponseStatus defines model for HealthResponse.Status.
 type HealthResponseStatus string
 
+// Holiday defines model for Holiday.
+type Holiday struct {
+	Date openapi_types.Date `json:"date"`
+	Name string             `json:"name"`
+}
+
+// HolidayCalendar Company business-hours calendar (ADR-12). Clocks count only time inside
+// `business_open`–`business_close` on days that are neither weekend nor holiday.
+type HolidayCalendar struct {
+	// BusinessClose Local end of the working day, HH:MM (24-hour), after `business_open`
+	//
+	// Examples: 20:00
+	BusinessClose string `json:"business_close"`
+
+	// BusinessOpen Local start of the working day, HH:MM (24-hour)
+	//
+	// Examples: 08:00
+	BusinessOpen string    `json:"business_open"`
+	Holidays     []Holiday `json:"holidays"`
+
+	// StateVersion Optimistic concurrency version; bumped on every transition
+	StateVersion StateVersion `json:"state_version"`
+
+	// Timezone Examples: Asia/Dubai
+	Timezone string    `json:"timezone"`
+	Weekend  []Weekday `json:"weekend"`
+}
+
+// HolidayCalendarWrite Body of POST /holiday-calendar. `state_version` is not accepted from the client.
+type HolidayCalendarWrite struct {
+	BusinessClose string    `json:"business_close"`
+	BusinessOpen  string    `json:"business_open"`
+	Holidays      []Holiday `json:"holidays"`
+	Timezone      string    `json:"timezone"`
+	Weekend       []Weekday `json:"weekend"`
+}
+
+// JourneyDefinition defines model for JourneyDefinition.
+type JourneyDefinition struct {
+	Group    string        `json:"group"`
+	Personas []string      `json:"personas"`
+	Slug     string        `json:"slug"`
+	Steps    []JourneyStep `json:"steps"`
+
+	// Title Localised by Accept-Language. The stored title is a message key.
+	Title string `json:"title"`
+}
+
+// JourneyGroup defines model for JourneyGroup.
+type JourneyGroup struct {
+	Definitions []JourneyDefinition `json:"definitions"`
+	Persona     string              `json:"persona"`
+}
+
+// JourneyInstance defines model for JourneyInstance.
+type JourneyInstance struct {
+	CurrentStep JourneyStep        `json:"current_step"`
+	InstanceId  openapi_types.UUID `json:"instance_id"`
+	Persona     string             `json:"persona"`
+
+	// ServerState Written only by the engine. Client input is not copied here until forbidden keys
+	// (permissions, roles, personas, workflow state) are removed.
+	ServerState map[string]interface{} `json:"server_state"`
+	Slug        string                 `json:"slug"`
+
+	// StateVersion Optimistic concurrency version; bumped on every transition
+	StateVersion StateVersion          `json:"state_version"`
+	Status       JourneyInstanceStatus `json:"status"`
+	UpdatedAt    time.Time             `json:"updated_at"`
+}
+
+// JourneyInstanceCreated defines model for JourneyInstanceCreated.
+type JourneyInstanceCreated struct {
+	InstanceId openapi_types.UUID `json:"instance_id"`
+
+	// StateVersion Optimistic concurrency version; bumped on every transition
+	StateVersion StateVersion `json:"state_version"`
+	Step         JourneyStep  `json:"step"`
+}
+
+// JourneyInstanceStatus defines model for JourneyInstanceStatus.
+type JourneyInstanceStatus string
+
+// JourneyKind defines model for JourneyKind.
+type JourneyKind string
+
+// JourneyList defines model for JourneyList.
+type JourneyList struct {
+	Groups []JourneyGroup `json:"groups"`
+}
+
+// JourneyProblem defines model for JourneyProblem.
+type JourneyProblem struct {
+	Code  string  `json:"code"`
+	Field *string `json:"field,omitempty"`
+
+	// Message Localised by Accept-Language
+	Message string `json:"message"`
+}
+
+// JourneyStep defines model for JourneyStep.
+type JourneyStep struct {
+	// Guard Server-evaluated guard data. Not an expression the client can supply.
+	Guard *map[string]interface{} `json:"guard,omitempty"`
+
+	// InputSchema JSON Schema for the step input. The client does not execute guards.
+	InputSchema map[string]interface{} `json:"input_schema"`
+	Kind        JourneyKind            `json:"kind"`
+	StepId      string                 `json:"step_id"`
+	Title       string                 `json:"title"`
+}
+
+// JourneyStepCode Outcome code on a step result. Distinct from the error-envelope ErrorCode set so that
+// PENDING and REJECTED stay journey outcomes rather than transport failures.
+type JourneyStepCode string
+
+// JourneyStepResult Step protocol result. `ok` is false while an await is pending and when the run stops on
+// rejection. `problems` is always present and empty when there are none. `next_step` is
+// omitted when the run has stopped.
+type JourneyStepResult struct {
+	// Code Outcome code on a step result. Distinct from the error-envelope ErrorCode set so that
+	// PENDING and REJECTED stay journey outcomes rather than transport failures.
+	Code     *JourneyStepCode        `json:"code,omitempty"`
+	Data     *map[string]interface{} `json:"data,omitempty"`
+	Message  *string                 `json:"message,omitempty"`
+	NextStep *JourneyStep            `json:"next_step,omitempty"`
+	Ok       bool                    `json:"ok"`
+	Problems []JourneyProblem        `json:"problems"`
+}
+
+// JourneyStepSubmission defines model for JourneyStepSubmission.
+type JourneyStepSubmission struct {
+	// Input Business fields for this step. Keys permissions, roles, personas, workflow_state,
+	// granted, and status are ignored.
+	Input  map[string]interface{} `json:"input"`
+	StepId string                 `json:"step_id"`
+}
+
 // Meta Present on every success response.
 type Meta struct {
 	// AsOf Server time the response was computed, UTC
@@ -943,6 +1823,42 @@ type Money struct {
 	Currency string `json:"currency"`
 }
 
+// NotificationItem defines model for NotificationItem.
+type NotificationItem struct {
+	AllowedActions []AllowedAction `json:"allowed_actions"`
+	Amount         *Money          `json:"amount,omitempty"`
+	DeepLink       string          `json:"deep_link"`
+	DocNumber      *string         `json:"doc_number,omitempty"`
+	DocType        string          `json:"doc_type"`
+	EventId        string          `json:"event_id"`
+	Party          *string         `json:"party,omitempty"`
+	Requester      Actor           `json:"requester"`
+	Severity       Severity        `json:"severity"`
+	WaitingSince   time.Time       `json:"waiting_since"`
+}
+
+// NotificationPreferences defines model for NotificationPreferences.
+type NotificationPreferences struct {
+	Channels *[]struct {
+		Channel   NotificationPreferencesChannelsChannel `json:"channel"`
+		DeviceId  *string                                `json:"device_id,omitempty"`
+		Enabled   bool                                   `json:"enabled"`
+		EventType string                                 `json:"event_type"`
+	} `json:"channels,omitempty"`
+	QuietHours *struct {
+		End *string `json:"end,omitempty"`
+
+		// Start Local time HH:MM
+		Start *string `json:"start,omitempty"`
+
+		// Zone IANA time zone. Critical is never suppressed inside the window.
+		Zone *string `json:"zone,omitempty"`
+	} `json:"quiet_hours,omitempty"`
+}
+
+// NotificationPreferencesChannelsChannel defines model for NotificationPreferences.Channels.Channel.
+type NotificationPreferencesChannelsChannel string
+
 // PageMeta Meta for list responses. `total` is present only where cheap.
 type PageMeta struct {
 	// AsOf Server time the response was computed, UTC
@@ -955,11 +1871,78 @@ type PageMeta struct {
 	AdditionalProperties map[string]interface{} `json:"-"`
 }
 
+// Period defines model for Period.
+type Period struct {
+	EndDate    openapi_types.Date `json:"end_date"`
+	FiscalYear int                `json:"fiscal_year"`
+	Id         openapi_types.UUID `json:"id"`
+	Kind       PeriodKind         `json:"kind"`
+
+	// Month Null on the audit-adjustment period
+	Month     *int               `json:"month,omitempty"`
+	StartDate openapi_types.Date `json:"start_date"`
+
+	// StateVersion Optimistic concurrency version; bumped on every transition
+	StateVersion StateVersion `json:"state_version"`
+	Status       PeriodStatus `json:"status"`
+}
+
+// PeriodApproval Approval id granted by the approvals module before a Stakeholder close or open.
+type PeriodApproval struct {
+	ApprovalId string `json:"approval_id"`
+}
+
+// PeriodKind defines model for PeriodKind.
+type PeriodKind string
+
+// PeriodStatus defines model for PeriodStatus.
+type PeriodStatus string
+
 // Platform defines model for Platform.
 type Platform string
 
 // Severity defines model for Severity.
 type Severity string
+
+// SodRule One row of the segregation-of-duties matrix (R1.13).
+type SodRule struct {
+	// ApprovalRequestId Set when the mutation is waiting on the approval engine
+	ApprovalRequestId *string            `json:"approval_request_id,omitempty"`
+	Id                openapi_types.UUID `json:"id"`
+
+	// Kind `role_pair` is two roles one person must not hold together. `action_pair` is two
+	// actions one person must not both perform on a document (enter and approve, receive
+	// and count, create vendor and pay vendor, request correction and approve correction).
+	Kind SodRuleKind `json:"kind"`
+
+	// LeftCode Role name or permission code
+	LeftCode string `json:"left_code"`
+
+	// RightCode Role name or permission code
+	RightCode string `json:"right_code"`
+
+	// StateVersion Optimistic concurrency version; bumped on every transition
+	StateVersion StateVersion  `json:"state_version"`
+	Status       SodRuleStatus `json:"status"`
+}
+
+// SodRuleKind `role_pair` is two roles one person must not hold together. `action_pair` is two
+// actions one person must not both perform on a document (enter and approve, receive
+// and count, create vendor and pay vendor, request correction and approve correction).
+type SodRuleKind string
+
+// SodRuleStatus defines model for SodRule.Status.
+type SodRuleStatus string
+
+// SodRuleWrite defines model for SodRuleWrite.
+type SodRuleWrite struct {
+	Kind      SodRuleWriteKind `json:"kind"`
+	LeftCode  string           `json:"left_code"`
+	RightCode string           `json:"right_code"`
+}
+
+// SodRuleWriteKind defines model for SodRuleWrite.Kind.
+type SodRuleWriteKind string
 
 // StateVersion Optimistic concurrency version; bumped on every transition
 type StateVersion = int
@@ -1035,6 +2018,9 @@ type UserSession struct {
 	StateVersion StateVersion `json:"state_version"`
 }
 
+// Weekday defines model for Weekday.
+type Weekday string
+
 // AcceptLanguage defines model for AcceptLanguage.
 type AcceptLanguage string
 
@@ -1044,14 +2030,32 @@ type ApprovalId = string
 // Cursor defines model for Cursor.
 type Cursor = string
 
+// EventId defines model for EventId.
+type EventId = string
+
+// FiscalYear defines model for FiscalYear.
+type FiscalYear = int
+
 // IdempotencyKey defines model for IdempotencyKey.
 type IdempotencyKey = openapi_types.UUID
 
 // IfMatch defines model for IfMatch.
 type IfMatch = string
 
+// IfMatchRequired defines model for IfMatchRequired.
+type IfMatchRequired = string
+
+// JourneyInstanceId defines model for JourneyInstanceId.
+type JourneyInstanceId = openapi_types.UUID
+
+// JourneySlug defines model for JourneySlug.
+type JourneySlug = string
+
 // Limit defines model for Limit.
 type Limit = int
+
+// PeriodId defines model for PeriodId.
+type PeriodId = openapi_types.UUID
 
 // SessionId defines model for SessionId.
 type SessionId = string
@@ -1082,6 +2086,60 @@ type Unauthorized = ErrorEnvelope
 
 // Unavailable Returned on every failure path including 429 and gateway errors (A17).
 type Unavailable = ErrorEnvelope
+
+// ListAlertRulesParams defines parameters for ListAlertRules.
+type ListAlertRulesParams struct {
+	DocumentType *string `form:"document_type,omitempty" json:"document_type,omitempty"`
+
+	// AcceptLanguage `en` or `ar`. Affects messages and print formats, never data.
+	AcceptLanguage *ListAlertRulesParamsAcceptLanguage `json:"Accept-Language,omitempty"`
+}
+
+// ListAlertRulesParamsAcceptLanguage defines parameters for ListAlertRules.
+type ListAlertRulesParamsAcceptLanguage string
+
+// CreateAlertRuleParams defines parameters for CreateAlertRule.
+type CreateAlertRuleParams struct {
+	// IdempotencyKey UUID chosen by the client. The server stores the response for 24 hours and replays it for a
+	// repeated key with the same body; a different body with the same key is `409 CONFLICT`.
+	IdempotencyKey IdempotencyKey `json:"Idempotency-Key"`
+
+	// AcceptLanguage `en` or `ar`. Affects messages and print formats, never data.
+	AcceptLanguage *CreateAlertRuleParamsAcceptLanguage `json:"Accept-Language,omitempty"`
+}
+
+// CreateAlertRuleParamsAcceptLanguage defines parameters for CreateAlertRule.
+type CreateAlertRuleParamsAcceptLanguage string
+
+// ListApprovalMatrixParams defines parameters for ListApprovalMatrix.
+type ListApprovalMatrixParams struct {
+	// Cursor Opaque cursor from `meta.next_cursor` of the previous page.
+	Cursor *Cursor `form:"cursor,omitempty" json:"cursor,omitempty"`
+	Limit  *Limit  `form:"limit,omitempty" json:"limit,omitempty"`
+
+	// AcceptLanguage `en` or `ar`. Affects messages and print formats, never data.
+	AcceptLanguage *ListApprovalMatrixParamsAcceptLanguage `json:"Accept-Language,omitempty"`
+}
+
+// ListApprovalMatrixParamsAcceptLanguage defines parameters for ListApprovalMatrix.
+type ListApprovalMatrixParamsAcceptLanguage string
+
+// CreateApprovalMatrixRuleParams defines parameters for CreateApprovalMatrixRule.
+type CreateApprovalMatrixRuleParams struct {
+	// IdempotencyKey UUID chosen by the client. The server stores the response for 24 hours and replays it for a
+	// repeated key with the same body; a different body with the same key is `409 CONFLICT`.
+	IdempotencyKey IdempotencyKey `json:"Idempotency-Key"`
+
+	// IfMatch The `state_version` the client last saw. A mismatch is `409 CONFLICT` with the current
+	// state in `error.details.current`.
+	IfMatch *IfMatch `json:"If-Match,omitempty"`
+
+	// AcceptLanguage `en` or `ar`. Affects messages and print formats, never data.
+	AcceptLanguage *CreateApprovalMatrixRuleParamsAcceptLanguage `json:"Accept-Language,omitempty"`
+}
+
+// CreateApprovalMatrixRuleParamsAcceptLanguage defines parameters for CreateApprovalMatrixRule.
+type CreateApprovalMatrixRuleParamsAcceptLanguage string
 
 // ListApprovalInboxParams defines parameters for ListApprovalInbox.
 type ListApprovalInboxParams struct {
@@ -1373,6 +2431,83 @@ type GetHealthParams struct {
 // GetHealthParamsAcceptLanguage defines parameters for GetHealth.
 type GetHealthParamsAcceptLanguage string
 
+// GetHolidayCalendarParams defines parameters for GetHolidayCalendar.
+type GetHolidayCalendarParams struct {
+	// AcceptLanguage `en` or `ar`. Affects messages and print formats, never data.
+	AcceptLanguage *GetHolidayCalendarParamsAcceptLanguage `json:"Accept-Language,omitempty"`
+}
+
+// GetHolidayCalendarParamsAcceptLanguage defines parameters for GetHolidayCalendar.
+type GetHolidayCalendarParamsAcceptLanguage string
+
+// PutHolidayCalendarParams defines parameters for PutHolidayCalendar.
+type PutHolidayCalendarParams struct {
+	// IdempotencyKey UUID chosen by the client. The server stores the response for 24 hours and replays it for a
+	// repeated key with the same body; a different body with the same key is `409 CONFLICT`.
+	IdempotencyKey IdempotencyKey `json:"Idempotency-Key"`
+
+	// IfMatch The `state_version` the client last saw. Required on period and holiday-calendar
+	// writes. A mismatch is `409 CONFLICT` with the current state in `error.details.current`.
+	// The first holiday-calendar write sends `0`.
+	IfMatch IfMatchRequired `json:"If-Match"`
+
+	// AcceptLanguage `en` or `ar`. Affects messages and print formats, never data.
+	AcceptLanguage *PutHolidayCalendarParamsAcceptLanguage `json:"Accept-Language,omitempty"`
+}
+
+// PutHolidayCalendarParamsAcceptLanguage defines parameters for PutHolidayCalendar.
+type PutHolidayCalendarParamsAcceptLanguage string
+
+// ListJourneysParams defines parameters for ListJourneys.
+type ListJourneysParams struct {
+	// Persona Persona group to return. Ignored as a grant; used only as a filter.
+	Persona *string `form:"persona,omitempty" json:"persona,omitempty"`
+
+	// AcceptLanguage `en` or `ar`. Affects messages and print formats, never data.
+	AcceptLanguage *ListJourneysParamsAcceptLanguage `json:"Accept-Language,omitempty"`
+}
+
+// ListJourneysParamsAcceptLanguage defines parameters for ListJourneys.
+type ListJourneysParamsAcceptLanguage string
+
+// GetJourneyInstanceParams defines parameters for GetJourneyInstance.
+type GetJourneyInstanceParams struct {
+	// AcceptLanguage `en` or `ar`. Affects messages and print formats, never data.
+	AcceptLanguage *GetJourneyInstanceParamsAcceptLanguage `json:"Accept-Language,omitempty"`
+}
+
+// GetJourneyInstanceParamsAcceptLanguage defines parameters for GetJourneyInstance.
+type GetJourneyInstanceParamsAcceptLanguage string
+
+// SubmitJourneyStepParams defines parameters for SubmitJourneyStep.
+type SubmitJourneyStepParams struct {
+	// IdempotencyKey UUID chosen by the client. The server stores the response for 24 hours and replays it for a
+	// repeated key with the same body; a different body with the same key is `409 CONFLICT`.
+	IdempotencyKey IdempotencyKey `json:"Idempotency-Key"`
+
+	// IfMatch Current `state_version` of the instance.
+	IfMatch string `json:"If-Match"`
+
+	// AcceptLanguage `en` or `ar`. Affects messages and print formats, never data.
+	AcceptLanguage *SubmitJourneyStepParamsAcceptLanguage `json:"Accept-Language,omitempty"`
+}
+
+// SubmitJourneyStepParamsAcceptLanguage defines parameters for SubmitJourneyStep.
+type SubmitJourneyStepParamsAcceptLanguage string
+
+// CreateJourneyInstanceParams defines parameters for CreateJourneyInstance.
+type CreateJourneyInstanceParams struct {
+	// IdempotencyKey UUID chosen by the client. The server stores the response for 24 hours and replays it for a
+	// repeated key with the same body; a different body with the same key is `409 CONFLICT`.
+	IdempotencyKey IdempotencyKey `json:"Idempotency-Key"`
+
+	// AcceptLanguage `en` or `ar`. Affects messages and print formats, never data.
+	AcceptLanguage *CreateJourneyInstanceParamsAcceptLanguage `json:"Accept-Language,omitempty"`
+}
+
+// CreateJourneyInstanceParamsAcceptLanguage defines parameters for CreateJourneyInstance.
+type CreateJourneyInstanceParamsAcceptLanguage string
+
 // GetMeParams defines parameters for GetMe.
 type GetMeParams struct {
 	// AcceptLanguage `en` or `ar`. Affects messages and print formats, never data.
@@ -1381,6 +2516,28 @@ type GetMeParams struct {
 
 // GetMeParamsAcceptLanguage defines parameters for GetMe.
 type GetMeParamsAcceptLanguage string
+
+// GetNotificationPreferencesParams defines parameters for GetNotificationPreferences.
+type GetNotificationPreferencesParams struct {
+	// AcceptLanguage `en` or `ar`. Affects messages and print formats, never data.
+	AcceptLanguage *GetNotificationPreferencesParamsAcceptLanguage `json:"Accept-Language,omitempty"`
+}
+
+// GetNotificationPreferencesParamsAcceptLanguage defines parameters for GetNotificationPreferences.
+type GetNotificationPreferencesParamsAcceptLanguage string
+
+// PutNotificationPreferencesParams defines parameters for PutNotificationPreferences.
+type PutNotificationPreferencesParams struct {
+	// IdempotencyKey UUID chosen by the client. The server stores the response for 24 hours and replays it for a
+	// repeated key with the same body; a different body with the same key is `409 CONFLICT`.
+	IdempotencyKey IdempotencyKey `json:"Idempotency-Key"`
+
+	// AcceptLanguage `en` or `ar`. Affects messages and print formats, never data.
+	AcceptLanguage *PutNotificationPreferencesParamsAcceptLanguage `json:"Accept-Language,omitempty"`
+}
+
+// PutNotificationPreferencesParamsAcceptLanguage defines parameters for PutNotificationPreferences.
+type PutNotificationPreferencesParamsAcceptLanguage string
 
 // ListMySessionsParams defines parameters for ListMySessions.
 type ListMySessionsParams struct {
@@ -1412,6 +2569,118 @@ type EndMySessionParams struct {
 // EndMySessionParamsAcceptLanguage defines parameters for EndMySession.
 type EndMySessionParamsAcceptLanguage string
 
+// ListNotificationsParams defines parameters for ListNotifications.
+type ListNotificationsParams struct {
+	Group  *ListNotificationsParamsGroup `form:"group,omitempty" json:"group,omitempty"`
+	Cursor *string                       `form:"cursor,omitempty" json:"cursor,omitempty"`
+
+	// AcceptLanguage `en` or `ar`. Affects messages and print formats, never data.
+	AcceptLanguage *ListNotificationsParamsAcceptLanguage `json:"Accept-Language,omitempty"`
+}
+
+// ListNotificationsParamsGroup defines parameters for ListNotifications.
+type ListNotificationsParamsGroup string
+
+// ListNotificationsParamsAcceptLanguage defines parameters for ListNotifications.
+type ListNotificationsParamsAcceptLanguage string
+
+// AcknowledgeNotificationParams defines parameters for AcknowledgeNotification.
+type AcknowledgeNotificationParams struct {
+	// IdempotencyKey UUID chosen by the client. The server stores the response for 24 hours and replays it for a
+	// repeated key with the same body; a different body with the same key is `409 CONFLICT`.
+	IdempotencyKey IdempotencyKey `json:"Idempotency-Key"`
+
+	// AcceptLanguage `en` or `ar`. Affects messages and print formats, never data.
+	AcceptLanguage *AcknowledgeNotificationParamsAcceptLanguage `json:"Accept-Language,omitempty"`
+}
+
+// AcknowledgeNotificationParamsAcceptLanguage defines parameters for AcknowledgeNotification.
+type AcknowledgeNotificationParamsAcceptLanguage string
+
+// HardClosePeriodParams defines parameters for HardClosePeriod.
+type HardClosePeriodParams struct {
+	// IdempotencyKey UUID chosen by the client. The server stores the response for 24 hours and replays it for a
+	// repeated key with the same body; a different body with the same key is `409 CONFLICT`.
+	IdempotencyKey IdempotencyKey `json:"Idempotency-Key"`
+
+	// IfMatch The `state_version` the client last saw. Required on period and holiday-calendar
+	// writes. A mismatch is `409 CONFLICT` with the current state in `error.details.current`.
+	// The first holiday-calendar write sends `0`.
+	IfMatch IfMatchRequired `json:"If-Match"`
+
+	// AcceptLanguage `en` or `ar`. Affects messages and print formats, never data.
+	AcceptLanguage *HardClosePeriodParamsAcceptLanguage `json:"Accept-Language,omitempty"`
+}
+
+// HardClosePeriodParamsAcceptLanguage defines parameters for HardClosePeriod.
+type HardClosePeriodParamsAcceptLanguage string
+
+// SoftClosePeriodParams defines parameters for SoftClosePeriod.
+type SoftClosePeriodParams struct {
+	// IdempotencyKey UUID chosen by the client. The server stores the response for 24 hours and replays it for a
+	// repeated key with the same body; a different body with the same key is `409 CONFLICT`.
+	IdempotencyKey IdempotencyKey `json:"Idempotency-Key"`
+
+	// IfMatch The `state_version` the client last saw. Required on period and holiday-calendar
+	// writes. A mismatch is `409 CONFLICT` with the current state in `error.details.current`.
+	// The first holiday-calendar write sends `0`.
+	IfMatch IfMatchRequired `json:"If-Match"`
+
+	// AcceptLanguage `en` or `ar`. Affects messages and print formats, never data.
+	AcceptLanguage *SoftClosePeriodParamsAcceptLanguage `json:"Accept-Language,omitempty"`
+}
+
+// SoftClosePeriodParamsAcceptLanguage defines parameters for SoftClosePeriod.
+type SoftClosePeriodParamsAcceptLanguage string
+
+// OpenAuditAdjustmentPeriodParams defines parameters for OpenAuditAdjustmentPeriod.
+type OpenAuditAdjustmentPeriodParams struct {
+	// IdempotencyKey UUID chosen by the client. The server stores the response for 24 hours and replays it for a
+	// repeated key with the same body; a different body with the same key is `409 CONFLICT`.
+	IdempotencyKey IdempotencyKey `json:"Idempotency-Key"`
+
+	// IfMatch The `state_version` the client last saw. Required on period and holiday-calendar
+	// writes. A mismatch is `409 CONFLICT` with the current state in `error.details.current`.
+	// The first holiday-calendar write sends `0`.
+	IfMatch IfMatchRequired `json:"If-Match"`
+
+	// AcceptLanguage `en` or `ar`. Affects messages and print formats, never data.
+	AcceptLanguage *OpenAuditAdjustmentPeriodParamsAcceptLanguage `json:"Accept-Language,omitempty"`
+}
+
+// OpenAuditAdjustmentPeriodParamsAcceptLanguage defines parameters for OpenAuditAdjustmentPeriod.
+type OpenAuditAdjustmentPeriodParamsAcceptLanguage string
+
+// ListSodMatrixParams defines parameters for ListSodMatrix.
+type ListSodMatrixParams struct {
+	// Cursor Opaque cursor from `meta.next_cursor` of the previous page.
+	Cursor *Cursor `form:"cursor,omitempty" json:"cursor,omitempty"`
+	Limit  *Limit  `form:"limit,omitempty" json:"limit,omitempty"`
+
+	// AcceptLanguage `en` or `ar`. Affects messages and print formats, never data.
+	AcceptLanguage *ListSodMatrixParamsAcceptLanguage `json:"Accept-Language,omitempty"`
+}
+
+// ListSodMatrixParamsAcceptLanguage defines parameters for ListSodMatrix.
+type ListSodMatrixParamsAcceptLanguage string
+
+// CreateSodRuleParams defines parameters for CreateSodRule.
+type CreateSodRuleParams struct {
+	// IdempotencyKey UUID chosen by the client. The server stores the response for 24 hours and replays it for a
+	// repeated key with the same body; a different body with the same key is `409 CONFLICT`.
+	IdempotencyKey IdempotencyKey `json:"Idempotency-Key"`
+
+	// IfMatch The `state_version` the client last saw. A mismatch is `409 CONFLICT` with the current
+	// state in `error.details.current`.
+	IfMatch *IfMatch `json:"If-Match,omitempty"`
+
+	// AcceptLanguage `en` or `ar`. Affects messages and print formats, never data.
+	AcceptLanguage *CreateSodRuleParamsAcceptLanguage `json:"Accept-Language,omitempty"`
+}
+
+// CreateSodRuleParamsAcceptLanguage defines parameters for CreateSodRule.
+type CreateSodRuleParamsAcceptLanguage string
+
 // GetStatusParams defines parameters for GetStatus.
 type GetStatusParams struct {
 	// AcceptLanguage `en` or `ar`. Affects messages and print formats, never data.
@@ -1420,6 +2689,21 @@ type GetStatusParams struct {
 
 // GetStatusParamsAcceptLanguage defines parameters for GetStatus.
 type GetStatusParamsAcceptLanguage string
+
+// SubscribeEventsParams defines parameters for SubscribeEvents.
+type SubscribeEventsParams struct {
+	// AcceptLanguage `en` or `ar`. Affects messages and print formats, never data.
+	AcceptLanguage *SubscribeEventsParamsAcceptLanguage `json:"Accept-Language,omitempty"`
+}
+
+// SubscribeEventsParamsAcceptLanguage defines parameters for SubscribeEvents.
+type SubscribeEventsParamsAcceptLanguage string
+
+// CreateAlertRuleJSONRequestBody defines body for CreateAlertRule for application/json ContentType.
+type CreateAlertRuleJSONRequestBody = AlertRuleInput
+
+// CreateApprovalMatrixRuleJSONRequestBody defines body for CreateApprovalMatrixRule for application/json ContentType.
+type CreateApprovalMatrixRuleJSONRequestBody = ApprovalMatrixRuleWrite
 
 // ApproveApprovalJSONRequestBody defines body for ApproveApproval for application/json ContentType.
 type ApproveApprovalJSONRequestBody ApproveApprovalJSONBody
@@ -1447,6 +2731,24 @@ type IssueTokenJSONRequestBody IssueTokenJSONBody
 
 // RegisterPushTokenJSONRequestBody defines body for RegisterPushToken for application/json ContentType.
 type RegisterPushTokenJSONRequestBody RegisterPushTokenJSONBody
+
+// PutHolidayCalendarJSONRequestBody defines body for PutHolidayCalendar for application/json ContentType.
+type PutHolidayCalendarJSONRequestBody = HolidayCalendarWrite
+
+// SubmitJourneyStepJSONRequestBody defines body for SubmitJourneyStep for application/json ContentType.
+type SubmitJourneyStepJSONRequestBody = JourneyStepSubmission
+
+// PutNotificationPreferencesJSONRequestBody defines body for PutNotificationPreferences for application/json ContentType.
+type PutNotificationPreferencesJSONRequestBody = NotificationPreferences
+
+// HardClosePeriodJSONRequestBody defines body for HardClosePeriod for application/json ContentType.
+type HardClosePeriodJSONRequestBody = PeriodApproval
+
+// OpenAuditAdjustmentPeriodJSONRequestBody defines body for OpenAuditAdjustmentPeriod for application/json ContentType.
+type OpenAuditAdjustmentPeriodJSONRequestBody = PeriodApproval
+
+// CreateSodRuleJSONRequestBody defines body for CreateSodRule for application/json ContentType.
+type CreateSodRuleJSONRequestBody = SodRuleWrite
 
 // Getter for additional properties for DecisionMeta. Returns the specified
 // element and whether it was found

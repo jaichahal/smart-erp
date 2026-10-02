@@ -153,6 +153,22 @@ jobs:
           echo "contracts changed: $CONTRACTS"
           echo "apps changed:      $APPS"
           if [ "$CONTRACTS" = "true" ] && [ "$APPS" = "true" ]; then
+            # Generated OpenAPI types are part of the contract surface. A contracts PR may
+            # commit apps/api/internal/kit/oapi/gen.go from `just gen` and no other apps file.
+            gen_only=true
+            if [ -z "${APP_FILES}" ]; then
+              gen_only=false
+            fi
+            for f in ${APP_FILES}; do
+              if [ "$f" != "apps/api/internal/kit/oapi/gen.go" ]; then
+                gen_only=false
+                break
+              fi
+            done
+            if [ "$gen_only" = true ]; then
+              echo "::notice title=contract-first::Generated OpenAPI types travel with the contract."
+              exit 0
+            fi
             echo "::error title=contract-first::Contract changes must land in their own PR. This PR changes both contracts/ and apps/. Split it: first a PR touching only contracts/ (and docs/spec/04-api-contracts.md with a version bump), wait for it to merge, then the code PR. See CONTRIBUTING.md 'Contract first' and ADR-09."
             echo "contracts/: $CONTRACT_FILES"
             echo "apps/:      $APP_FILES"

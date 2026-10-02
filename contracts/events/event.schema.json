@@ -86,6 +86,7 @@
         "document.registered",
         "delivery.confirmed",
         "clock.expired",
+        "period.closed",
         "receipt.posted",
         "pdc.bounced",
         "stock.received",
@@ -102,7 +103,8 @@
         "forecast.below_floor",
         "exception.raised",
         "config.changed",
-        "break_glass.used"
+        "break_glass.used",
+        "journey.step.completed"
       ]
     },
     "Severity": {

@@ -1,6 +1,26 @@
 # 04 API Contracts
 
 Version 1.1.0. Additive notification endpoints. No client migration: previous clients ignore the new paths. This file changes before code does. Additive changes bump the minor version; breaking changes bump the major version and carry a migration note. Server and clients generate types from the OpenAPI document that this file governs; the OpenAPI file is the machine form, this file is the human form and wins on conflict until the OpenAPI is regenerated.
+Version 1.1.0. Frozen. This file changes before code does. Additive changes bump the minor version; breaking changes bump the major version and carry a migration note. Server and clients generate types from the OpenAPI document that this file governs; the OpenAPI file is the machine form, this file is the human form and wins on conflict until the OpenAPI is regenerated.
+
+1.1.0 (additive, 2026-09-25): `GET /me/sessions` and `DELETE /me/sessions/{id}` with schema `UserSession`. No migration for clients of 1.0.0; the new routes are optional to call. Required so session listing and remote revocation (R1.15, A9) have a contract before the identity implementation.
+Version 1.1.0. This file changes before code does. Additive changes bump the minor version; breaking changes bump the major version and carry a migration note. Server and clients generate types from the OpenAPI document that this file governs; the OpenAPI file is the machine form, this file is the human form and wins on conflict until the OpenAPI is regenerated.
+
+## Changelog
+
+### 1.1.0
+
+Additive. `/sod-matrix` and `/approval-matrix` were named under Masters and had no operation or schema in `contracts/openapi/openapi.yaml`. This version specifies both. Writes send `If-Match` with `state_version` (`0` on create) and are stored as `pending_approval` until an approval request is decided, because mutations on sensitive masters create an approval request. No existing schema changes shape. Migration note: none.
+- 1.1.0 (additive). Journey routes from 1.0.0 are specified fully enough to generate types, including the step result `{ ok, code?, message?, data?, problems[], next_step? }`. Event type `journey.step.completed` added. Deep link route `journey` added. No existing route, field, or error code changed.
+Version 1.1.0. Frozen. This file changes before code does. Additive changes bump the minor version; breaking changes bump the major version and carry a migration note. Server and clients generate types from the OpenAPI document that this file governs; the OpenAPI file is the machine form, this file is the human form and wins on conflict until the OpenAPI is regenerated.
+
+### 1.1.0
+
+Additive. No path or field removed. Clients that do not know `period.closed` ignore it. No data migration.
+
+- `POST /periods/{id}/soft-close`, `POST /periods/{id}/hard-close`, and `POST /periods/{year}/audit-adjustment/open` are in `contracts/openapi/openapi.yaml`, with `Period`, `PeriodStatus`, `PeriodKind`, and `PeriodApproval`.
+- `GET|POST /holiday-calendar` is in the OpenAPI document, with `HolidayCalendar` (timezone, `business_open`, `business_close`, weekend weekdays, holidays) and `HolidayCalendarWrite`.
+- Event type `period.closed` is added to the outbox payload enum.
 
 ## Transport
 
@@ -37,7 +57,9 @@ Each family lists its endpoints, then any shape that is not obvious from the dom
 - `POST /auth/session` body `{ login_name }` returns `{ session_id, challenges: { passkey?, totp_required? } }`; `POST /auth/session/{id}/check` body `{ password? , totp?, webauthn_assertion? }` advances factors; when the required factors are verified, `POST /auth/token` body `{ session_id, device_id }` returns `{ access_token, refresh_token, expires_in, user: { id, name, roles[], personas[], company_id }, step_up_methods[] }`. The API brokers these to Zitadel's Session API; clients never call Zitadel directly.
 - `POST /auth/refresh`, `POST /auth/logout` (revokes device refresh token, unregisters push token).
 - `POST /auth/step-up` body `{ method, code }` returns a short-lived `step_up_token` for one action.
-- `GET /me`, `GET /me/sessions`, `DELETE /me/sessions/{id}`.
+- `GET /me`.
+- `GET /me/sessions` returns `{ id, device_id, device_name, platform, created_at, last_seen_at, current, state_version }[]` with `next_cursor` and `total`.
+- `DELETE /me/sessions/{id}` ends that session. The owner or a System Manager may call it. A stale `If-Match` is `409 CONFLICT` with the current session in `error.details.current`. Revocation is visible on the next request from the ended device.
 
 ### Documents (generic)
 
@@ -90,6 +112,9 @@ Draft body shape per family follows `03-domain-model.md`; the OpenAPI file carri
 ### Masters
 
 - `GET|POST /customers`, `/vendors`, `/skus`, `/price-lists`, `/price-agreements`, `/tax-codes`, `/accounts`, `/dimensions`, `/posting-rules`, `/holiday-calendar`, `/print-formats`, `/alert-rules`, `/approval-matrix`, `/sod-matrix`. Mutations on sensitive masters create an approval request. `GET /{master}/{id}/versions`.
+- `GET|POST /sod-matrix`. A row is `{ id, kind: role_pair|action_pair, left_code, right_code, state_version, status: active|pending_approval, approval_request_id? }`. `role_pair` lists two roles one person must not hold. `action_pair` lists two actions one person must not both perform on a document: enter and approve; receive and count; create vendor and pay vendor; request correction and approve correction. `POST` body is `{ kind, left_code, right_code }` with `If-Match: <state_version>` (`0` on create) and `Idempotency-Key`. The stored status is `pending_approval` until the approval engine decides. Assigning a pair that an `active` rule forbids returns `403 SOD_VIOLATION` unless the caller cites an override approval; the override and the refusal are audited (A14).
+- `GET|POST /approval-matrix`. A row is `{ id, document_type, threshold: Money, below_threshold_role, first_approver_role, final_gate_role, voting_any?, voting_of?, state_version, status, approval_request_id? }`. Below the threshold any one holder of `below_threshold_role` may register; at or above it, `first_approver_role` then `final_gate_role` (R2.2). `voting_any` and `voting_of` are the optional "any N of M" tier. `POST` uses the same idempotency and `If-Match` rules as `/sod-matrix` and stays `pending_approval` until decided.
+- `GET /holiday-calendar` returns `{ state_version, timezone, business_open, business_close, weekend[], holidays[] }`. `business_open` and `business_close` are local `HH:MM`. `weekend` is weekday names. `holidays` is `{ date, name }`. `POST /holiday-calendar` replaces that document and requires `If-Match` (send `0` on the first write). Clocks count only time inside the window on days that are neither weekend nor holiday (R13.8, ADR-12).
 - `POST /imports` multipart with `type`, returns `{ import_id, preview[], rejected[] }`; `POST /imports/{id}/commit`.
 
 ### Analytics
@@ -102,10 +127,12 @@ Draft body shape per family follows `03-domain-model.md`; the OpenAPI file carri
 
 ### Journeys
 
-- `GET /journeys?persona=` grouped definitions.
-- `POST /journeys/{slug}/instances` returns `{ instance_id, step }`.
-- `POST /journeys/instances/{id}/step` body `{ step_id, input }` returns `{ ok, code?, message?, data?, problems[], next_step? }`.
-- `GET /journeys/instances/{id}` resumable state.
+Persona filtering is server-enforced (R15.5). The `persona` query selects a group; it is intersected with the personas the server has evaluated for the caller. A persona the caller does not hold is `403 PERMISSION_DENIED`. Omitting `persona` returns every group the caller holds. Client-supplied roles, personas, permissions, or workflow state never grant access and never advance an instance.
+
+- `GET /journeys?persona=` grouped definitions: `{ groups: [ { persona, definitions: [ { slug, title, group, personas[], steps[] } ] } ] }`. A step summary is `{ step_id, kind, title, input_schema, guard? }`. `kind` is `form | validate | write_draft | route | await | post | read`.
+- `POST /journeys/{slug}/instances` returns `{ instance_id, step, state_version }`. `state_version` starts at 1 so the first step can send `If-Match`.
+- `POST /journeys/instances/{id}/step` body `{ step_id, input }` requires `Idempotency-Key` and `If-Match: <state_version>`. HTTP 200 carries the step result even when the step did not complete: `{ ok, code?, message?, data?, problems[], next_step? }`. `problems[]` items are `{ code, message, field? }`. `code` on this result (not the error envelope) is `PERMISSION_DENIED | VALIDATION_ERROR | PENDING | REJECTED | CONFLICT`. `PENDING` means an await step is still waiting and the run has not advanced. `REJECTED` means the await was decided against the run and the run has stopped. A later step submitted after rejection does not run. Transport failures (malformed JSON, missing headers, unknown instance, stale `If-Match`) use the error envelope, not this result.
+- `GET /journeys/instances/{id}` resumable state: `{ instance_id, slug, persona, status, current_step, state_version, server_state, updated_at }`. `status` is `running | awaiting | rejected | completed`. `server_state` is written only by the engine. It survives process restarts; there is no in-memory journey state.
 
 ### Devices and notifications
 
@@ -123,7 +150,7 @@ Draft body shape per family follows `03-domain-model.md`; the OpenAPI file carri
 - `POST /audit/verify` (Auditor, System Manager) returns `{ intact, count, first_break?, anchored_head_matches }`.
 - `GET /audit/events?ref=&from=&to=&type=`.
 - `GET /exceptions?month=`.
-- `POST /periods/{id}/soft-close`, `POST /periods/{id}/hard-close` (approval), `POST /periods/{year}/audit-adjustment/open`.
+- `POST /periods/{id}/soft-close` (Accountant), `POST /periods/{id}/hard-close` (Stakeholder, body `{ approval_id }`), `POST /periods/{year}/audit-adjustment/open` (Stakeholder, body `{ approval_id }`). All three require `If-Match` with the current `state_version` (`0` when the audit-adjustment period does not exist yet). A hard-closed period refuses later posting with `PERIOD_CLOSED`. Soft close and hard close emit `period.closed`.
 - `POST /go-live/...` steps per R18.
 
 ## Event payload (outbox, socket, push data)
@@ -147,11 +174,14 @@ Draft body shape per family follows `03-domain-model.md`; the OpenAPI file carri
 
 Push messages are data-only and carry exactly this object flattened to string values with `context` JSON-encoded. Severity in {LOW, MEDIUM, HIGH, CRITICAL}; unknown severity is treated as HIGH by clients.
 
-Event types (initial): `approval.requested|decided|delegated|snoozed`, `document.registered`, `delivery.confirmed`, `clock.expired`, `receipt.posted`, `pdc.bounced`, `stock.received`, `stock.count.approved`, `production.posted`, `correction.posted`, `payment.released`, `chain.verified|broken`, `backup.completed|failed`, `bank.feed.completed|failed`, `forecast.below_floor`, `exception.raised`, `config.changed`, `break_glass.used`.
+Event types (initial): `approval.requested|decided|delegated|snoozed`, `document.registered`, `delivery.confirmed`, `clock.expired`, `receipt.posted`, `pdc.bounced`, `stock.received`, `stock.count.approved`, `production.posted`, `correction.posted`, `payment.released`, `chain.verified|broken`, `backup.completed|failed`, `bank.feed.completed|failed`, `forecast.below_floor`, `exception.raised`, `config.changed`, `break_glass.used`, `journey.step.completed`.
+
+`journey.step.completed` is emitted when a step reaches a terminal outcome (`completed` or `rejected`), in the same transaction as the instance transition. `context` carries `{ slug, step_id, outcome, instance_status }`. An await step that is still pending does not emit it. `subject.doc_type` is `journey_instance`. `amount` is null. `deep_link` is `smarterp://journey/{instance_id}`.
+Event types (initial): `approval.requested|decided|delegated|snoozed`, `document.registered`, `delivery.confirmed`, `clock.expired`, `period.closed`, `receipt.posted`, `pdc.bounced`, `stock.received`, `stock.count.approved`, `production.posted`, `correction.posted`, `payment.released`, `chain.verified|broken`, `backup.completed|failed`, `bank.feed.completed|failed`, `forecast.below_floor`, `exception.raised`, `config.changed`, `break_glass.used`.
 
 ## Deep link scheme
 
-`smarterp://{route}/{id}` with routes: `approval`, `document/{doc_type}`, `brief/{section}`, `customer`, `vendor`, `sku`, `trip`, `notification`. Universal Links and App Links map `https://app.<domain>/l/...` to the same routes. An unauthenticated tap stashes the link and resumes it after login.
+`smarterp://{route}/{id}` with routes: `approval`, `document/{doc_type}`, `brief/{section}`, `customer`, `vendor`, `sku`, `trip`, `notification`, `journey`. Universal Links and App Links map `https://app.<domain>/l/...` to the same routes. An unauthenticated tap stashes the link and resumes it after login.
 
 ## Change control
 

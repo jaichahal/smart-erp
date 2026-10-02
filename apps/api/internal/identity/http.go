@@ -42,6 +42,8 @@ type Service struct {
 	audience  string
 	oidc      OIDCConfig
 	exchanger CodeExchanger
+	// gateAction mounts the step-up sample action used to prove A6.
+	gateAction bool
 }
 
 // Option configures Service.
@@ -67,6 +69,11 @@ func WithOIDC(cfg OIDCConfig, ex CodeExchanger) Option {
 	return func(s *Service) { s.oidc = cfg; s.exchanger = ex }
 }
 
+// WithStepUpAction registers POST /actions/release, a gated action that
+// consumes a step-up token (A6). Production modules call RequireStepUp
+// themselves; the route exists so the composed API can prove the rule.
+func WithStepUpAction() Option { return func(s *Service) { s.gateAction = true } }
+
 // Mount registers /auth/* and /me* on r. r is the /api/v1 router.
 func Mount(r chi.Router, deps httpx.Deps, opts ...Option) *Service {
 	s := newService(deps, opts...)
@@ -86,6 +93,9 @@ func Mount(r chi.Router, deps httpx.Deps, opts ...Option) *Service {
 	authed := r.With(s.authenticate, idempotency.Middleware(s.pool))
 	authed.Post("/auth/logout", s.logout)
 	authed.Post("/auth/step-up", s.stepUp)
+	if s.gateAction {
+		authed.Post("/actions/release", s.stepUpAction)
+	}
 	authed.Delete("/me/sessions/{id}", s.endSession)
 	r.With(s.authenticate).Get("/me", s.me)
 	r.With(s.authenticate).Get("/me/sessions", s.listSessions)
@@ -668,6 +678,13 @@ func (s *Service) verifyStep(r *http.Request, c caller, method, code string) err
 	}
 }
 
+func (s *Service) stepUpAction(w http.ResponseWriter, r *http.Request) {
+	if !s.RequireStepUp(w, r) {
+		return
+	}
+	httpx.JSON(w, r, http.StatusOK, map[string]bool{"released": true})
+}
+
 // RequireStepUp consumes a single-use step-up token for the caller's session.
 // Other modules call it before a gated action (R1.6, A6). False means the
 // error envelope was already written.
@@ -926,6 +943,11 @@ func userSession(view sessionView, current bool) oapi.UserSession {
 		Id: view.ID.String(), DeviceId: view.DeviceID.String(), DeviceName: &name, Platform: &plat,
 		CreatedAt: view.CreatedAt, LastSeenAt: &seen, StateVersion: view.Version, Current: &current,
 	}
+}
+
+// Authenticate requires a bearer token or console cookie and stores the RLS principal.
+func (s *Service) Authenticate(next http.Handler) http.Handler {
+	return s.authenticate(next)
 }
 
 func (s *Service) authenticate(next http.Handler) http.Handler {

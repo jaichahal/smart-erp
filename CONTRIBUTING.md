@@ -29,16 +29,22 @@ checkout:
 ```sh
 cd /Users/jaichahal/Projects/smart-erp
 git fetch origin
-git worktree add ../smart-erp-<task> -b task/<id>-<slug> origin/main
-cd ../smart-erp-<task>
+mkdir -p ../smart-erp-worktrees
+git worktree add ../smart-erp-worktrees/<task-slug> -b task/<id>-<slug> origin/main
+cd ../smart-erp-worktrees/<task-slug>
 ```
 
-Example: `git worktree add ../smart-erp-b1 -b task/P1.7-approval-engine origin/main`.
+`<task-slug>` is the branch name with the leading `task/` removed and the rest lowercased. Keep
+the task id and the short kebab name. `task/P1.7-approval-engine` becomes `p1.7-approval-engine`;
+`task/ci-contract-gen` becomes `ci-contract-gen`. Do not put wave or slot letters (`a1`, `b1`,
+`e2`) in the directory name. The primary checkout stays at `smart-erp`.
+
+Example: `git worktree add ../smart-erp-worktrees/p1.7-approval-engine -b task/P1.7-approval-engine origin/main`.
 
 Branch names are `task/<id>-<slug>`: the task ID exactly as in `07`, then a short kebab-case
 slug. Work only inside your owned directories plus your own test files. Touching any other
 directory is rejected by `.github/CODEOWNERS` before a human looks at it. When the PR merges,
-`git worktree remove ../smart-erp-<task>`.
+`git worktree remove ../smart-erp-worktrees/<task-slug>`.
 
 Never push to `main`. Never force-push a shared branch.
 
@@ -107,7 +113,48 @@ observability (`kit/obs`) and the generated OpenAPI wire types (`kit/oapi`) and 
   it belongs in the kit. Open a kit PR (Track A reviews it) or ask Track A. Do not reimplement.
 - `apps/api/cmd/**` wires modules together and may import anything under `internal/`.
 
-## 6. Definition of done
+## 6. Test-driven development
+
+Test-driven development is mandatory for the whole implementation, including every later wave, not only the Go API. You do not land new behavior without a test that failed first. Do not write the implementation and then backfill a test that already passes. A change that adds production code without the matching test in the same change is rejected.
+
+For every behavior change:
+
+1. Write a failing test that names the expected behavior.
+2. Run it and see it fail for the right reason (missing behavior, not a compile accident that the test itself caused).
+3. Write the minimum code to pass.
+4. Re-run the test, then refactor without changing the assertion.
+
+The card is not complete until the commit message or the PR body names the test, the command, and that it failed before the implementation. The surfaces, the request-id proof, and the runners are the same rule in `docs/spec/10-execution-playbook.md` under "Test-driven development".
+
+Agents load `.cursor/rules/tdd-mac-docker.mdc` on every turn (`alwaysApply`). If this file and that rule disagree, follow the rule.
+
+## 7. Working baseline
+
+A wave reaches this baseline before the next wave starts. Wave 2 does not start until it is green on `integration/e2e`. The latest verified snapshot is commit `8d797bd` (75 filtered end-to-end cases passed, 0 failed). It is a snapshot, not a release tag. File paths and the full wording are `docs/spec/10-execution-playbook.md` under "Working baseline". The obligations are:
+
+1. Task done means the failing test came first (section 6), the test name and command are recorded, you stayed in owned directories, the diff has no secrets, the migration version is unique, and the public error envelope is unchanged unless the contract PR says so.
+2. From a clean checkout, one command brings Postgres and the API up, migrations apply on an empty database, health and readiness are distinct, and the wave's tests pass. That command is not in the Justfile yet; add it when the baseline agent lands it. Until then the sequence is `just up`, `just migrate`, `just run-api` or `just up-all`, `just template`, and `just test`.
+3. Never edit a migration that has been applied. New files only. Versions stay unique and ordered. A migration that fails leaves the database unmigrated. Reserved bands are 10014–10018 and 21000, 22000, 23000, 24000, 25000, 26000, 27000. Do not reuse versions already on `integration/e2e`, including `25001`.
+4. Contract drift fails CI (`.github/workflows/contracts.yml`). Do not hand-edit generated files.
+5. Every API response carries a request id, the same id is on the structured log or trace, and acceptance tests assert it. Audited actions store it. Where that link is missing, the test comes first.
+6. Missing required config stops process start. Client errors use the frozen envelope and do not include a stack trace.
+7. The API process has timeouts, request cancellation, and graceful shutdown before a wave is called stable.
+8. Mutating routes that `docs/spec/04-api-contracts.md` already marks idempotent take `Idempotency-Key`. Do not add idempotency beyond that file.
+9. Secrets stay out of git. CI has no secret scan yet; add one before Wave 2.
+10. Static analysis in CI stays `go test`, `go vet`, and golangci-lint with `gofmt` and `goimports` in `.github/workflows/ci.yml`. Do not weaken `ci.yml`, `contracts.yml`, or `build.yml`.
+11. The licence scan and the SBOM stay mandatory before a wave baseline (`just licence`, `just sbom`, and the matching jobs in `ci.yml`).
+12. Use your own database (`just db` or `kit/testdb`). Do not run `just reset` on the shared `erp` database while other agents run. A flaky test is quarantined by ID with an issue, not retried silently.
+13. A track branch merges into `integration/e2e` only when its tests pass and the combined package still compiles. A red integration branch blocks the next wave.
+14. On the single NUC, the API image can be reverted to the previous digest without rewriting history. Schema changes follow expand then contract so the previous image still starts.
+15. Human review stays as in section 11: contract PRs, `immutable-change`, Track B, Phase 0 prototypes, and the Accountant walk-through.
+
+## 8. Mobile UI automation
+
+Mobile end-to-end UI automation is mandatory for both native apps, on this Mac, against the stable API baseline (`integration/e2e` once section 7 is green). The same rule is `docs/spec/10-execution-playbook.md` under "Mobile UI automation".
+
+Android UI tests are Espresso or UI Automator, written test-first, driving the installed app on an emulator or a device. iOS UI tests are XCUITest, written test-first, on a simulator. The app's API base URL points at that baseline stack. A mobile task is not done until the UI test failed first and then passed on a built and installed app. Record the test name, the `xcodebuild` or Gradle command, and the baseline commit. Install missing Android command-line packages, one API-level emulator, or the Xcode simulator runtime when they are absent. Do not add a third-party device farm. Wave 2 business features on the phone start only after the shells launch against the baseline and the first UI test passes. Later journeys add the UI test in the same change as the screen.
+
+## 9. Definition of done
 
 Done is mechanical. Your PR is done when every line below is true; the PR template lists them as
 a checklist and CI checks the ones it can.
@@ -124,9 +171,10 @@ a checklist and CI checks the ones it can.
 - Any new screen has an RTL and an accessibility check recorded in the PR.
 - Any new operational component has a `deploy/nuc/*.md` runbook entry.
 - Generated files came from `just gen`.
-- Commits follow `<task-id>: <imperative summary>` (section 10).
+- Commits follow `<task-id>: <imperative summary>` (section 13).
+- Sections 6, 7, and 8 hold for the change.
 
-## 7. Merge queue, not merge buttons
+## 10. Merge queue, not merge buttons
 
 PRs land through the GitHub merge queue. The queue re-runs the full suite on the merged result
 and only then fast-forwards `main`. You mark the PR ready and add it to the queue; you do not
@@ -139,7 +187,7 @@ backup and restore rehearsal into a scratch database, and files issues for anyth
 Nightly quarantines one of your tests as flaky it opens an issue with the test ID; fix the test,
 do not retry it silently.
 
-## 8. What humans review
+## 11. What humans review
 
 The human owner personally reviews:
 
@@ -152,7 +200,7 @@ The human owner personally reviews:
 Everything else is reviewed by the Integrator and one other contributor. Request review from the
 CODEOWNERS entry for your directory; the mapping is in `.github/CODEOWNERS`.
 
-## 9. Local commands (Justfile)
+## 12. Local commands (Justfile)
 
 The `Justfile` at the repository root is the only supported way to run things locally; CI calls
 the same targets so a green Mac means a green CI.
@@ -204,7 +252,7 @@ ERP_TEST_DATABASE=erp_test_<your name>     # optional, see above
 The `just` targets source these from `deploy/compose/.env.dev.host` (created from the `.example`
 on first run); CI sets the same values directly.
 
-## 10. Commit messages and PR titles
+## 13. Commit messages and PR titles
 
 ```
 <task-id>: <imperative summary>
@@ -214,13 +262,13 @@ Examples: `P1.7: add approval request state machine`, `P1.7: refuse whitespace r
 `P1.1: pin golangci-lint to v2.14`. The PR title follows the same form. The PR body follows
 `.github/pull_request_template.md`; do not delete its headings, CI reads them.
 
-## 11. Tooling on the Mac
+## 14. Tooling on the Mac
 
 Go 1.27.1 (`go.mod` says `go 1.27.1`), golangci-lint 2.14, sqlc, goose, oapi-codegen, just,
 age, Docker Desktop with Compose 2.24 or later, `gh` logged in. `brew install go golangci-lint sqlc
 goose oapi-codegen just age` then `gh auth login`. Open pull requests with `gh pr create`.
 
-## 12. When CI rejects you
+## 15. When CI rejects you
 
 | Check | What to do |
 | --- | --- |

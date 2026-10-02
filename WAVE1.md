@@ -19,8 +19,13 @@ Rules that apply to every card:
 - Kit packages (`apps/api/internal/kit/*`) are consumed, never modified. If the kit lacks what you
   need, open an issue titled `kit: <need>` tagged Track A and stub behind an interface meanwhile.
 - Wave 0 must have merged (`Justfile`, kit, compose, contract bundle 1.0.0) before you start.
-- Branch `task/<P-id>-<slug>` in a worktree; commits `<P-id>: <imperative summary>`; PR through
-  `gh pr create` with the template filled in; the Integrator lands it after checks and review.
+- Test-driven development, the Working baseline, and Mobile UI automation are mandatory (`docs/spec/10-execution-playbook.md`; `CONTRIBUTING.md` sections 6 to 8). A card is not done without the failing-then-passing test evidence.
+- Branch `task/<P-id>-<slug>` in its own worktree under `../smart-erp-worktrees/<task-slug>/`.
+  `<task-slug>` is that branch name with the `task/` prefix removed and the rest lowercased,
+  keeping the task id and the short kebab name (`task/P1.2-identity` → `p1.2-identity`). Do not
+  name the directory after the wave slot (`a1`, `b2`, `e1`). The primary checkout stays at
+  `smart-erp`. Commits are `<P-id>: <imperative summary>`; open the PR with `gh pr create` and
+  the template filled in; the Integrator lands it after checks and review.
 
 Kit package reference (all under `apps/api/internal/kit/`):
 
@@ -69,7 +74,7 @@ Prompt to paste:
 
 ```
 You are agent A1 on the Smart ERP repo at /Users/jaichahal/Projects/smart-erp. Read CONTRIBUTING.md, WAVE1.md section A1, and docs/spec/07-tracks-and-tasks.md task P1.2, then docs/spec/01-requirements.md R1.3 to R1.8 and R1.15, docs/spec/08-acceptance-tests.md A1 to A10, docs/spec/04-api-contracts.md "Identity", and docs/spec/05-security-and-audit.md.
-Create a worktree: git worktree add ../smart-erp-a1 -b task/P1.2-identity origin/main, and work only there.
+Create a worktree: git worktree add ../smart-erp-worktrees/p1.2-identity -b task/P1.2-identity origin/main, and work only there.
 You own apps/api/internal/identity/** and nothing else. Do not edit apps/api/internal/kit/**; consume kit/apierr, kit/idempotency, kit/audit, kit/rls, kit/outbox, kit/testdb, kit/httpx, kit/oapi. Migrations you need go in apps/api/migrations with the immutable-change label or the exact PR-body line "migrations: mutable-only".
 Contracts are read-only: implement the generated server interfaces for the /auth/* and /me paths in contracts/openapi/openapi.yaml exactly. If the contract must change, open a contracts-only PR first and wait for it.
 Implement: session brokering to Zitadel's Session API over gRPC, ERP token issuer with KMS-held keys and JWKS, MFA enforcement by role, device enrolment and DPoP verification at the gateway, refresh rotation with reuse detection, single-use two-minute step-up tokens, per-user session cap and listing.
@@ -108,7 +113,7 @@ Prompt to paste:
 
 ```
 You are agent A2 on the Smart ERP repo at /Users/jaichahal/Projects/smart-erp. Read CONTRIBUTING.md, WAVE1.md section A2, and docs/spec/07-tracks-and-tasks.md task P1.3, then docs/spec/01-requirements.md R1.2 and R1.9 to R1.14, docs/spec/08-acceptance-tests.md A11 to A16, and docs/spec/05-security-and-audit.md.
-Create a worktree: git worktree add ../smart-erp-a2 -b task/P1.3-authz origin/main, and work only there.
+Create a worktree: git worktree add ../smart-erp-worktrees/p1.3-authz -b task/P1.3-authz origin/main, and work only there.
 You own apps/api/internal/authz/** and nothing else. Do not edit apps/api/internal/kit/**; consume kit/rls, kit/apierr, kit/audit, kit/idempotency, kit/ifmatch, kit/outbox, kit/testdb, kit/httpx, kit/oapi. RLS policies and the roles, permissions and SoD tables are migrations in apps/api/migrations with the immutable-change label or the exact PR-body line "migrations: mutable-only".
 Contracts are read-only. /sod-matrix and /approval-matrix endpoints are in docs/spec/04 but not yet in contracts/openapi/openapi.yaml: open a contracts-only PR adding them first, then implement.
 Implement: roles and permissions as data, RLS policies over the kit/rls session variables for company, territory and ownership, field-level serialiser permissions (cost and margin hidden from Sales Agent everywhere), least-privileged fallback for unknown roles, SoD matrix with override approval and audit, disable-not-delete for users, quarterly access review job producing the report and exceptions entries.
@@ -148,7 +153,7 @@ Prompt to paste:
 
 ```
 You are agent B1 on the Smart ERP repo at /Users/jaichahal/Projects/smart-erp. Read CONTRIBUTING.md, WAVE1.md section B1, and docs/spec/07-tracks-and-tasks.md task P1.7, then docs/spec/01-requirements.md R2.1 to R2.11, docs/spec/08-acceptance-tests.md D1 to D14, docs/spec/04-api-contracts.md "Approvals", and docs/spec/05-security-and-audit.md "Approved equals posted".
-Create a worktree: git worktree add ../smart-erp-b1 -b task/P1.7-approval-engine origin/main, and work only there.
+Create a worktree: git worktree add ../smart-erp-worktrees/p1.7-approval-engine -b task/P1.7-approval-engine origin/main, and work only there.
 You own apps/api/internal/approvals/** and nothing else. Do not edit apps/api/internal/kit/**; consume kit/ifmatch, kit/idempotency, kit/apierr, kit/audit, kit/canon, kit/immutable, kit/outbox, kit/rls, kit/testdb, kit/httpx, kit/oapi. Approval requests and decisions are immutable tables created with kit/immutable; their migrations go in apps/api/migrations with the immutable-change label (a Track B reviewer follows).
 Contracts are read-only: implement /approvals/inbox, /approvals/{id}, /approvals/{id}/approve and /approvals/{id}/reject exactly as generated from contracts/openapi/openapi.yaml, and emit approval.* events that validate against contracts/events/event.schema.json. Delegate and snooze endpoints need a contracts-only PR first.
 Implement: matrix configuration per document type with threshold, request lifecycle with row lock and state_version, independence and SoD checks, non-empty reason at API and workflow layers, decision-field restoration from storage, single-use five-minute posting token, first-stage time-boxed delegation, fraud hints, audit at every transition with refusals committed before the error is raised, and commit-before-raise for outbox events.
@@ -197,7 +202,7 @@ Prompt to paste:
 
 ```
 You are agent B2 on the Smart ERP repo at /Users/jaichahal/Projects/smart-erp. Read CONTRIBUTING.md, WAVE1.md section B2, and docs/spec/07-tracks-and-tasks.md tasks P1.6 and P1.15, then docs/spec/01-requirements.md R3.6, R3.11, R17.2, R17.3, docs/spec/08-acceptance-tests.md B9 to B11, I2 to I8, I15, I16, and docs/spec/05-security-and-audit.md "Hash chain", "External anchoring" and "Backups".
-Create a worktree: git worktree add ../smart-erp-b2 -b task/P1.6-anchoring-backup origin/main, and work only there.
+Create a worktree: git worktree add ../smart-erp-worktrees/p1.6-anchoring-backup -b task/P1.6-anchoring-backup origin/main, and work only there.
 You own apps/api/internal/audit/** and deploy/scripts/** and nothing else. Do not edit apps/api/internal/kit/**; consume kit/canon, kit/immutable, kit/audit, kit/outbox, kit/apierr, kit/idempotency, kit/rls, kit/config, kit/obs, kit/testdb, kit/httpx, kit/oapi. Anchors and verification runs are immutable tables; their migrations go in apps/api/migrations with the immutable-change label. deploy/compose, deploy/systemd and deploy/nuc belong to Track I: file issues for the offsite-sim bucket, KMS simulation and timers, and put your runbook text in the PR body.
 Contracts are read-only: implement POST /audit/verify and GET /audit/events from contracts/openapi/openapi.yaml, feed the /status fields last_backup, last_chain_verification and recovery_point_in_force, and emit chain.verified, chain.broken, backup.completed and backup.failed events that validate against contracts/events/event.schema.json.
 Implement: hourly anchor worker writing the signed chain head to the on-prem and off-site compliance-mode buckets with PutObject-only identity, daily anchor email, verifier with first-break reporting and anchor comparison, WAL archive lag measurement, backup engine with atomic manifest, per-file SHA-256 and aggregate checksum, refusal codes, success only after off-site verification, retention pruning after verification, restore with Stakeholder approval and post-restore re-derivation, and the deploy/scripts wrappers.
@@ -237,7 +242,7 @@ Prompt to paste:
 
 ```
 You are agent C1 on the Smart ERP repo at /Users/jaichahal/Projects/smart-erp. Read CONTRIBUTING.md, WAVE1.md section C1, and docs/spec/07-tracks-and-tasks.md task P1.4, then docs/spec/01-requirements.md R4.5, R4.6, R13.8, docs/spec/08-acceptance-tests.md C1 to C5, docs/spec/03-domain-model.md for company, period and numbering, and docs/spec/02-architecture.md ADR-12.
-Create a worktree: git worktree add ../smart-erp-c1 -b task/P1.4-periods-clocks origin/main, and work only there.
+Create a worktree: git worktree add ../smart-erp-worktrees/p1.4-periods-clocks -b task/P1.4-periods-clocks origin/main, and work only there.
 You own apps/api/internal/ledger/periods/** and apps/api/internal/clocks/** and nothing else; the rest of internal/ledger is a Wave 2 task. Do not edit apps/api/internal/kit/**; consume kit/apierr, kit/idempotency, kit/ifmatch, kit/audit, kit/immutable, kit/outbox, kit/rls, kit/testdb, kit/httpx, kit/oapi. Migrations go in apps/api/migrations: the immutable-change label for number allocations and voids, or the exact PR-body line "migrations: mutable-only" for company, period and calendar tables.
 Contracts are read-only. The period close endpoints and /holiday-calendar are in docs/spec/04 but not yet in contracts/openapi/openapi.yaml: open a contracts-only PR adding them first, then implement. Emit clock.expired events that validate against contracts/events/event.schema.json.
 Implement: company record, fiscal years and periods with soft close (Accountant) and hard close (Stakeholder, approval) and PERIOD_CLOSED refusal, back-dating permission with exceptions-report audit, holiday calendar and weekend definition, business-hours clock service with Due(start, window) and a scheduler hook, gap-free per-type per-year numbering allocated inside the registration transaction with voids recorded on failure and a row lock per sequence.
@@ -279,7 +284,7 @@ Prompt to paste:
 
 ```
 You are agent E1 on the Smart ERP repo at /Users/jaichahal/Projects/smart-erp. Read CONTRIBUTING.md, WAVE1.md section E1, and docs/spec/07-tracks-and-tasks.md task P1.8, then docs/spec/01-requirements.md R13.1 to R13.7, docs/spec/08-acceptance-tests.md E1 to E12, docs/spec/04-api-contracts.md "Devices and notifications" and "Event payload", and docs/spec/02-architecture.md ADR-04 and ADR-07.
-Create a worktree: git worktree add ../smart-erp-e1 -b task/P1.8-notifications origin/main, and work only there.
+Create a worktree: git worktree add ../smart-erp-worktrees/p1.8-notifications -b task/P1.8-notifications origin/main, and work only there.
 You own apps/api/internal/notifications/** and nothing else. Do not edit apps/api/internal/kit/** or apps/api/cmd/pushsink; consume kit/outbox, kit/apierr, kit/idempotency, kit/ifmatch, kit/audit, kit/rls, kit/canon, kit/config, kit/obs, kit/testdb, kit/httpx, kit/oapi. Migrations for device tokens, preferences, delivery log and alert rules go in apps/api/migrations with the immutable-change label (delivery log) or the exact PR-body line "migrations: mutable-only" (tokens, preferences, rules).
 Contracts are read-only: every payload you send must validate against contracts/events/event.schema.json with no notification block; implement POST and DELETE /devices/push-token from contracts/openapi/openapi.yaml. /notifications, /me/notification-preferences, /ws, acknowledge and /alert-rules need a contracts-only PR first.
 Implement: River consumers with dedupe by event_id, WebSocket hub with per-user subscriptions and acks, FCM HTTP v1 and APNs senders with data-only flattened payloads and context JSON-encoded, token lifecycle with deletion on unregistered responses and 60-day pruning, retries with backoff and a Failed row per attempt, email fallback, recipient derivation excluding actor and disabled users, preferences with opt-in default, quiet hours that never suppress Critical, weekly FYI digest, alert rule table with blocking and advisory modes, and approve-from-shade that refetches and refuses on a changed state_version.
@@ -318,7 +323,7 @@ Prompt to paste:
 
 ```
 You are agent E2 on the Smart ERP repo at /Users/jaichahal/Projects/smart-erp. Read CONTRIBUTING.md, WAVE1.md section E2, and docs/spec/07-tracks-and-tasks.md task P1.14, then docs/spec/08-acceptance-tests.md E13 to E15, docs/spec/04-api-contracts.md "Journeys", docs/spec/06-ux-spec.md, and docs/spec/02-architecture.md "Module boundaries".
-Create a worktree: git worktree add ../smart-erp-e2 -b task/P1.14-journeys origin/main, and work only there.
+Create a worktree: git worktree add ../smart-erp-worktrees/p1.14-journeys -b task/P1.14-journeys origin/main, and work only there.
 You own apps/api/internal/journeys/** and nothing else. Do not edit apps/api/internal/kit/**; consume kit/apierr, kit/idempotency, kit/ifmatch, kit/rls, kit/audit, kit/outbox, kit/testdb, kit/httpx, kit/oapi. Migrations for definitions and instances go in apps/api/migrations with the exact PR-body line "migrations: mutable-only", or the immutable-change label if you make step history append-only.
 Contracts are read-only. The /journeys endpoints and the journey.step.completed event type are in docs/spec/04 but not yet in contracts/openapi/openapi.yaml or contracts/events/event.schema.json: open one contracts-only PR adding them (with a minor version bump in docs/spec/04) first, wait for it, then implement.
 Implement: journey definitions as data (slug, persona, ordered steps with type, input schema, guard), instances with persisted state and state_version, the step protocol returning { ok, code, message, data, problems, next_step }, await steps that report pending and stop on rejection, resumability across restarts and days, persona visibility through kit/rls, and the Go-Live journey definition skeleton as a fixture. Client-supplied state never influences permissions or workflow state.

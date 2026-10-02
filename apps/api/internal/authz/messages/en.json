@@ -1,0 +1,12 @@
+{
+  "auth.required": "Authentication required",
+  "permission.denied": "You do not have permission for this action",
+  "sod.violation": "These roles are incompatible under the segregation of duties matrix",
+  "validation.body": "The request body is invalid",
+  "validation.if_match": "If-Match header with state_version is required",
+  "validation.field": "A field is invalid",
+  "validation.role": "One of the roles is not recognised",
+  "not_found": "The record was not found",
+  "conflict.state": "state_version mismatch",
+  "internal": "internal error"
+}

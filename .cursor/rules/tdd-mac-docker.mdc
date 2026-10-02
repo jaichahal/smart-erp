@@ -1,0 +1,31 @@
+---
+description: Test-driven development and Mac Docker validation are mandatory for every change
+alwaysApply: true
+---
+
+# Test first, then prove it on this Mac
+
+Test-driven development is mandatory for backend modules, API tests, request-level monitoring, the React console, Android (Kotlin/Compose), and iOS (Swift/SwiftUI).
+
+Order for every behavior change:
+
+1. Write a failing test that names the behavior.
+2. Run it and see the right failure (missing behavior, not a compile error the test itself caused).
+3. Write the minimum code that makes that test pass.
+4. Re-run the test, then refactor without changing the assertion.
+
+A change is incomplete without that test in the same change. Do not add production code and then backfill a test that already passes.
+
+```text
+# right
+# 1. apps/console/e2e/login.spec.ts fails because the signed-in name is missing
+# 2. add the login screen
+# 3. npx playwright test e2e/login.spec.ts passes
+
+# wrong
+# write the screen, then add a test that already passes
+```
+
+Development and validation run with Docker on this Mac first. The Linux NUC is a later production target. A green run on the NUC does not replace a green Docker run here.
+
+Console, Android, and iOS UI tests call the API Docker published on this Mac. The iOS Simulator uses http://127.0.0.1:8080. The Android emulator uses http://10.0.2.2:8080. Do not replace the whole backend with a fake.

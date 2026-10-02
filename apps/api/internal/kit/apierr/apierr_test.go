@@ -1,8 +1,10 @@
 package apierr_test
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -38,6 +40,54 @@ func TestA17_EnvelopeShape(t *testing.T) {
 	}
 	if body.Error.Code != "PERMISSION_DENIED" || body.Error.RequestID != "req-123" || body.Error.Details["role"] != "agent" {
 		t.Fatalf("bad envelope: %s", rec.Body)
+	}
+}
+
+// The response header, the error envelope, and one structured log field carry the same id.
+func TestRequestIDOnHeaderEnvelopeAndLog(t *testing.T) {
+	var buf bytes.Buffer
+	prev := slog.Default()
+	slog.SetDefault(slog.New(slog.NewJSONHandler(&buf, nil)))
+	t.Cleanup(func() { slog.SetDefault(prev) })
+
+	h := apierr.RequestIDMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		apierr.Write(w, r, apierr.New(apierr.NotFound, "missing"))
+	}))
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/missing", http.NoBody)
+	req.Header.Set("X-Request-ID", "req-log-1")
+	h.ServeHTTP(rec, req)
+
+	header := rec.Header().Get("X-Request-ID")
+	if header != "req-log-1" {
+		t.Fatalf("header %q", header)
+	}
+	var body struct {
+		Error struct {
+			RequestID string `json:"request_id"`
+		} `json:"error"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatal(err)
+	}
+	if body.Error.RequestID != header {
+		t.Fatalf("envelope %q header %q", body.Error.RequestID, header)
+	}
+	var found bool
+	for line := range strings.SplitSeq(buf.String(), "\n") {
+		if line == "" {
+			continue
+		}
+		var rec map[string]any
+		if err := json.Unmarshal([]byte(line), &rec); err != nil {
+			t.Fatalf("log line: %s", line)
+		}
+		if rec["request_id"] == header {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("structured log missing request_id %s in %s", header, buf.String())
 	}
 }
 

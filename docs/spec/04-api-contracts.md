@@ -1,5 +1,6 @@
 # 04 API Contracts
 
+Version 1.1.0. Additive notification endpoints. No client migration: previous clients ignore the new paths. This file changes before code does. Additive changes bump the minor version; breaking changes bump the major version and carry a migration note. Server and clients generate types from the OpenAPI document that this file governs; the OpenAPI file is the machine form, this file is the human form and wins on conflict until the OpenAPI is regenerated.
 Version 1.1.0. Frozen. This file changes before code does. Additive changes bump the minor version; breaking changes bump the major version and carry a migration note. Server and clients generate types from the OpenAPI document that this file governs; the OpenAPI file is the machine form, this file is the human form and wins on conflict until the OpenAPI is regenerated.
 
 1.1.0 (additive, 2026-09-25): `GET /me/sessions` and `DELETE /me/sessions/{id}` with schema `UserSession`. No migration for clients of 1.0.0; the new routes are optional to call. Required so session listing and remote revocation (R1.15, A9) have a contract before the identity implementation.
@@ -135,10 +136,13 @@ Persona filtering is server-enforced (R15.5). The `persona` query selects a grou
 
 ### Devices and notifications
 
-- `POST /devices/push-token` body `{ token, platform, app_version }` idempotent, bound to session user and device.
-- `DELETE /devices/push-token` current device.
-- `GET /notifications?group=needs_me|waiting|fyi&cursor=`; `GET|PUT /me/notification-preferences`.
-- `GET /ws` WebSocket; server pushes `{ event_id, type, payload, at }` for the authenticated user's subscriptions; client acks with `{ ack: event_id }`.
+- `POST /devices/push-token` body `{ token, platform, app_version }` idempotent, bound to session user and device. The session device is `X-Device-ID` until identity puts the device on the principal.
+- `DELETE /devices/push-token` current device only. Runs on logout and on 401.
+- `GET /notifications?group=needs_me|waiting|fyi&cursor=` returns `{ items: [{ event_id, severity, doc_type, doc_number, party, amount, requester, waiting_since, deep_link, allowed_actions }] }`.
+- `GET|PUT /me/notification-preferences` body `{ quiet_hours: { start, end, zone } | null, channels: [{ event_type, channel, device_id?, enabled }] }`. No row means opted in. Quiet hours suppress every channel except Critical. FYI events are batched into the weekly digest.
+- `POST /notifications/{event_id}/acknowledge` clears the item for the caller.
+- `GET /ws` WebSocket; server pushes `{ event_id, type, payload, at }` for the authenticated user's subscriptions; client acks with `{ ack: event_id }`. An ack clears the item on every connected surface within one second while online.
+- `GET|POST /alert-rules`. A rule is `{ document_type, condition, recipient_roles, channel, severity, mode }` with mode `blocking` or `advisory`. Built-in alerts are rows in the same table. Mutations also open an approval request when that module is wired.
 
 ### Admin and operations
 
@@ -180,6 +184,8 @@ Event types (initial): `approval.requested|decided|delegated|snoozed`, `document
 `smarterp://{route}/{id}` with routes: `approval`, `document/{doc_type}`, `brief/{section}`, `customer`, `vendor`, `sku`, `trip`, `notification`, `journey`. Universal Links and App Links map `https://app.<domain>/l/...` to the same routes. An unauthenticated tap stashes the link and resumes it after login.
 
 ## Change control
+
+1.1.0 (P1.8): additive paths `/notifications`, `/notifications/{event_id}/acknowledge`, `/me/notification-preferences`, `/ws`, and `/alert-rules`. No migration for existing clients.
 
 1. Propose the change in this file with a version bump and rationale.
 2. Regenerate OpenAPI and client types; CI fails if they drift.

@@ -50,6 +50,8 @@ tags:
     description: Approval inbox and decisions
   - name: devices
     description: Push token lifecycle
+  - name: notifications
+    description: Inbox, preferences, WebSocket, and alert rules
   - name: audit
     description: Audit chain verification and event query
   - name: authz
@@ -872,6 +874,270 @@ paths:
         "503":
           $ref: "#/components/responses/Unavailable"
 
+  /notifications:
+    get:
+      operationId: listNotifications
+      tags: [notifications]
+      summary: List the caller's notifications
+      description: |
+        Groups are `needs_me`, `waiting`, and `fyi` (R13.3, R13.5). Cleared items are omitted.
+      parameters:
+        - $ref: "#/components/parameters/AcceptLanguage"
+        - name: group
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [needs_me, waiting, fyi]
+        - name: cursor
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Notification page
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, meta]
+                properties:
+                  data:
+                    type: object
+                    required: [items]
+                    properties:
+                      items:
+                        type: array
+                        items:
+                          $ref: "#/components/schemas/NotificationItem"
+                  meta:
+                    $ref: "#/components/schemas/PageMeta"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+        "500":
+          $ref: "#/components/responses/InternalError"
+        "503":
+          $ref: "#/components/responses/Unavailable"
+
+  /notifications/{event_id}/acknowledge:
+    post:
+      operationId: acknowledgeNotification
+      tags: [notifications]
+      summary: Acknowledge a notification and clear it on every surface
+      description: Clears the item for the caller and pushes `notification.cleared` to every connected surface (E9, R13.5).
+      parameters:
+        - $ref: "#/components/parameters/EventId"
+        - $ref: "#/components/parameters/IdempotencyKey"
+        - $ref: "#/components/parameters/AcceptLanguage"
+      responses:
+        "200":
+          description: Cleared
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, meta]
+                properties:
+                  data:
+                    $ref: "#/components/schemas/Empty"
+                  meta:
+                    $ref: "#/components/schemas/Meta"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+        "500":
+          $ref: "#/components/responses/InternalError"
+        "503":
+          $ref: "#/components/responses/Unavailable"
+
+  /me/notification-preferences:
+    get:
+      operationId: getNotificationPreferences
+      tags: [notifications]
+      summary: Read notification preferences
+      description: No stored row means the channel is opted in (E6, R13.2).
+      parameters:
+        - $ref: "#/components/parameters/AcceptLanguage"
+      responses:
+        "200":
+          description: Preferences
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, meta]
+                properties:
+                  data:
+                    $ref: "#/components/schemas/NotificationPreferences"
+                  meta:
+                    $ref: "#/components/schemas/Meta"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+        "500":
+          $ref: "#/components/responses/InternalError"
+        "503":
+          $ref: "#/components/responses/Unavailable"
+    put:
+      operationId: putNotificationPreferences
+      tags: [notifications]
+      summary: Replace notification preferences
+      description: Quiet hours never suppress Critical (E6). Preferences never delete audit rows (R13.2).
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+        - $ref: "#/components/parameters/AcceptLanguage"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/NotificationPreferences"
+      responses:
+        "200":
+          description: Saved
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, meta]
+                properties:
+                  data:
+                    $ref: "#/components/schemas/Empty"
+                  meta:
+                    $ref: "#/components/schemas/Meta"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+        "500":
+          $ref: "#/components/responses/InternalError"
+        "503":
+          $ref: "#/components/responses/Unavailable"
+
+  /ws:
+    get:
+      operationId: subscribeEvents
+      tags: [notifications]
+      summary: WebSocket subscription for the authenticated user
+      description: |
+        Upgrades to WebSocket. The server pushes `{ event_id, type, payload, at }`.
+        The client acks with `{ ack: event_id }`. An ack clears the item on every
+        connected surface within one second while online (E9, R13.5).
+      parameters:
+        - $ref: "#/components/parameters/AcceptLanguage"
+      responses:
+        "101":
+          description: Switching Protocols
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+
+  /alert-rules:
+    get:
+      operationId: listAlertRules
+      tags: [notifications]
+      summary: List alert rules
+      description: Built-in alerts are rows in the same table (R13.7, E12).
+      parameters:
+        - $ref: "#/components/parameters/AcceptLanguage"
+        - name: document_type
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Alert rules
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, meta]
+                properties:
+                  data:
+                    type: object
+                    required: [items]
+                    properties:
+                      items:
+                        type: array
+                        items:
+                          $ref: "#/components/schemas/AlertRule"
+                  meta:
+                    $ref: "#/components/schemas/Meta"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+        "500":
+          $ref: "#/components/responses/InternalError"
+        "503":
+          $ref: "#/components/responses/Unavailable"
+    post:
+      operationId: createAlertRule
+      tags: [notifications]
+      summary: Create an alert rule
+      description: |
+        Admin-editable. Mode is `blocking` (prevents submission) or `advisory` (notify only) (E12).
+        Sensitive master changes also open an approval request when that module is wired.
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+        - $ref: "#/components/parameters/AcceptLanguage"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AlertRuleInput"
+      responses:
+        "200":
+          description: Created
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, meta]
+                properties:
+                  data:
+                    type: object
+                    required: [id]
+                    properties:
+                      id:
+                        type: string
+                  meta:
+                    $ref: "#/components/schemas/Meta"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+        "500":
+          $ref: "#/components/responses/InternalError"
+        "503":
+          $ref: "#/components/responses/Unavailable"
+
   /audit/verify:
     post:
       operationId: verifyAuditChain
@@ -987,6 +1253,79 @@ paths:
       tags: [journeys]
       summary: List journey definitions grouped by persona
       description: |
+        The `state_version` the client last saw. A mismatch is `409 CONFLICT` with the current
+        state in `error.details.current`.
+      schema:
+        type: string
+    AcceptLanguage:
+      name: Accept-Language
+      in: header
+      required: false
+      description: "`en` or `ar`. Affects messages and print formats, never data."
+      schema:
+        type: string
+        enum: [en, ar]
+    Cursor:
+      name: cursor
+      in: query
+      required: false
+      description: Opaque cursor from `meta.next_cursor` of the previous page.
+      schema:
+        type: string
+    Limit:
+      name: limit
+      in: query
+      required: false
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 200
+        default: 50
+    SessionId:
+      name: id
+      in: path
+      required: true
+      description: Login session id returned by POST /auth/session
+      schema:
+        type: string
+    ApprovalId:
+      name: id
+      in: path
+      required: true
+      description: Approval request id
+      schema:
+        type: string
+    EventId:
+      name: event_id
+      in: path
+      required: true
+      description: ULID of the notification event
+      schema:
+        type: string
+
+  responses:
+    BadRequest:
+      description: Validation failed (`VALIDATION_ERROR`) or a required header is missing
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorEnvelope"
+    Unauthorized:
+      description: "`AUTH_REQUIRED`, `TOKEN_EXPIRED`, `TOKEN_REVOKED` or `DEVICE_MISMATCH`"
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorEnvelope"
+    Forbidden:
+      description: "`PERMISSION_DENIED`, `STEP_UP_REQUIRED` or `SOD_VIOLATION`"
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorEnvelope"
+    NotFound:
+      description: "`NOT_FOUND`"
+      content:
+        application/json:
         Server-enforced persona filter (R15.5). `persona` is intersected with the personas the
         server has evaluated for the caller. Requesting a persona the caller does not hold is
         `403 PERMISSION_DENIED`. Omitting `persona` returns every group the caller holds.
@@ -1905,6 +2244,124 @@ components:
     AllowedAction:
       type: string
       enum: [approve, reject, acknowledge, snooze, delegate, open]
+
+    NotificationItem:
+      type: object
+      required:
+        - event_id
+        - severity
+        - doc_type
+        - requester
+        - waiting_since
+        - deep_link
+        - allowed_actions
+      properties:
+        event_id:
+          type: string
+        severity:
+          $ref: "#/components/schemas/Severity"
+        doc_type:
+          type: string
+        doc_number:
+          type: [string, "null"]
+        party:
+          type: [string, "null"]
+        amount:
+          oneOf:
+            - $ref: "#/components/schemas/Money"
+            - type: "null"
+        requester:
+          $ref: "#/components/schemas/Actor"
+        waiting_since:
+          type: string
+          format: date-time
+        deep_link:
+          type: string
+          pattern: "^smarterp://"
+        allowed_actions:
+          type: array
+          items:
+            $ref: "#/components/schemas/AllowedAction"
+
+    NotificationPreferences:
+      type: object
+      properties:
+        quiet_hours:
+          type: [object, "null"]
+          properties:
+            start:
+              type: string
+              description: Local time HH:MM
+            end:
+              type: string
+            zone:
+              type: string
+              description: IANA time zone. Critical is never suppressed inside the window.
+        channels:
+          type: array
+          items:
+            type: object
+            required: [event_type, channel, enabled]
+            properties:
+              event_type:
+                type: string
+              channel:
+                type: string
+                enum: [push, email, websocket, digest]
+              device_id:
+                type: string
+              enabled:
+                type: boolean
+
+    AlertRule:
+      type: object
+      required: [id, document_type, condition, recipient_roles, channel, severity, mode, enabled]
+      properties:
+        id:
+          type: string
+        document_type:
+          type: string
+        condition:
+          type: object
+          additionalProperties: true
+        recipient_roles:
+          type: array
+          items:
+            type: string
+        channel:
+          type: string
+        severity:
+          $ref: "#/components/schemas/Severity"
+        mode:
+          type: string
+          enum: [blocking, advisory]
+        enabled:
+          type: boolean
+        builtin:
+          type: boolean
+
+    AlertRuleInput:
+      type: object
+      required: [document_type, condition, recipient_roles, channel, severity, mode]
+      properties:
+        document_type:
+          type: string
+        condition:
+          type: object
+          additionalProperties: true
+        recipient_roles:
+          type: array
+          items:
+            type: string
+        channel:
+          type: string
+        severity:
+          $ref: "#/components/schemas/Severity"
+        mode:
+          type: string
+          enum: [blocking, advisory]
+        builtin:
+          type: boolean
 
     ChainVerification:
       type: object

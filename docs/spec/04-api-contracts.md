@@ -1,5 +1,8 @@
 # 04 API Contracts
 
+Version 1.1.0. Frozen. This file changes before code does. Additive changes bump the minor version; breaking changes bump the major version and carry a migration note. Server and clients generate types from the OpenAPI document that this file governs; the OpenAPI file is the machine form, this file is the human form and wins on conflict until the OpenAPI is regenerated.
+
+1.1.0 (additive, 2026-09-25): `GET /me/sessions` and `DELETE /me/sessions/{id}` with schema `UserSession`. No migration for clients of 1.0.0; the new routes are optional to call. Required so session listing and remote revocation (R1.15, A9) have a contract before the identity implementation.
 Version 1.1.0. This file changes before code does. Additive changes bump the minor version; breaking changes bump the major version and carry a migration note. Server and clients generate types from the OpenAPI document that this file governs; the OpenAPI file is the machine form, this file is the human form and wins on conflict until the OpenAPI is regenerated.
 
 ## Changelog
@@ -53,7 +56,9 @@ Each family lists its endpoints, then any shape that is not obvious from the dom
 - `POST /auth/session` body `{ login_name }` returns `{ session_id, challenges: { passkey?, totp_required? } }`; `POST /auth/session/{id}/check` body `{ password? , totp?, webauthn_assertion? }` advances factors; when the required factors are verified, `POST /auth/token` body `{ session_id, device_id }` returns `{ access_token, refresh_token, expires_in, user: { id, name, roles[], personas[], company_id }, step_up_methods[] }`. The API brokers these to Zitadel's Session API; clients never call Zitadel directly.
 - `POST /auth/refresh`, `POST /auth/logout` (revokes device refresh token, unregisters push token).
 - `POST /auth/step-up` body `{ method, code }` returns a short-lived `step_up_token` for one action.
-- `GET /me`, `GET /me/sessions`, `DELETE /me/sessions/{id}`.
+- `GET /me`.
+- `GET /me/sessions` returns `{ id, device_id, device_name, platform, created_at, last_seen_at, current, state_version }[]` with `next_cursor` and `total`.
+- `DELETE /me/sessions/{id}` ends that session. The owner or a System Manager may call it. A stale `If-Match` is `409 CONFLICT` with the current session in `error.details.current`. Revocation is visible on the next request from the ended device.
 
 ### Documents (generic)
 

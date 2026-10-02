@@ -1,3 +1,3 @@
-# periods
+# Periods
 
-Owned by the Wave 1 task listed in WAVE1.md. Empty until that agent starts.
+Company record, fiscal periods, and gap-free document numbering (P1.4).

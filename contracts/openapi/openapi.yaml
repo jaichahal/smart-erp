@@ -8,6 +8,7 @@ info:
     wins on conflict until this document is regenerated. Additive changes bump the minor version;
     breaking changes bump the major version and carry a migration note.
 
+    1.1.0 adds the Journeys paths, the step result shape, and no change to existing operations.
     1.1.0 is additive: period soft-close, hard-close, audit-adjustment open, and the holiday
     calendar. No field or path was removed. Clients ignore the new `period.closed` event type
     until they understand it.
@@ -49,6 +50,8 @@ tags:
     description: Push token lifecycle
   - name: audit
     description: Audit chain verification and event query
+  - name: journeys
+    description: Persona-filtered journey definitions, instances, and the step protocol
   - name: periods
     description: Fiscal period soft close, hard close, and the audit-adjustment period
   - name: masters
@@ -882,6 +885,28 @@ paths:
         "503":
           $ref: "#/components/responses/Unavailable"
 
+  /journeys:
+    get:
+      operationId: listJourneys
+      tags: [journeys]
+      summary: List journey definitions grouped by persona
+      description: |
+        Server-enforced persona filter (R15.5). `persona` is intersected with the personas the
+        server has evaluated for the caller. Requesting a persona the caller does not hold is
+        `403 PERMISSION_DENIED`. Omitting `persona` returns every group the caller holds.
+        Client-supplied roles or personas never widen this list.
+      parameters:
+        - name: persona
+          in: query
+          required: false
+          description: Persona group to return. Ignored as a grant; used only as a filter.
+          schema:
+            type: string
+            minLength: 1
+        - $ref: "#/components/parameters/AcceptLanguage"
+      responses:
+        "200":
+          description: Definitions grouped by persona
   /periods/{id}/soft-close:
     post:
       operationId: softClosePeriod
@@ -905,6 +930,9 @@ paths:
                 required: [data, meta]
                 properties:
                   data:
+                    $ref: "#/components/schemas/JourneyList"
+                  meta:
+                    $ref: "#/components/schemas/Meta"
                     $ref: "#/components/schemas/Period"
                   meta:
                     $ref: "#/components/schemas/Meta"
@@ -925,6 +953,22 @@ paths:
         "503":
           $ref: "#/components/responses/Unavailable"
 
+  /journeys/{slug}/instances:
+    post:
+      operationId: createJourneyInstance
+      tags: [journeys]
+      summary: Start a journey instance
+      description: |
+        Creates a persisted instance at the definition's first step and returns
+        `{ instance_id, step, state_version }`. `state_version` is 1. The caller must hold a
+        persona the definition allows; that check uses server-evaluated personas.
+      parameters:
+        - $ref: "#/components/parameters/JourneySlug"
+        - $ref: "#/components/parameters/IdempotencyKey"
+        - $ref: "#/components/parameters/AcceptLanguage"
+      responses:
+        "201":
+          description: Instance created
   /periods/{id}/hard-close:
     post:
       operationId: hardClosePeriod
@@ -955,6 +999,7 @@ paths:
                 required: [data, meta]
                 properties:
                   data:
+                    $ref: "#/components/schemas/JourneyInstanceCreated"
                     $ref: "#/components/schemas/Period"
                   meta:
                     $ref: "#/components/schemas/Meta"
@@ -975,6 +1020,20 @@ paths:
         "503":
           $ref: "#/components/responses/Unavailable"
 
+  /journeys/instances/{id}:
+    get:
+      operationId: getJourneyInstance
+      tags: [journeys]
+      summary: Read resumable journey instance state
+      description: |
+        Returns the persisted instance. This is the resume point after a process restart or after
+        days. There is no in-memory journey state.
+      parameters:
+        - $ref: "#/components/parameters/JourneyInstanceId"
+        - $ref: "#/components/parameters/AcceptLanguage"
+      responses:
+        "200":
+          description: Instance
   /periods/{year}/audit-adjustment/open:
     post:
       operationId: openAuditAdjustmentPeriod
@@ -1004,6 +1063,9 @@ paths:
                 required: [data, meta]
                 properties:
                   data:
+                    $ref: "#/components/schemas/JourneyInstance"
+                  meta:
+                    $ref: "#/components/schemas/Meta"
                     $ref: "#/components/schemas/Period"
                   meta:
                     $ref: "#/components/schemas/Meta"
@@ -1024,6 +1086,33 @@ paths:
         "503":
           $ref: "#/components/responses/Unavailable"
 
+  /journeys/instances/{id}/step:
+    post:
+      operationId: submitJourneyStep
+      tags: [journeys]
+      summary: Submit the current journey step
+      description: |
+        Body `{ step_id, input }`. Requires `Idempotency-Key` and `If-Match` carrying the instance
+        `state_version`. A mismatch is `409 CONFLICT` with the current instance in
+        `error.details.current`.
+
+        HTTP 200 returns the step result inside the success envelope even when the step did not
+        complete: `{ ok, code?, message?, data?, problems[], next_step? }`. `PENDING` means an
+        await step is still waiting and the run has not advanced. `REJECTED` means the awaited
+        decision went against the run and the run has stopped; later steps do not execute.
+
+        `input` may contain business fields declared by `input_schema`. Claims about permissions,
+        roles, personas, or workflow state are ignored and cannot change server-evaluated access
+        or workflow state (E13). Permissions are re-evaluated on every step.
+      parameters:
+        - $ref: "#/components/parameters/JourneyInstanceId"
+        - $ref: "#/components/parameters/IdempotencyKey"
+        - name: If-Match
+          in: header
+          required: true
+          description: Current `state_version` of the instance.
+          schema:
+            type: string
   /holiday-calendar:
     get:
       operationId: getHolidayCalendar
@@ -1073,6 +1162,10 @@ paths:
         content:
           application/json:
             schema:
+              $ref: "#/components/schemas/JourneyStepSubmission"
+      responses:
+        "200":
+          description: Step result (completion, pending, or a business refusal)
               $ref: "#/components/schemas/HolidayCalendarWrite"
       responses:
         "200":
@@ -1084,6 +1177,7 @@ paths:
                 required: [data, meta]
                 properties:
                   data:
+                    $ref: "#/components/schemas/JourneyStepResult"
                     $ref: "#/components/schemas/HolidayCalendar"
                   meta:
                     $ref: "#/components/schemas/Meta"
@@ -1093,6 +1187,8 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "403":
           $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
         "409":
           $ref: "#/components/responses/Conflict"
         "429":
@@ -1175,6 +1271,22 @@ components:
       description: Approval request id
       schema:
         type: string
+    JourneySlug:
+      name: slug
+      in: path
+      required: true
+      description: Journey definition slug
+      schema:
+        type: string
+        pattern: "^[a-z][a-z0-9-]*$"
+    JourneyInstanceId:
+      name: id
+      in: path
+      required: true
+      description: Journey instance id
+      schema:
+        type: string
+        format: uuid
     PeriodId:
       name: id
       in: path
@@ -1665,6 +1777,177 @@ components:
         hash:
           type: string
 
+    JourneyList:
+      type: object
+      required: [groups]
+      properties:
+        groups:
+          type: array
+          items:
+            $ref: "#/components/schemas/JourneyGroup"
+
+    JourneyGroup:
+      type: object
+      required: [persona, definitions]
+      properties:
+        persona:
+          type: string
+        definitions:
+          type: array
+          items:
+            $ref: "#/components/schemas/JourneyDefinition"
+
+    JourneyDefinition:
+      type: object
+      required: [slug, title, group, personas, steps]
+      properties:
+        slug:
+          type: string
+          pattern: "^[a-z][a-z0-9-]*$"
+        title:
+          type: string
+          description: Localised by Accept-Language. The stored title is a message key.
+        group:
+          type: string
+        personas:
+          type: array
+          items:
+            type: string
+        steps:
+          type: array
+          items:
+            $ref: "#/components/schemas/JourneyStep"
+
+    JourneyKind:
+      type: string
+      enum: [form, validate, write_draft, route, await, post, read]
+
+    JourneyStep:
+      type: object
+      required: [step_id, kind, title, input_schema]
+      properties:
+        step_id:
+          type: string
+        kind:
+          $ref: "#/components/schemas/JourneyKind"
+        title:
+          type: string
+        input_schema:
+          type: object
+          description: JSON Schema for the step input. The client does not execute guards.
+          additionalProperties: true
+        guard:
+          type: object
+          description: Server-evaluated guard data. Not an expression the client can supply.
+          additionalProperties: true
+
+    JourneyInstanceCreated:
+      type: object
+      required: [instance_id, step, state_version]
+      properties:
+        instance_id:
+          type: string
+          format: uuid
+        step:
+          $ref: "#/components/schemas/JourneyStep"
+        state_version:
+          $ref: "#/components/schemas/StateVersion"
+
+    JourneyInstanceStatus:
+      type: string
+      enum: [running, awaiting, rejected, completed]
+
+    JourneyInstance:
+      type: object
+      required:
+        - instance_id
+        - slug
+        - persona
+        - status
+        - current_step
+        - state_version
+        - server_state
+        - updated_at
+      properties:
+        instance_id:
+          type: string
+          format: uuid
+        slug:
+          type: string
+        persona:
+          type: string
+        status:
+          $ref: "#/components/schemas/JourneyInstanceStatus"
+        current_step:
+          $ref: "#/components/schemas/JourneyStep"
+        state_version:
+          $ref: "#/components/schemas/StateVersion"
+        server_state:
+          type: object
+          description: |
+            Written only by the engine. Client input is not copied here until forbidden keys
+            (permissions, roles, personas, workflow state) are removed.
+          additionalProperties: true
+        updated_at:
+          type: string
+          format: date-time
+
+    JourneyStepSubmission:
+      type: object
+      required: [step_id, input]
+      additionalProperties: false
+      properties:
+        step_id:
+          type: string
+        input:
+          type: object
+          description: |
+            Business fields for this step. Keys permissions, roles, personas, workflow_state,
+            granted, and status are ignored.
+          additionalProperties: true
+
+    JourneyStepCode:
+      type: string
+      description: |
+        Outcome code on a step result. Distinct from the error-envelope ErrorCode set so that
+        PENDING and REJECTED stay journey outcomes rather than transport failures.
+      enum: [PERMISSION_DENIED, VALIDATION_ERROR, PENDING, REJECTED, CONFLICT]
+
+    JourneyProblem:
+      type: object
+      required: [code, message]
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+          description: Localised by Accept-Language
+        field:
+          type: string
+
+    JourneyStepResult:
+      type: object
+      description: |
+        Step protocol result. `ok` is false while an await is pending and when the run stops on
+        rejection. `problems` is always present and empty when there are none. `next_step` is
+        omitted when the run has stopped.
+      required: [ok, problems]
+      properties:
+        ok:
+          type: boolean
+        code:
+          $ref: "#/components/schemas/JourneyStepCode"
+        message:
+          type: string
+        data:
+          type: object
+          additionalProperties: true
+        problems:
+          type: array
+          items:
+            $ref: "#/components/schemas/JourneyProblem"
+        next_step:
+          $ref: "#/components/schemas/JourneyStep"
     PeriodStatus:
       type: string
       enum: [open, soft_closed, hard_closed]

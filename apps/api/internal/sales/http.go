@@ -34,6 +34,7 @@ func Mount(r chi.Router, deps httpx.Deps) {
 	r.With(idem).Post("/delivery-notes/{id}/proof", h.proof)
 	r.With(idem).Post("/credit-notes", h.credit)
 	r.With(idem).Post("/cash-sales", h.cash)
+	r.With(idem).Post("/receipts", h.receipt)
 	r.Get("/sales-targets", h.attainment)
 	r.Get("/sales-commission", h.commission)
 }

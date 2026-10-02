@@ -58,6 +58,19 @@ func (h Handler) Routes(r chi.Router) {
 		ar.Post("/assignments", h.Assign)
 		ar.Post("/fraud-config", h.PutFraud)
 		ar.Post("/posting-tokens/consume", h.Consume)
+// Mount registers /approvals routes. The caller mounts this under /api/v1.
+func Mount(r chi.Router, deps httpx.Deps) {
+	svc := New(deps.Pool, deps.River, NewSQLDirectory(deps.Pool), StubStepUp{}, RealClock{})
+	Handler{Svc: svc, Pool: deps.Pool}.Routes(r)
+}
+
+// Routes registers inbox, get, approve and reject.
+func (h Handler) Routes(r chi.Router) {
+	r.Route("/approvals", func(ar chi.Router) {
+		ar.Use(languageMiddleware)
+		if h.Pool != nil {
+			ar.Use(idempotency.Middleware(h.Pool))
+		}
 		ar.Get("/inbox", h.Inbox)
 		ar.Get("/{id}", h.Get)
 		ar.Post("/{id}/approve", h.Approve)
@@ -201,6 +214,7 @@ func writeDecision(w http.ResponseWriter, r *http.Request, out *Outcome, err err
 		}
 	}
 	httpx.JSONWithMeta(w, r, http.StatusOK, out.Decision, meta)
+	httpx.JSONWithMeta(w, r, http.StatusOK, out.Decision, httpx.Meta{Notice: out.Notice})
 }
 
 func principal(w http.ResponseWriter, r *http.Request) (rls.Principal, bool) {

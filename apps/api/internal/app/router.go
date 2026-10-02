@@ -98,6 +98,8 @@ func Handler(deps httpx.Deps, opts ...Option) (http.Handler, error) {
 			return
 		}
 		journeys.Mount(v1, deps)
+		receivables.Mount(v1, deps)
+		bank.Mount(v1, deps)
 	})
 	if mountErr != nil {
 		return nil, mountErr

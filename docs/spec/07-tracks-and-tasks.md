@@ -30,6 +30,9 @@ Backend tracks B through E are Go engineers. Thirteen to fifteen people at peak.
 - Phase 7 Production and stock, assets. Track D, with C, F (counter and supervisor), G.
 - Phase 8 Close, reporting, compliance. Tracks C and E, with G.
 - Phase 9 CFO controls and hardening completion. Tracks B, D, E, I.
+- Phase 10 CRM. Spec: `14-crm.md`. Starts after Phase 3.
+- Phase 11 HR. Spec: `15-hr.md`. Starts after the approval engine and cost centres exist.
+- Phase 12 Payroll. Spec: `16-payroll.md`. Depends on Phase 11.
 
 Each phase ends with acceptance by the Accountant using the real month of paper for the journeys in that phase, and with the phase's tests in `08` green in CI.
 
@@ -108,6 +111,8 @@ Format: ID, title, track, depends on, requirements, acceptance.
 - P6.3 Payment run with batch approval and release; supplier scorecard; inbound mailbox to draft supplier invoice. D, E. R8.8 to R8.10. Accept: tests P21 to P26.
 - P6.4 Console purchase forms, bulk actions, inbound queue. G. Accept: tests G21 to G23.
 
+Vendor SKU approval, blacklist, payment hold, and the vendor dashboard extend this phase. Spec: `17-vendor-control.md`. Tasks P6.5 to P6.9. P6.5 was free.
+
 ### Phase 7 Production, stock, assets
 
 - P7.1 Production entry with BOM proposal, wastage allowance, variance approval, draft-age clock, yield reporting. D. R9.4. Accept: tests H7 to H12.
@@ -129,6 +134,18 @@ Format: ID, title, track, depends on, requirements, acceptance.
 - P9.2 Quarterly access review workflow; SoD matrix admin; session limits and IP allow-list for console. A. R1.13 to R1.15. Accept: tests A21 to A24.
 - P9.3 Working-capital KPIs (DSO, DPO, DIO, CCC), margin per SKU and customer, receivable concentration, debtor payment performance in snapshot and console. E. R14.2, R14.3. Accept: tests E33 to E36.
 - P9.4 Penetration test remediation; MASVS and ASVS verification; licence and SBOM sign-off. I. Accept: external report with no high findings open.
+
+### Phase 10 CRM
+
+Leads and pipeline. Converts into the existing customer master. Spec: `14-crm.md`. Starts after Phase 3. Vendor control is purchase to pay, not CRM.
+
+### Phase 11 HR
+
+Employees, documents expiry, and leave on the existing approval engine. Spec: `15-hr.md`. Starts after the approval engine and cost centres exist.
+
+### Phase 12 Payroll
+
+UAE monthly pay, WPS file, and a gratuity or pension path. Posts through the existing ledger. Spec: `16-payroll.md`. Depends on Phase 11.
 
 ## Dependencies at a glance
 

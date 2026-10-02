@@ -18,14 +18,18 @@ import (
 	"github.com/jaichahal/smart-erp/apps/api/internal/approvals"
 	"github.com/jaichahal/smart-erp/apps/api/internal/audit"
 	"github.com/jaichahal/smart-erp/apps/api/internal/authz"
+	"github.com/jaichahal/smart-erp/apps/api/internal/bank"
 	"github.com/jaichahal/smart-erp/apps/api/internal/clocks"
 	"github.com/jaichahal/smart-erp/apps/api/internal/identity"
 	"github.com/jaichahal/smart-erp/apps/api/internal/journeys"
 	"github.com/jaichahal/smart-erp/apps/api/internal/kit/apierr"
 	"github.com/jaichahal/smart-erp/apps/api/internal/kit/httpx"
+	"github.com/jaichahal/smart-erp/apps/api/internal/ledger"
 	periods "github.com/jaichahal/smart-erp/apps/api/internal/ledger/periods"
 	"github.com/jaichahal/smart-erp/apps/api/internal/notifications"
 	"github.com/jaichahal/smart-erp/apps/api/internal/purchase"
+	"github.com/jaichahal/smart-erp/apps/api/internal/sales"
+	"github.com/jaichahal/smart-erp/apps/api/internal/receivables"
 )
 
 // Option tunes composition. Production uses none; tests inject the Zitadel broker port.
@@ -69,6 +73,7 @@ func Handler(deps httpx.Deps, opts ...Option) (http.Handler, error) {
 		id := identity.Mount(v1, deps, w.identity...)
 		clocks.Mount(v1, deps)
 		periods.Mount(v1, deps, approvalGate{pool: deps.Pool})
+		ledger.Mount(v1, deps)
 		// Periods and authz both register GET /exceptions. Chi keeps the later
 		// route. Access-review exceptions must stay reachable with the bearer
 		// token authz verifies; period exceptions stay on the periods server.
@@ -81,11 +86,14 @@ func Handler(deps httpx.Deps, opts ...Option) (http.Handler, error) {
 			if err := notifications.Mount(authed, deps); err != nil {
 				mountErr = err
 			}
+			sales.Mount(authed, deps)
 		})
 		if mountErr != nil {
 			return
 		}
 		journeys.Mount(v1, deps)
+		receivables.Mount(v1, deps)
+		bank.Mount(v1, deps)
 	})
 	if mountErr != nil {
 		return nil, mountErr

@@ -21,6 +21,8 @@ func Mount(r chi.Router, deps httpx.Deps) {
 	r.Get("/holiday-calendar", s.handleGet)
 	r.With(idem).Post("/holiday-calendar", s.handleSave)
 	r.With(idem).Post("/clocks", s.handleStart)
+	r.Get("/holiday-calendar", s.handleGet)
+	r.With(idempotency.Middleware(deps.Pool)).Post("/holiday-calendar", s.handleSave)
 }
 
 func (s *Service) handleGet(w http.ResponseWriter, r *http.Request) {

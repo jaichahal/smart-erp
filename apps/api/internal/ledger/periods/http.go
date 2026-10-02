@@ -33,6 +33,9 @@ func Mount(r chi.Router, deps httpx.Deps, approvals ApprovalGate) {
 	r.With(idem).Post("/periods/postings", s.handlePosting)
 	r.Get("/periods", s.handlePeriodOn)
 	r.Get("/exceptions", s.handleExceptions)
+	r.With(idem).Post("/periods/{id}/soft-close", s.handleSoftClose)
+	r.With(idem).Post("/periods/{id}/hard-close", s.handleHardClose)
+	r.With(idem).Post("/periods/{year}/audit-adjustment/open", s.handleAuditOpen)
 }
 
 func (s *Service) handleSoftClose(w http.ResponseWriter, r *http.Request) {

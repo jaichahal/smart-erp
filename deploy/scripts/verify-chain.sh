@@ -31,16 +31,24 @@ done
 
 case "${DATABASE}" in erp|drill) ;; *) die "--database must be erp or drill" ;; esac
 case "${AGAINST}" in offsite|local) ;; *) die "--against must be offsite or local" ;; esac
-require_cmd docker
+require_cmd go
 
 RUN_ID="$(timestamp_id)"
 REPORT="${REPORT:-${REPORT_DIR}/chain-${RUN_ID}.json}"
 log "verify ${RUN_ID}: database=${DATABASE} against=${AGAINST} since=${SINCE:-genesis}"
 
-todo "erp_run chain verify --database ${DATABASE} --against ${AGAINST} ${SINCE:+--since ${SINCE}} --report /reports/$(basename "${REPORT}")"
-# Exit codes the Go verifier must use, so systemd and the Nightly agent can act:
-#   0 chain intact and head == anchor
-#   2 chain intact but no anchor newer than the grace window (anchoring stalled)
-#   3 head mismatch or broken link  -> page the System Manager, freeze corrections
-todo "map exit code: 2 -> warn + status anchor=stale, 3 -> alert + deploy/nuc/anchor-failure.md"
-log "verify ${RUN_ID} finished (skeleton); report ${REPORT}"
+mkdir -p "$(dirname "${REPORT}")" 2>/dev/null || true
+set +e
+auditctl chain verify --against "${AGAINST}" --report "${REPORT}"
+code=$?
+set -e
+# 0 intact and head matches the anchor.
+# 2 intact but no anchor inside the grace window (anchoring stalled).
+# 3 head mismatch or broken link. See deploy/nuc/anchor-failure.md.
+case "${code}" in
+  0) log "chain intact" ;;
+  2) warn "anchor stale (exit 2); status recovery window has widened"; exit 2 ;;
+  3) log "ERROR: chain broken (exit 3); follow deploy/nuc/anchor-failure.md"; exit 3 ;;
+  *) exit "${code}" ;;
+esac
+log "verify ${RUN_ID} finished; report ${REPORT}"

@@ -86,6 +86,7 @@
         "document.registered",
         "delivery.confirmed",
         "clock.expired",
+        "period.closed",
         "receipt.posted",
         "pdc.bounced",
         "stock.received",

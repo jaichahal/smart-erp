@@ -5,6 +5,15 @@ Version 1.1.0. This file changes before code does. Additive changes bump the min
 ## Changelog
 
 - 1.1.0 (additive). Journey routes from 1.0.0 are specified fully enough to generate types, including the step result `{ ok, code?, message?, data?, problems[], next_step? }`. Event type `journey.step.completed` added. Deep link route `journey` added. No existing route, field, or error code changed.
+Version 1.1.0. Frozen. This file changes before code does. Additive changes bump the minor version; breaking changes bump the major version and carry a migration note. Server and clients generate types from the OpenAPI document that this file governs; the OpenAPI file is the machine form, this file is the human form and wins on conflict until the OpenAPI is regenerated.
+
+### 1.1.0
+
+Additive. No path or field removed. Clients that do not know `period.closed` ignore it. No data migration.
+
+- `POST /periods/{id}/soft-close`, `POST /periods/{id}/hard-close`, and `POST /periods/{year}/audit-adjustment/open` are in `contracts/openapi/openapi.yaml`, with `Period`, `PeriodStatus`, `PeriodKind`, and `PeriodApproval`.
+- `GET|POST /holiday-calendar` is in the OpenAPI document, with `HolidayCalendar` (timezone, `business_open`, `business_close`, weekend weekdays, holidays) and `HolidayCalendarWrite`.
+- Event type `period.closed` is added to the outbox payload enum.
 
 ## Transport
 
@@ -94,6 +103,7 @@ Draft body shape per family follows `03-domain-model.md`; the OpenAPI file carri
 ### Masters
 
 - `GET|POST /customers`, `/vendors`, `/skus`, `/price-lists`, `/price-agreements`, `/tax-codes`, `/accounts`, `/dimensions`, `/posting-rules`, `/holiday-calendar`, `/print-formats`, `/alert-rules`, `/approval-matrix`, `/sod-matrix`. Mutations on sensitive masters create an approval request. `GET /{master}/{id}/versions`.
+- `GET /holiday-calendar` returns `{ state_version, timezone, business_open, business_close, weekend[], holidays[] }`. `business_open` and `business_close` are local `HH:MM`. `weekend` is weekday names. `holidays` is `{ date, name }`. `POST /holiday-calendar` replaces that document and requires `If-Match` (send `0` on the first write). Clocks count only time inside the window on days that are neither weekend nor holiday (R13.8, ADR-12).
 - `POST /imports` multipart with `type`, returns `{ import_id, preview[], rejected[] }`; `POST /imports/{id}/commit`.
 
 ### Analytics
@@ -126,7 +136,7 @@ Persona filtering is server-enforced (R15.5). The `persona` query selects a grou
 - `POST /audit/verify` (Auditor, System Manager) returns `{ intact, count, first_break?, anchored_head_matches }`.
 - `GET /audit/events?ref=&from=&to=&type=`.
 - `GET /exceptions?month=`.
-- `POST /periods/{id}/soft-close`, `POST /periods/{id}/hard-close` (approval), `POST /periods/{year}/audit-adjustment/open`.
+- `POST /periods/{id}/soft-close` (Accountant), `POST /periods/{id}/hard-close` (Stakeholder, body `{ approval_id }`), `POST /periods/{year}/audit-adjustment/open` (Stakeholder, body `{ approval_id }`). All three require `If-Match` with the current `state_version` (`0` when the audit-adjustment period does not exist yet). A hard-closed period refuses later posting with `PERIOD_CLOSED`. Soft close and hard close emit `period.closed`.
 - `POST /go-live/...` steps per R18.
 
 ## Event payload (outbox, socket, push data)
@@ -153,6 +163,7 @@ Push messages are data-only and carry exactly this object flattened to string va
 Event types (initial): `approval.requested|decided|delegated|snoozed`, `document.registered`, `delivery.confirmed`, `clock.expired`, `receipt.posted`, `pdc.bounced`, `stock.received`, `stock.count.approved`, `production.posted`, `correction.posted`, `payment.released`, `chain.verified|broken`, `backup.completed|failed`, `bank.feed.completed|failed`, `forecast.below_floor`, `exception.raised`, `config.changed`, `break_glass.used`, `journey.step.completed`.
 
 `journey.step.completed` is emitted when a step reaches a terminal outcome (`completed` or `rejected`), in the same transaction as the instance transition. `context` carries `{ slug, step_id, outcome, instance_status }`. An await step that is still pending does not emit it. `subject.doc_type` is `journey_instance`. `amount` is null. `deep_link` is `smarterp://journey/{instance_id}`.
+Event types (initial): `approval.requested|decided|delegated|snoozed`, `document.registered`, `delivery.confirmed`, `clock.expired`, `period.closed`, `receipt.posted`, `pdc.bounced`, `stock.received`, `stock.count.approved`, `production.posted`, `correction.posted`, `payment.released`, `chain.verified|broken`, `backup.completed|failed`, `bank.feed.completed|failed`, `forecast.below_floor`, `exception.raised`, `config.changed`, `break_glass.used`.
 
 ## Deep link scheme
 

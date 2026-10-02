@@ -9,6 +9,9 @@ info:
     breaking changes bump the major version and carry a migration note.
 
     1.1.0 adds the Journeys paths, the step result shape, and no change to existing operations.
+    1.1.0 is additive: period soft-close, hard-close, audit-adjustment open, and the holiday
+    calendar. No field or path was removed. Clients ignore the new `period.closed` event type
+    until they understand it.
 
     Transport rules that apply to every operation:
 
@@ -49,6 +52,10 @@ tags:
     description: Audit chain verification and event query
   - name: journeys
     description: Persona-filtered journey definitions, instances, and the step protocol
+  - name: periods
+    description: Fiscal period soft close, hard close, and the audit-adjustment period
+  - name: masters
+    description: Company masters, including the holiday calendar
 
 paths:
   /health:
@@ -900,6 +907,22 @@ paths:
       responses:
         "200":
           description: Definitions grouped by persona
+  /periods/{id}/soft-close:
+    post:
+      operationId: softClosePeriod
+      tags: [periods]
+      summary: Soft-close a fiscal period
+      description: |
+        Accountant only (R4.6, C3, C33). Blocks further postings into the period. Idempotent
+        when the period is already soft-closed and `If-Match` is the current `state_version`.
+      parameters:
+        - $ref: "#/components/parameters/PeriodId"
+        - $ref: "#/components/parameters/IdempotencyKey"
+        - $ref: "#/components/parameters/IfMatchRequired"
+        - $ref: "#/components/parameters/AcceptLanguage"
+      responses:
+        "200":
+          description: Period soft-closed
           content:
             application/json:
               schema:
@@ -910,10 +933,19 @@ paths:
                     $ref: "#/components/schemas/JourneyList"
                   meta:
                     $ref: "#/components/schemas/Meta"
+                    $ref: "#/components/schemas/Period"
+                  meta:
+                    $ref: "#/components/schemas/Meta"
+        "400":
+          $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
         "403":
           $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
         "429":
           $ref: "#/components/responses/RateLimited"
         "500":
@@ -937,6 +969,29 @@ paths:
       responses:
         "201":
           description: Instance created
+  /periods/{id}/hard-close:
+    post:
+      operationId: hardClosePeriod
+      tags: [periods]
+      summary: Hard-close a fiscal period
+      description: |
+        Stakeholder only, and only with an approval id that the approvals module has granted
+        (R4.6, C3). Nothing posts to a hard-closed period; the posting guard returns
+        `PERIOD_CLOSED`.
+      parameters:
+        - $ref: "#/components/parameters/PeriodId"
+        - $ref: "#/components/parameters/IdempotencyKey"
+        - $ref: "#/components/parameters/IfMatchRequired"
+        - $ref: "#/components/parameters/AcceptLanguage"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PeriodApproval"
+      responses:
+        "200":
+          description: Period hard-closed
           content:
             application/json:
               schema:
@@ -945,6 +1000,7 @@ paths:
                 properties:
                   data:
                     $ref: "#/components/schemas/JourneyInstanceCreated"
+                    $ref: "#/components/schemas/Period"
                   meta:
                     $ref: "#/components/schemas/Meta"
         "400":
@@ -978,6 +1034,28 @@ paths:
       responses:
         "200":
           description: Instance
+  /periods/{year}/audit-adjustment/open:
+    post:
+      operationId: openAuditAdjustmentPeriod
+      tags: [periods]
+      summary: Open the audit-adjustment period for a fiscal year
+      description: |
+        Stakeholder only, with approval (R4.8). One audit-adjustment period per fiscal year.
+        Opening an already-open period with the same `If-Match` replays the current period.
+      parameters:
+        - $ref: "#/components/parameters/FiscalYear"
+        - $ref: "#/components/parameters/IdempotencyKey"
+        - $ref: "#/components/parameters/IfMatchRequired"
+        - $ref: "#/components/parameters/AcceptLanguage"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PeriodApproval"
+      responses:
+        "200":
+          description: Audit-adjustment period opened
           content:
             application/json:
               schema:
@@ -988,12 +1066,19 @@ paths:
                     $ref: "#/components/schemas/JourneyInstance"
                   meta:
                     $ref: "#/components/schemas/Meta"
+                    $ref: "#/components/schemas/Period"
+                  meta:
+                    $ref: "#/components/schemas/Meta"
+        "400":
+          $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
         "403":
           $ref: "#/components/responses/Forbidden"
         "404":
           $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
         "429":
           $ref: "#/components/responses/RateLimited"
         "500":
@@ -1028,6 +1113,49 @@ paths:
           description: Current `state_version` of the instance.
           schema:
             type: string
+  /holiday-calendar:
+    get:
+      operationId: getHolidayCalendar
+      tags: [masters]
+      summary: Read the company holiday calendar
+      description: |
+        Weekend definition, business-hours window, and holidays used by every business-hours
+        clock (R13.8, C5, ADR-12).
+      parameters:
+        - $ref: "#/components/parameters/AcceptLanguage"
+      responses:
+        "200":
+          description: Calendar
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, meta]
+                properties:
+                  data:
+                    $ref: "#/components/schemas/HolidayCalendar"
+                  meta:
+                    $ref: "#/components/schemas/Meta"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+        "500":
+          $ref: "#/components/responses/InternalError"
+        "503":
+          $ref: "#/components/responses/Unavailable"
+    post:
+      operationId: putHolidayCalendar
+      tags: [masters]
+      summary: Create or replace the company holiday calendar
+      description: |
+        Replaces weekend days, the business-hours window, and the holiday list in one write.
+        `If-Match` carries the current `state_version`; the first write sends `0` (R13.8, A19).
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+        - $ref: "#/components/parameters/IfMatchRequired"
         - $ref: "#/components/parameters/AcceptLanguage"
       requestBody:
         required: true
@@ -1038,6 +1166,10 @@ paths:
       responses:
         "200":
           description: Step result (completion, pending, or a business refusal)
+              $ref: "#/components/schemas/HolidayCalendarWrite"
+      responses:
+        "200":
+          description: Calendar saved
           content:
             application/json:
               schema:
@@ -1046,6 +1178,7 @@ paths:
                 properties:
                   data:
                     $ref: "#/components/schemas/JourneyStepResult"
+                    $ref: "#/components/schemas/HolidayCalendar"
                   meta:
                     $ref: "#/components/schemas/Meta"
         "400":
@@ -1154,6 +1287,33 @@ components:
       schema:
         type: string
         format: uuid
+    PeriodId:
+      name: id
+      in: path
+      required: true
+      description: Fiscal period id
+      schema:
+        type: string
+        format: uuid
+    FiscalYear:
+      name: year
+      in: path
+      required: true
+      description: Fiscal year, four digits
+      schema:
+        type: integer
+        minimum: 2000
+        maximum: 2200
+    IfMatchRequired:
+      name: If-Match
+      in: header
+      required: true
+      description: |
+        The `state_version` the client last saw. Required on period and holiday-calendar
+        writes. A mismatch is `409 CONFLICT` with the current state in `error.details.current`.
+        The first holiday-calendar write sends `0`.
+      schema:
+        type: string
 
   responses:
     BadRequest:
@@ -1788,3 +1948,123 @@ components:
             $ref: "#/components/schemas/JourneyProblem"
         next_step:
           $ref: "#/components/schemas/JourneyStep"
+    PeriodStatus:
+      type: string
+      enum: [open, soft_closed, hard_closed]
+
+    PeriodKind:
+      type: string
+      enum: [month, audit_adjustment]
+
+    PeriodApproval:
+      type: object
+      description: Approval id granted by the approvals module before a Stakeholder close or open.
+      required: [approval_id]
+      additionalProperties: false
+      properties:
+        approval_id:
+          type: string
+          minLength: 1
+
+    Period:
+      type: object
+      required: [id, fiscal_year, kind, status, start_date, end_date, state_version]
+      properties:
+        id:
+          type: string
+          format: uuid
+        fiscal_year:
+          type: integer
+        month:
+          type: [integer, "null"]
+          minimum: 1
+          maximum: 12
+          description: Null on the audit-adjustment period
+        kind:
+          $ref: "#/components/schemas/PeriodKind"
+        status:
+          $ref: "#/components/schemas/PeriodStatus"
+        start_date:
+          type: string
+          format: date
+        end_date:
+          type: string
+          format: date
+        state_version:
+          $ref: "#/components/schemas/StateVersion"
+
+    Weekday:
+      type: string
+      enum: [sunday, monday, tuesday, wednesday, thursday, friday, saturday]
+
+    Holiday:
+      type: object
+      required: [date, name]
+      additionalProperties: false
+      properties:
+        date:
+          type: string
+          format: date
+        name:
+          type: string
+          minLength: 1
+
+    HolidayCalendar:
+      type: object
+      description: |
+        Company business-hours calendar (ADR-12). Clocks count only time inside
+        `business_open`–`business_close` on days that are neither weekend nor holiday.
+      required: [state_version, timezone, business_open, business_close, weekend, holidays]
+      properties:
+        state_version:
+          $ref: "#/components/schemas/StateVersion"
+        timezone:
+          type: string
+          minLength: 1
+          examples: ["Asia/Dubai"]
+        business_open:
+          type: string
+          description: Local start of the working day, HH:MM (24-hour)
+          pattern: "^([01][0-9]|2[0-3]):[0-5][0-9]$"
+          examples: ["08:00"]
+        business_close:
+          type: string
+          description: Local end of the working day, HH:MM (24-hour), after `business_open`
+          pattern: "^([01][0-9]|2[0-3]):[0-5][0-9]$"
+          examples: ["20:00"]
+        weekend:
+          type: array
+          minItems: 1
+          uniqueItems: true
+          items:
+            $ref: "#/components/schemas/Weekday"
+        holidays:
+          type: array
+          items:
+            $ref: "#/components/schemas/Holiday"
+
+    HolidayCalendarWrite:
+      type: object
+      description: Body of POST /holiday-calendar. `state_version` is not accepted from the client.
+      required: [timezone, business_open, business_close, weekend, holidays]
+      additionalProperties: false
+      properties:
+        timezone:
+          type: string
+          minLength: 1
+        business_open:
+          type: string
+          pattern: "^([01][0-9]|2[0-3]):[0-5][0-9]$"
+        business_close:
+          type: string
+          pattern: "^([01][0-9]|2[0-3]):[0-5][0-9]$"
+        weekend:
+          type: array
+          minItems: 1
+          uniqueItems: true
+          items:
+            $ref: "#/components/schemas/Weekday"
+        holidays:
+          type: array
+          items:
+            $ref: "#/components/schemas/Holiday"

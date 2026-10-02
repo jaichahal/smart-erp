@@ -692,6 +692,42 @@ func (e GetMeParamsAcceptLanguage) Valid() bool {
 	}
 }
 
+// Defines values for ListMySessionsParamsAcceptLanguage.
+const (
+	ListMySessionsParamsAcceptLanguageAr ListMySessionsParamsAcceptLanguage = "ar"
+	ListMySessionsParamsAcceptLanguageEn ListMySessionsParamsAcceptLanguage = "en"
+)
+
+// Valid indicates whether the value is a known member of the ListMySessionsParamsAcceptLanguage enum.
+func (e ListMySessionsParamsAcceptLanguage) Valid() bool {
+	switch e {
+	case ListMySessionsParamsAcceptLanguageAr:
+		return true
+	case ListMySessionsParamsAcceptLanguageEn:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for EndMySessionParamsAcceptLanguage.
+const (
+	EndMySessionParamsAcceptLanguageAr EndMySessionParamsAcceptLanguage = "ar"
+	EndMySessionParamsAcceptLanguageEn EndMySessionParamsAcceptLanguage = "en"
+)
+
+// Valid indicates whether the value is a known member of the EndMySessionParamsAcceptLanguage enum.
+func (e EndMySessionParamsAcceptLanguage) Valid() bool {
+	switch e {
+	case EndMySessionParamsAcceptLanguageAr:
+		return true
+	case EndMySessionParamsAcceptLanguageEn:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for GetStatusParamsAcceptLanguage.
 const (
 	GetStatusParamsAcceptLanguageAr GetStatusParamsAcceptLanguage = "ar"
@@ -983,6 +1019,22 @@ type User struct {
 	Roles     []string `json:"roles"`
 }
 
+// UserSession A listable authenticated session bound to one enrolled device (R1.15).
+type UserSession struct {
+	CreatedAt time.Time `json:"created_at"`
+
+	// Current True when this session issued the access token of the caller
+	Current    *bool      `json:"current,omitempty"`
+	DeviceId   string     `json:"device_id"`
+	DeviceName *string    `json:"device_name,omitempty"`
+	Id         string     `json:"id"`
+	LastSeenAt *time.Time `json:"last_seen_at,omitempty"`
+	Platform   *Platform  `json:"platform,omitempty"`
+
+	// StateVersion Optimistic concurrency version; bumped on every transition
+	StateVersion StateVersion `json:"state_version"`
+}
+
 // AcceptLanguage defines model for AcceptLanguage.
 type AcceptLanguage string
 
@@ -1003,6 +1055,9 @@ type Limit = int
 
 // SessionId defines model for SessionId.
 type SessionId = string
+
+// UserSessionId defines model for UserSessionId.
+type UserSessionId = string
 
 // BadRequest Returned on every failure path including 429 and gateway errors (A17).
 type BadRequest = ErrorEnvelope
@@ -1326,6 +1381,36 @@ type GetMeParams struct {
 
 // GetMeParamsAcceptLanguage defines parameters for GetMe.
 type GetMeParamsAcceptLanguage string
+
+// ListMySessionsParams defines parameters for ListMySessions.
+type ListMySessionsParams struct {
+	// Cursor Opaque cursor from `meta.next_cursor` of the previous page.
+	Cursor *Cursor `form:"cursor,omitempty" json:"cursor,omitempty"`
+	Limit  *Limit  `form:"limit,omitempty" json:"limit,omitempty"`
+
+	// AcceptLanguage `en` or `ar`. Affects messages and print formats, never data.
+	AcceptLanguage *ListMySessionsParamsAcceptLanguage `json:"Accept-Language,omitempty"`
+}
+
+// ListMySessionsParamsAcceptLanguage defines parameters for ListMySessions.
+type ListMySessionsParamsAcceptLanguage string
+
+// EndMySessionParams defines parameters for EndMySession.
+type EndMySessionParams struct {
+	// IdempotencyKey UUID chosen by the client. The server stores the response for 24 hours and replays it for a
+	// repeated key with the same body; a different body with the same key is `409 CONFLICT`.
+	IdempotencyKey IdempotencyKey `json:"Idempotency-Key"`
+
+	// IfMatch The `state_version` the client last saw. A mismatch is `409 CONFLICT` with the current
+	// state in `error.details.current`.
+	IfMatch *IfMatch `json:"If-Match,omitempty"`
+
+	// AcceptLanguage `en` or `ar`. Affects messages and print formats, never data.
+	AcceptLanguage *EndMySessionParamsAcceptLanguage `json:"Accept-Language,omitempty"`
+}
+
+// EndMySessionParamsAcceptLanguage defines parameters for EndMySession.
+type EndMySessionParamsAcceptLanguage string
 
 // GetStatusParams defines parameters for GetStatus.
 type GetStatusParams struct {

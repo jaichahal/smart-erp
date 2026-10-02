@@ -1,0 +1,27 @@
+{
+  "event_id": "01J8Q5X3K2M4N6P8R0S2T4V6W9",
+  "type": "clock.expired",
+  "severity": "CRITICAL",
+  "company_id": "01J8Q5WZ0A0000000000000001",
+  "occurred_at": "2026-09-28T12:00:00Z",
+  "actor": {
+    "id": "system",
+    "name": "System"
+  },
+  "subject": {
+    "doc_type": "delivery_note",
+    "doc_id": "01J8Q5X1DOC000000000000311",
+    "doc_number": null,
+    "party": null
+  },
+  "amount": null,
+  "deep_link": "smarterp://document/01J8Q5X1DOC000000000000311",
+  "allowed_actions": ["acknowledge", "open"],
+  "state_version": 1,
+  "context": {
+    "clock_id": "01J8Q5X4CLK000000000000007",
+    "kind": "delivery_note",
+    "started_at": "2026-09-24T12:00:00Z",
+    "due_at": "2026-09-28T12:00:00Z"
+  }
+}

@@ -24,6 +24,7 @@ import (
 	"github.com/jaichahal/smart-erp/apps/api/internal/journeys"
 	"github.com/jaichahal/smart-erp/apps/api/internal/kit/apierr"
 	"github.com/jaichahal/smart-erp/apps/api/internal/kit/httpx"
+	"github.com/jaichahal/smart-erp/apps/api/internal/ledger"
 	periods "github.com/jaichahal/smart-erp/apps/api/internal/ledger/periods"
 	"github.com/jaichahal/smart-erp/apps/api/internal/notifications"
 	"github.com/jaichahal/smart-erp/apps/api/internal/sales"
@@ -71,6 +72,7 @@ func Handler(deps httpx.Deps, opts ...Option) (http.Handler, error) {
 		id := identity.Mount(v1, deps, w.identity...)
 		clocks.Mount(v1, deps)
 		periods.Mount(v1, deps, approvalGate{pool: deps.Pool})
+		ledger.Mount(v1, deps)
 		// Periods and authz both register GET /exceptions. Chi keeps the later
 		// route. Access-review exceptions must stay reachable with the bearer
 		// token authz verifies; period exceptions stay on the periods server.

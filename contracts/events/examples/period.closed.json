@@ -1,0 +1,26 @@
+{
+  "event_id": "01J8Q5X3K2M4N6P8R0S2T4V6WA",
+  "type": "period.closed",
+  "severity": "HIGH",
+  "company_id": "01J8Q5WZ0A0000000000000001",
+  "occurred_at": "2026-09-30T16:00:00Z",
+  "actor": {
+    "id": "01J8Q5X0USER00000000000001",
+    "name": "Fatima Al Mansoori"
+  },
+  "subject": {
+    "doc_type": "fiscal_period",
+    "doc_id": "01J8Q5X1PER000000000000009",
+    "doc_number": null,
+    "party": null
+  },
+  "amount": null,
+  "deep_link": "smarterp://document/01J8Q5X1PER000000000000009",
+  "allowed_actions": ["open"],
+  "state_version": 2,
+  "context": {
+    "period_id": "01J8Q5X1PER000000000000009",
+    "fiscal_year": 2026,
+    "close": "hard"
+  }
+}

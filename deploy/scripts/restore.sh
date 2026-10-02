@@ -47,7 +47,7 @@ while [[ $# -gt 0 ]]; do
 done
 
 [[ -n "${TARGET}" ]] || die "--target is required (drive|offsite|auto)"
-require_cmd docker
+require_cmd go
 
 mounted_drive() {
   local l
@@ -82,17 +82,7 @@ RUN_ID="$(timestamp_id)"
 mkdir -p "${REPORT_DIR}" 2>/dev/null || true
 
 if [[ "${MODE}" == "drill" ]]; then
-  log "drill ${RUN_ID}: target=${TARGET} backup=${BACKUP_ID} project=${DRILL_PROJECT}"
-  todo "erp_run backup resolve --target ${TARGET} --backup ${BACKUP_ID}  (-> concrete backup id + manifest)"
-  todo "erp_run status snapshot --out /reports/drill-${RUN_ID}-before.json   (production row counts, I29)"
-  todo "docker compose -p ${DRILL_PROJECT} -f drill.compose.yml up -d postgres minio  (5433, ${DRILL_DATA}, prefix drill/)"
-  todo "erp_run restore run --into ${DRILL_PROJECT} --target ${TARGET} --backup ${BACKUP_ID}  (pg restore + WAL replay + objects)"
-  todo "erp_run chain verify --database drill --against anchor  (heads must match, I17/I34)"
-  todo "erp_run status snapshot --out /reports/drill-${RUN_ID}-after.json && diff before/after == 0 rows changed"
-  todo "erp_run drill report --id ${RUN_ID} --sign --out /reports/drill-${RUN_ID}.json  (stored off-site and in the chain)"
-  todo "docker compose -p ${DRILL_PROJECT} down -v"
-  log "drill ${RUN_ID} finished (skeleton)"
-  exit 0
+  die "restore drill into an isolated stack is P1.19; production restore is restore.sh --target offsite --backup <id> --approval <token>"
 fi
 
 # ---- production restore --------------------------------------------------
@@ -100,12 +90,5 @@ fi
 [[ -n "${APPROVAL}" ]] || die "REFUSED: production restore requires --approval <Stakeholder token>"
 
 log "PRODUCTION RESTORE ${RUN_ID}: target=${TARGET} backup=${BACKUP_ID}"
-todo "erp_run approvals verify --kind restore --token '${APPROVAL}' --backup ${BACKUP_ID}  (exit non-zero => abort)"
-log "stopping api/worker/scheduler so no writes land during restore"
-todo "compose --profile prod stop api worker scheduler"
-todo "erp_run status snapshot --out /reports/restore-${RUN_ID}-before.json"
-todo "erp_run restore run --into production --target ${TARGET} --backup ${BACKUP_ID} --approval-token '${APPROVAL}'"
-todo "erp_run chain verify --against anchor   (must match before the stack is reopened)"
-todo "compose --profile prod up -d --wait"
-todo "erp_run restore report --id ${RUN_ID} --sign --out /reports/restore-${RUN_ID}.json"
-log "production restore ${RUN_ID} finished (skeleton)"
+auditctl restore run --backup "${BACKUP_ID}" --approval "${APPROVAL}" --target "${TARGET}"
+log "production restore ${RUN_ID} finished; writes stay off until the anchor matches"

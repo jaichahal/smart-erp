@@ -1,5 +1,6 @@
 import { FormEvent, PointerEvent, useEffect, useRef, useState } from "react";
 import { DragSheet, homeKind, HomeKind, sheetForDrag } from "./home";
+import { PersonaScreens } from "./PersonaScreens";
 import { ApiError, apiSend, Profile, signIn, verifyPhoneCode } from "./session";
 
 type Money = { amount?: string; currency?: string };
@@ -157,6 +158,7 @@ function Work({ profile, kind }: { profile: Profile; kind: HomeKind }) {
       <p data-testid="profile-personas">{profile.personas.join(", ")}</p>
       <p data-testid="home-kind">{kind}</p>
       <PersonaHome kind={kind} />
+      <PersonaScreens profile={profile} />
       <ApprovalInbox token={profile.accessToken} />
     </>
   );

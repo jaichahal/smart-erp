@@ -20,6 +20,7 @@ struct SignedInHome: View {
                     Text(session.roles.joined(separator: ", ")).accessibilityIdentifier("profile-roles")
                     Text(kind).accessibilityIdentifier("home-kind")
                     PersonaHome(kind: kind)
+                    PhoneHome(account: session.account)
                     Button("Settings") { showSettings = true }
                         .frame(minHeight: 44)
                         .accessibilityIdentifier("Settings")

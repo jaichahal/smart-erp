@@ -1,0 +1,20 @@
+button,
+input,
+select,
+textarea,
+a {
+  min-height: 44px;
+  min-width: 44px;
+  font: inherit;
+}
+
+nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.row {
+  touch-action: pan-y;
+  min-height: 44px;
+}

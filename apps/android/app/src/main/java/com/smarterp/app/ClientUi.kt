@@ -36,16 +36,16 @@ internal fun DeviceSession.Session.api(method: String, path: String, body: JSONO
 }
 
 private val tabs = mapOf(
-    "Stakeholder" to listOf("Brief", "Approvals", "Activity", "Reports", "DeviceSession.Session"),
-    "Sales Agent" to listOf("My Day", "Stock", "Orders", "Activity", "DeviceSession.Session"),
-    "Collection Agent" to listOf("Receivables", "Receipts", "Customers", "Activity", "DeviceSession.Session"),
-    "Driver" to listOf("Trip", "Activity", "DeviceSession.Session"),
-    "Accountant" to listOf("Queue", "Capture", "Approvals", "Activity", "DeviceSession.Session"),
-    "Credit Controller" to listOf("Queue", "Approvals", "Activity", "DeviceSession.Session"),
-    "Stock Counter" to listOf("Stock", "Activity", "DeviceSession.Session"),
-    "Production Supervisor" to listOf("Stock", "Activity", "DeviceSession.Session"),
-    "Auditor" to listOf("Activity", "Reports", "DeviceSession.Session"),
-    "System Manager" to listOf("Admin", "Activity", "DeviceSession.Session"),
+    "Stakeholder" to listOf("Brief", "Approvals", "Activity", "Reports", "Profile"),
+    "Sales Agent" to listOf("My Day", "Stock", "Orders", "Activity", "Profile"),
+    "Collection Agent" to listOf("Receivables", "Receipts", "Customers", "Activity", "Profile"),
+    "Driver" to listOf("Trip", "Activity", "Profile"),
+    "Accountant" to listOf("Queue", "Capture", "Approvals", "Activity", "Profile"),
+    "Credit Controller" to listOf("Queue", "Approvals", "Activity", "Profile"),
+    "Stock Counter" to listOf("Stock", "Activity", "Profile"),
+    "Production Supervisor" to listOf("Stock", "Activity", "Profile"),
+    "Auditor" to listOf("Activity", "Reports", "Profile"),
+    "System Manager" to listOf("Admin", "Activity", "Profile"),
 )
 
 private val stakeholderTitles = setOf("CFO", "Partner", "CTO")
@@ -59,7 +59,7 @@ fun personaTitle(profile: DeviceSession.Session): String {
     return profile.personas.firstOrNull() ?: profile.roles.firstOrNull() ?: "Unknown"
 }
 
-fun personaTabs(title: String): List<String> = tabs[title] ?: listOf("DeviceSession.Session")
+fun personaTabs(title: String): List<String> = tabs[title] ?: listOf("Profile")
 
 fun canGateVendor(profile: DeviceSession.Session): Boolean =
     (profile.roles + profile.personas).any { it == "CFO" || it == "Partner" }

@@ -101,6 +101,8 @@ func (c *S3Client) Delete(ctx context.Context, key string) error {
 	if version != "" {
 		return c.DeleteVersion(ctx, key, version)
 	}
+// Delete removes an object. Compliance retention turns this into ErrImmutableObject.
+func (c *S3Client) Delete(ctx context.Context, key string) error {
 	status, _, resp, err := c.do(ctx, http.MethodDelete, key, nil, nil, nil)
 	if err != nil {
 		return err
